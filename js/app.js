@@ -114,6 +114,13 @@ function topbar(extraRight = "") {
     </header>`;
 }
 
+function siteFooter() {
+  return `
+    <footer class="site-powered">
+      <span>Powered via <strong>Grok</strong> &amp; <strong>Rawson LABS</strong></span>
+    </footer>`;
+}
+
 function bindShell() {
   appEl.querySelectorAll("[data-go]").forEach((el) => {
     el.addEventListener("click", () => go(el.dataset.go));
@@ -309,6 +316,7 @@ function renderHome() {
           : "Tip: turn on Family cloud so scores stay in sync on every Mac."
       }
     </p>
+    ${siteFooter()}
   `;
     bindShell();
     appEl.querySelectorAll("[data-pick]").forEach((el) => {
@@ -404,6 +412,7 @@ function renderDashboard() {
         <li><strong style="color:var(--text)">XP &amp; badges</strong> — level up as you learn</li>
       </ol>
     </div>
+    ${siteFooter()}
   `;
   bindShell();
   appEl.querySelectorAll("[data-subject]").forEach((el) => {
@@ -1125,6 +1134,7 @@ function renderParent() {
         GCSE Maths, English Language &amp; Science foundations. Complements school.
       </p>
     </div>
+    ${siteFooter()}
   `;
   bindShell();
 
@@ -1318,6 +1328,7 @@ function renderSyncSetup() {
     <div class="card">
       <button class="btn btn-ghost" type="button" id="btnDisconnect">Turn off cloud on this Mac only</button>
     </div>
+    ${siteFooter()}
   `;
   bindShell();
 
@@ -1417,6 +1428,7 @@ function renderAiSettings() {
       </div>
       <p id="aiMsg" class="muted mt-1" style="font-size:0.85rem"></p>
     </div>
+    ${siteFooter()}
   `;
   bindShell();
   const msg = document.getElementById("aiMsg");
