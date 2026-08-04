@@ -16,40 +16,88 @@ function stopParentPoll() {
 
 async function save(options = {}) {
   const { pushCloud = true } = options;
-  saveState(state);
-  if (pushCloud && isSyncEnabled() && state.activeLearner) {
+  try {
+    saveState(state);
+  } catch (e) {
+    alert(
+      "Could not save on this Mac (browser storage blocked or full). Progress may be lost on refresh — try Safari settings or another browser."
+    );
+    throw e;
+  }
+  if (pushCloud && state.activeLearner) {
     try {
+      ensureCloudEnabled();
       syncStatus = "Saving to family cloud…";
-      await pushProfile(state.activeLearner, state.profiles[state.activeLearner]);
-      syncStatus = "Cloud saved ✓ " + formatTime(Date.now());
+      const result = await pushProfile(
+        state.activeLearner,
+        state.profiles[state.activeLearner]
+      );
+      if (result?.remote && result.skipped) {
+        // Cloud had richer data — adopt it
+        state.profiles[state.activeLearner] = {
+          ...defaultProfile(state.activeLearner),
+          ...result.remote,
+          id: state.activeLearner,
+        };
+        saveState(state);
+        syncStatus = "Loaded newer progress from cloud ✓";
+      } else {
+        // Keep local updatedAt in sync with what we pushed
+        if (result?.updatedAt) {
+          state.profiles[state.activeLearner].updatedAt = result.updatedAt;
+          saveState(state);
+        }
+        syncStatus = "Saved on this Mac + cloud ✓ " + formatTime(Date.now());
+      }
     } catch (err) {
       console.error(err);
-      syncStatus = "Cloud save failed — still saved on this Mac";
+      syncStatus = "Saved on this Mac only (cloud failed) — " + (err.message || "");
     }
   }
 }
 
 async function refreshFromCloud(opts = {}) {
   const { silent = false } = opts;
+  try {
+    ensureCloudEnabled();
+  } catch {
+    /* ignore */
+  }
   if (!isSyncEnabled()) return false;
   try {
     if (!silent) syncStatus = "Syncing…";
     const result = await Promise.race([
       pullProfiles(state),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Cloud timeout")), 8000)
+        setTimeout(() => reject(new Error("Cloud timeout")), 10000)
       ),
     ]);
     if (result.changed) {
-      saveState(state);
-      syncStatus = "Updated from family cloud ✓ " + formatTime(Date.now());
+      // Persist merged profiles without bumping timestamps incorrectly
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.error(e);
+      }
+      syncStatus =
+        "Updated from family cloud ✓ " +
+        formatTime(Date.now()) +
+        (result.restored?.length
+          ? ` (restored: ${result.restored.join(", ")})`
+          : "");
     } else if (!silent) {
       syncStatus = "Up to date ✓ " + formatTime(Date.now());
+    }
+    // Upload any local progress that is richer than cloud
+    try {
+      await pushRicherLocals(state);
+    } catch (e) {
+      console.warn(e);
     }
     return result.changed;
   } catch (err) {
     console.error(err);
-    if (!silent) syncStatus = "Cloud sync error — check Family sync setup";
+    if (!silent) syncStatus = "Cloud sync error — progress kept on this Mac if saved";
     return false;
   }
 }
@@ -665,7 +713,18 @@ function renderDiagnostic({ subject }) {
   async function finish() {
     const result = scoreDiagnostic(subject, state.activeLearner, answers);
     recordDiagnostic(profile(), subject, answers, result);
-    await save();
+    try {
+      // Explicit persist for this learner (local + Firebase)
+      await persistLearner(state, state.activeLearner);
+      syncStatus = "Exam saved ✓";
+    } catch (e) {
+      console.error(e);
+      try {
+        await save();
+      } catch (_) {
+        /* already alerted */
+      }
+    }
     go("diagnosticResult", { subject, result });
   }
 
@@ -691,6 +750,7 @@ function renderDiagnosticResult({ subject, result }) {
       <div class="q-meta">${S.emoji} ${S.name} placement complete</div>
       <div class="score-big">${result.score}%</div>
       <p>${result.correct} of ${result.total} correct</p>
+      <p class="muted" style="color:var(--ok);font-weight:800">Progress saved on this Mac + family cloud</p>
       <p class="muted">${escapeHtml(randomEncouragement())}</p>
     </div>
     <div class="card mb-2">
@@ -1018,7 +1078,17 @@ function renderLesson({ subject, skillId }) {
       video: session.videoShown,
       at: todayKey(),
     };
-    await save();
+    try {
+      await persistLearner(state, state.activeLearner);
+      syncStatus = "Lesson saved ✓";
+    } catch (e) {
+      console.error(e);
+      try {
+        await save();
+      } catch (_) {
+        /* ignore */
+      }
+    }
     go("lessonResult", {
       subject,
       skillId,
@@ -1133,6 +1203,18 @@ function renderParent() {
     </div>
 
     <div class="card mt-2">
+      <h3 style="margin-top:0">Where progress is saved</h3>
+      <p class="muted" style="margin:0;line-height:1.55">
+        <strong style="color:var(--text)">1. This Mac</strong> — browser storage (instant)<br>
+        <strong style="color:var(--text)">2. Family cloud</strong> — Google Firebase project
+        <em>Rawson Labs</em>, family code <code style="color:var(--gold)">RAWSON-HOME</code>
+        (Realtime Database in europe-west1). Each child profile is stored under
+        <code style="color:var(--muted)">/families/RAWSON-HOME/profiles/</code>.
+      </p>
+      <button class="btn btn-secondary mt-1" type="button" id="btnForceRestore">↻ Restore scores from cloud now</button>
+    </div>
+
+    <div class="card mt-2">
       <h3 style="margin-top:0">Curriculum note</h3>
       <p class="muted" style="margin:0;line-height:1.55">
         English National Curriculum (KS2 George · KS3 Bella-Rose) mapped toward
@@ -1142,6 +1224,17 @@ function renderParent() {
     ${siteFooter()}
   `;
   bindShell();
+
+  document.getElementById("btnForceRestore")?.addEventListener("click", async () => {
+    ensureCloudEnabled();
+    const changed = await refreshFromCloud({ silent: false });
+    alert(
+      changed
+        ? "Restored / updated from family cloud. Check Recent scores on the home page."
+        : "Cloud checked. " + (syncStatus || "No newer data found.")
+    );
+    go("parent");
+  });
 
   document.getElementById("pExport").onclick = () => {
     const blob = new Blob([exportState(state)], { type: "application/json" });
@@ -1476,12 +1569,12 @@ function renderAiSettings() {
 // —— Boot ——
 (async function boot() {
   try {
-    if (isSyncEnabled()) {
-      try {
-        await refreshFromCloud({ silent: true });
-      } catch {
-        /* offline / timeout ok — still open the app */
-      }
+    // Always connect to Rawson Labs Firebase family cloud
+    try {
+      ensureCloudEnabled();
+      await refreshFromCloud({ silent: true });
+    } catch {
+      /* offline / timeout ok — still open the app with local data */
     }
     go(state.activeLearner ? "dashboard" : "home");
   } catch (err) {

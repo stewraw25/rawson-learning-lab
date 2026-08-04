@@ -1,14 +1,15 @@
 /**
  * Family cloud sync via Firebase Realtime Database (REST API)
- * Each kid's Mac writes only their profile; parent Mac reads both live.
  *
- * Pre-configured for Rawson Labs Firebase (Stewart's project).
- * One-click join on each Mac — no URL pasting needed.
+ * Cloud: Google Firebase project "Rawson Labs"
+ * URL: https://rawson-labs-default-rtdb.europe-west1.firebasedatabase.app
+ * Family: RAWSON-HOME
+ *
+ * Path: /families/RAWSON-HOME/profiles/{bella|george}
  */
 
 const SYNC_CONFIG_KEY = "rawson-learning-sync-config-v1";
 
-/** Built-in cloud for this family — from Firebase project "Rawson Labs" */
 const BUILTIN_CLOUD = {
   databaseURL:
     "https://rawson-labs-default-rtdb.europe-west1.firebasedatabase.app",
@@ -33,7 +34,6 @@ function setSyncConfig(cfg) {
   localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(cfg));
 }
 
-/** One-click: use the built-in Rawson Labs cloud */
 function enableBuiltinCloud() {
   setSyncConfig({
     databaseURL: BUILTIN_CLOUD.databaseURL,
@@ -42,13 +42,19 @@ function enableBuiltinCloud() {
   return getSyncConfig();
 }
 
+/** Always ensure family cloud is configured (fixes "forgot to turn on sync") */
+function ensureCloudEnabled() {
+  if (!isSyncEnabled()) enableBuiltinCloud();
+  return isSyncEnabled();
+}
+
 function isSyncEnabled() {
   const c = getSyncConfig();
   return !!(c && c.databaseURL && c.familyCode);
 }
 
-/** Quick read/write test so we know Firebase rules allow access */
 async function testCloudConnection() {
+  ensureCloudEnabled();
   const root = familyRoot();
   if (!root) throw new Error("Sync not configured");
   const probe = { ok: true, t: Date.now() };
@@ -87,6 +93,42 @@ function generateFamilyCode() {
   return `RAWSON-${part()}-${part()}`;
 }
 
+/**
+ * How much real progress a profile has — used so empty "fresh" profiles
+ * never wipe real exam/lesson data from the cloud.
+ */
+function progressScore(p) {
+  if (!p || typeof p !== "object") return 0;
+  let score = 0;
+  const diags = Object.values(p.diagnostics || {}).filter((d) => d && d.completed);
+  score += diags.length * 1000;
+  score += diags.reduce((a, d) => a + (Number(d.score) || 0), 0);
+  score += (p.lessonHistory || []).length * 50;
+  score += Number(p.xp) || 0;
+  score += (p.badges || []).length * 20;
+  // completed lesson keys in courses
+  for (const c of Object.values(p.courses || {})) {
+    if (c && c.completed) score += Object.keys(c.completed).length * 40;
+  }
+  return score;
+}
+
+function profileHasProgress(p) {
+  return progressScore(p) > 0;
+}
+
+/** Prefer richer progress; only use timestamp as tie-breaker */
+function preferRemoteProfile(localP, remoteP) {
+  if (!remoteP) return false;
+  if (!localP) return true;
+  const rs = progressScore(remoteP);
+  const ls = progressScore(localP);
+  if (rs > ls) return true;
+  if (rs < ls) return false;
+  // equal progress — newer timestamp wins
+  return (remoteP.updatedAt || 0) > (localP.updatedAt || 0);
+}
+
 async function cloudPut(path, data) {
   const root = familyRoot();
   if (!root) throw new Error("Cloud sync not configured");
@@ -115,14 +157,31 @@ async function cloudGet(path = "profiles") {
   return res.json();
 }
 
-/** Push one learner profile to the cloud */
+/** Push one learner profile to the cloud (never push empty over rich remote) */
 async function pushProfile(learnerId, profile) {
+  ensureCloudEnabled();
   if (!isSyncEnabled()) return { skipped: true };
+
+  let remote = null;
+  try {
+    remote = await cloudGet(`profiles/${learnerId}`);
+  } catch {
+    remote = null;
+  }
+
+  // Don't clobber richer cloud data with emptier local
+  if (remote && progressScore(remote) > progressScore(profile)) {
+    return { skipped: true, reason: "remote_richer", remote };
+  }
+
   const payload = {
     ...profile,
     id: learnerId,
     updatedAt: Date.now(),
   };
+  // Keep a fingerprint of progress for debugging
+  payload._progressScore = progressScore(payload);
+
   await cloudPut(`profiles/${learnerId}`, payload);
   await cloudPut("meta", {
     lastActivityAt: Date.now(),
@@ -132,37 +191,83 @@ async function pushProfile(learnerId, profile) {
   return { ok: true, updatedAt: payload.updatedAt };
 }
 
-/** Pull all profiles; merge into local state by newer updatedAt */
+/**
+ * Pull all profiles; merge so real progress is never wiped by empty defaults.
+ * Returns { state, changed, restored } — restored = ids loaded from cloud.
+ */
 async function pullProfiles(state) {
-  if (!isSyncEnabled()) return { skipped: true, state };
+  ensureCloudEnabled();
+  if (!isSyncEnabled()) return { skipped: true, state, changed: false, restored: [] };
+
   const remote = await cloudGet("profiles");
   if (!remote || typeof remote !== "object") {
-    return { ok: true, state, changed: false };
+    return { ok: true, state, changed: false, restored: [] };
   }
 
   let changed = false;
+  const restored = [];
+
   for (const id of Object.keys(LEARNERS)) {
     const remoteP = remote[id];
     if (!remoteP) continue;
     const localP = state.profiles[id] || defaultProfile(id);
-    const remoteTs = remoteP.updatedAt || 0;
-    const localTs = localP.updatedAt || 0;
-    if (remoteTs > localTs) {
-      state.profiles[id] = { ...defaultProfile(id), ...remoteP, id };
+
+    if (preferRemoteProfile(localP, remoteP)) {
+      state.profiles[id] = {
+        ...defaultProfile(id),
+        ...remoteP,
+        id,
+        // ensure updatedAt not wiped to "now" by defaultProfile
+        updatedAt: remoteP.updatedAt || localP.updatedAt || 0,
+      };
       changed = true;
+      if (profileHasProgress(remoteP)) restored.push(id);
     }
   }
-  return { ok: true, state, changed };
+  return { ok: true, state, changed, restored };
 }
 
-/** First-time: upload both local profiles so family cloud is seeded */
+/**
+ * After pull: if local is richer for any kid, push them up.
+ */
+async function pushRicherLocals(state) {
+  ensureCloudEnabled();
+  if (!isSyncEnabled()) return;
+  for (const id of Object.keys(LEARNERS)) {
+    const localP = state.profiles[id];
+    if (!profileHasProgress(localP)) continue;
+    try {
+      await pushProfile(id, localP);
+    } catch (e) {
+      console.warn("pushRicherLocals", id, e);
+    }
+  }
+}
+
+/** Upload locals only when remote missing or local is richer */
 async function seedCloudFromLocal(state) {
+  ensureCloudEnabled();
   if (!isSyncEnabled()) throw new Error("Configure sync first");
+
+  let remote = {};
+  try {
+    remote = (await cloudGet("profiles")) || {};
+  } catch {
+    remote = {};
+  }
+
   for (const id of Object.keys(LEARNERS)) {
     const p = state.profiles[id] || defaultProfile(id);
-    p.updatedAt = p.updatedAt || Date.now();
-    state.profiles[id] = p;
-    await cloudPut(`profiles/${id}`, p);
+    const r = remote[id];
+    if (!r || progressScore(p) >= progressScore(r)) {
+      p.updatedAt = Date.now();
+      state.profiles[id] = p;
+      await cloudPut(`profiles/${id}`, {
+        ...p,
+        id,
+        _progressScore: progressScore(p),
+      });
+    }
   }
   await cloudPut("meta", {
     lastActivityAt: Date.now(),
@@ -174,6 +279,7 @@ async function seedCloudFromLocal(state) {
 }
 
 async function fetchMeta() {
+  ensureCloudEnabled();
   if (!isSyncEnabled()) return null;
   try {
     return await cloudGet("meta");
@@ -190,7 +296,7 @@ function inviteText() {
     "2. Parent zone → Family cloud",
     "3. Press: Turn on family cloud on this Mac",
     "",
-    "Do this once on each iMac.",
+    "Progress is stored in Google Firebase (Rawson Labs project).",
   ].join("\n");
 }
 
@@ -207,4 +313,13 @@ function formatTime(ts) {
   } catch {
     return "—";
   }
+}
+
+function cloudSystemDescription() {
+  return {
+    name: "Google Firebase Realtime Database",
+    project: "Rawson Labs",
+    family: BUILTIN_CLOUD.familyCode,
+    url: BUILTIN_CLOUD.databaseURL,
+  };
 }

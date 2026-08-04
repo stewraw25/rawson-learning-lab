@@ -23,7 +23,8 @@ function defaultProfile(learnerId) {
     },
     lessonHistory: [],
     parentNotes: "",
-    updatedAt: Date.now(),
+    // 0 = empty shell — must NOT beat real cloud progress on merge
+    updatedAt: 0,
   };
 }
 
@@ -54,11 +55,31 @@ function createFreshState() {
 }
 
 function saveState(state) {
-  // Bump updatedAt on active profile so cloud merge knows who is newer
+  // Bump updatedAt on active profile when they have progress or are saving work
   if (state.activeLearner && state.profiles[state.activeLearner]) {
-    state.profiles[state.activeLearner].updatedAt = Date.now();
+    const p = state.profiles[state.activeLearner];
+    p.updatedAt = Date.now();
+    p.id = state.activeLearner;
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.error("localStorage save failed", e);
+    throw e;
+  }
+}
+
+/** Force-save a specific learner (e.g. after exam) to local + cloud */
+async function persistLearner(state, learnerId) {
+  if (!state.profiles[learnerId]) return;
+  state.profiles[learnerId].updatedAt = Date.now();
+  state.profiles[learnerId].id = learnerId;
+  saveState(state);
+  if (typeof ensureCloudEnabled === "function") ensureCloudEnabled();
+  if (typeof pushProfile === "function" && typeof isSyncEnabled === "function" && isSyncEnabled()) {
+    return pushProfile(learnerId, state.profiles[learnerId]);
+  }
+  return { skipped: true };
 }
 
 function exportState(state) {
