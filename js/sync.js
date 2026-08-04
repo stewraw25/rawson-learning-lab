@@ -213,13 +213,10 @@ async function pullProfiles(state) {
     const localP = state.profiles[id] || defaultProfile(id);
 
     if (preferRemoteProfile(localP, remoteP)) {
-      state.profiles[id] = {
-        ...defaultProfile(id),
+      state.profiles[id] = normalizeProfile(id, {
         ...remoteP,
-        id,
-        // ensure updatedAt not wiped to "now" by defaultProfile
         updatedAt: remoteP.updatedAt || localP.updatedAt || 0,
-      };
+      });
       changed = true;
       if (profileHasProgress(remoteP)) restored.push(id);
     }

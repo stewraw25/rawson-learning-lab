@@ -28,14 +28,42 @@ function defaultProfile(learnerId) {
   };
 }
 
+/** Make sure a profile is always a safe object (never null diagnostics etc.) */
+function normalizeProfile(learnerId, raw) {
+  const base = defaultProfile(learnerId);
+  if (!raw || typeof raw !== "object") return base;
+  const p = { ...base, ...raw, id: learnerId };
+  if (!p.diagnostics || typeof p.diagnostics !== "object" || Array.isArray(p.diagnostics)) {
+    p.diagnostics = {};
+  }
+  if (!p.courses || typeof p.courses !== "object" || Array.isArray(p.courses)) {
+    p.courses = {};
+  }
+  if (!Array.isArray(p.badges)) p.badges = [];
+  if (!Array.isArray(p.lessonHistory)) p.lessonHistory = [];
+  if (typeof p.xp !== "number" || Number.isNaN(p.xp)) p.xp = 0;
+  if (typeof p.level !== "number" || Number.isNaN(p.level)) p.level = 1;
+  if (typeof p.streak !== "number" || Number.isNaN(p.streak)) p.streak = 0;
+  if (typeof p.updatedAt !== "number") p.updatedAt = 0;
+  if (!p.fullName) p.fullName = base.fullName;
+  return p;
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return createFreshState();
     const data = JSON.parse(raw);
-    // Ensure both kids exist
+    if (!data.profiles || typeof data.profiles !== "object") {
+      return createFreshState();
+    }
+    // Ensure both kids exist and are safe shapes
     for (const id of Object.keys(LEARNERS)) {
-      if (!data.profiles[id]) data.profiles[id] = defaultProfile(id);
+      data.profiles[id] = normalizeProfile(id, data.profiles[id]);
+    }
+    // Drop invalid active learner
+    if (data.activeLearner && !LEARNERS[data.activeLearner]) {
+      data.activeLearner = null;
     }
     return data;
   } catch {
@@ -299,18 +327,22 @@ function recordLesson(profile, subject, skillId, scorePct) {
 }
 
 function subjectOverall(profile, subject) {
+  if (!profile || !profile.diagnostics || typeof profile.diagnostics !== "object") {
+    return null;
+  }
   const diag = profile.diagnostics[subject];
-  if (diag?.skillScores) {
-    const vals = Object.values(diag.skillScores);
-    // Boost slightly for completed lessons
-    const course = profile.courses[subject];
+  if (diag && diag.skillScores && typeof diag.skillScores === "object") {
+    const vals = Object.values(diag.skillScores).filter((v) => typeof v === "number");
+    if (!vals.length) return diag.score != null ? Number(diag.score) : null;
+    const course = profile.courses && profile.courses[subject];
     let boost = 0;
-    if (course?.completed) {
+    if (course && course.completed && typeof course.completed === "object") {
       boost = Math.min(15, Object.keys(course.completed).length * 3);
     }
     const base = vals.reduce((a, b) => a + b, 0) / vals.length;
     return Math.min(100, Math.round(base + boost * 0.3));
   }
+  if (diag && diag.completed && diag.score != null) return Number(diag.score);
   return null;
 }
 

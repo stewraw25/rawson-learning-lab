@@ -3,7 +3,11 @@
  */
 
 let state = loadState();
-const appEl = document.getElementById("app");
+function getAppEl() {
+  return document.getElementById("app");
+}
+/** @deprecated use getAppEl() — kept for existing code paths */
+let appEl = getAppEl();
 let parentPollTimer = null;
 let syncStatus = ""; // parent diagnostics only
 let autoSyncTimer = null;
@@ -204,16 +208,43 @@ function startAutoSync() {
 }
 
 function profile() {
+  if (!state.activeLearner) return null;
+  state.profiles[state.activeLearner] = normalizeProfile(
+    state.activeLearner,
+    state.profiles[state.activeLearner]
+  );
   return state.profiles[state.activeLearner];
 }
 
 function learner() {
-  return LEARNERS[state.activeLearner];
+  return LEARNERS[state.activeLearner] || null;
 }
 
 function go(screen, params = {}) {
   stopParentPoll();
-  window.scrollTo(0, 0);
+  try {
+    window.scrollTo(0, 0);
+  } catch (_) {
+    /* ignore */
+  }
+  // Refresh root in case DOM was replaced
+  appEl = getAppEl();
+  if (!appEl) {
+    console.error("Missing #app element");
+    return;
+  }
+  // If learner data is broken, force home
+  if (screen !== "home" && screen !== "parent" && screen !== "sync" && screen !== "aiSettings") {
+    if (!state.activeLearner || !state.profiles[state.activeLearner]) {
+      state.activeLearner = null;
+      screen = "home";
+    } else {
+      state.profiles[state.activeLearner] = normalizeProfile(
+        state.activeLearner,
+        state.profiles[state.activeLearner]
+      );
+    }
+  }
   const routes = {
     home: renderHome,
     dashboard: renderDashboard,
@@ -227,7 +258,53 @@ function go(screen, params = {}) {
     aiSettings: renderAiSettings,
   };
   const fn = routes[screen];
-  if (fn) fn(params);
+  try {
+    if (fn) fn(params);
+  } catch (err) {
+    console.error("Screen failed:", screen, err);
+    // Fall back to a safe home paint
+    try {
+      state.activeLearner = null;
+      renderHome();
+    } catch (err2) {
+      showFatalError(err2 || err);
+    }
+  }
+}
+
+function showFatalError(err) {
+  const el = getAppEl();
+  if (!el) return;
+  const msg = String(err && err.message ? err.message : err || "Unknown error");
+  el.innerHTML =
+    '<div style="padding:2rem;font-family:system-ui;max-width:32rem;margin:2rem auto;color:#f7f1e3;background:#2a3d30;border-radius:16px">' +
+    "<h1 style=\"margin-top:0\">Rawson Learning Lab</h1>" +
+    "<p>Something went wrong loading the app.</p>" +
+    '<p style="font-size:0.85rem;opacity:0.8">' +
+    msg.replace(/</g, "&lt;") +
+    "</p>" +
+    '<p><a href="?v=18" style="color:#a5d6a7">Reload clean link</a></p>' +
+    '<p style="margin-top:1rem">' +
+    '<a href="?v=18&amp;reset=1" id="btnResetLocal" ' +
+    'style="display:inline-block;padding:0.75rem 1rem;border-radius:10px;background:#43a047;color:#fff;font-weight:700;text-decoration:none">' +
+    "Reset local data &amp; reload</a></p>" +
+    '<p style="font-size:0.8rem;opacity:0.7;margin-top:1rem">Your exam scores are still in the family cloud and will reload after reset.</p>' +
+    "</div>";
+  // Inline-safe: also clear storage when link is clicked (in case query handling fails)
+  const btn = document.getElementById("btnResetLocal");
+  if (btn) {
+    btn.onclick = function (e) {
+      e.preventDefault();
+      try {
+        localStorage.removeItem("rawson-learning-lab-v1");
+        localStorage.removeItem("rawson-learning-sync-config-v1");
+      } catch (_) {
+        /* ignore */
+      }
+      window.location.href =
+        "https://stewraw25.github.io/rawson-learning-lab/?v=18&reset=1&t=" + Date.now();
+    };
+  }
 }
 
 // —— Shell helpers ——
@@ -276,6 +353,8 @@ function siteFooter() {
 }
 
 function bindShell() {
+  appEl = getAppEl();
+  if (!appEl || typeof appEl.querySelectorAll !== "function") return;
   appEl.querySelectorAll("[data-go]").forEach((el) => {
     el.addEventListener("click", () => go(el.dataset.go));
   });
@@ -283,7 +362,7 @@ function bindShell() {
   if (sw) {
     sw.addEventListener("click", () => {
       state.activeLearner = null;
-      save();
+      save({ quiet: true }).catch(function () {});
       go("home");
     });
   }
@@ -511,10 +590,13 @@ function renderHome() {
 
 // —— DASHBOARD ——
 function renderDashboard() {
-  if (!state.activeLearner) return go("home");
+  if (!state.activeLearner || !learner() || !profile()) {
+    state.activeLearner = null;
+    return go("home");
+  }
   const L = learner();
   const p = profile();
-  const xpInLevel = p.xp % 100;
+  const xpInLevel = (p.xp || 0) % 100;
 
   appEl.innerHTML = `
     ${topbar()}
@@ -1564,37 +1646,51 @@ function renderAiSettings() {
 
 // —— Boot ——
 (async function boot() {
+  // Handle ?reset=1 from the error screen (works even if JS partially broken)
   try {
-    // Always-on automatic cloud (no kid actions)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("reset") === "1") {
+      try {
+        localStorage.removeItem("rawson-learning-lab-v1");
+      } catch (_) {
+        /* ignore */
+      }
+      // Keep cloud config so auto-sync still works
+      window.history.replaceState({}, "", "?v=18");
+    }
+  } catch (_) {
+    /* ignore */
+  }
+
+  try {
+    // Re-load state after possible reset
+    state = loadState();
+    // Normalize all profiles
+    for (const id of Object.keys(LEARNERS)) {
+      state.profiles[id] = normalizeProfile(id, state.profiles[id]);
+    }
+    appEl = getAppEl();
+
     try {
       ensureCloudEnabled();
       startAutoSync();
       await refreshFromCloud({ silent: true });
-    } catch {
-      /* offline ok */
+      // Normalize again after cloud merge
+      for (const id of Object.keys(LEARNERS)) {
+        state.profiles[id] = normalizeProfile(id, state.profiles[id]);
+      }
+    } catch (syncErr) {
+      console.warn("Cloud sync on boot failed (app still opens)", syncErr);
     }
-    go(state.activeLearner ? "dashboard" : "home");
+
+    // Prefer home if learner data odd — safer than crashing dashboard
+    const canDash =
+      state.activeLearner &&
+      LEARNERS[state.activeLearner] &&
+      state.profiles[state.activeLearner];
+    go(canDash ? "dashboard" : "home");
   } catch (err) {
     console.error("Boot failed", err);
-    // Last resort UI so the page is never a blank screen
-    const el = document.getElementById("app");
-    if (el) {
-      el.innerHTML = `
-        <div style="padding:2rem;font-family:system-ui;max-width:32rem;margin:2rem auto;color:#f7f1e3;background:#2a3d30;border-radius:16px">
-          <h1 style="margin-top:0">Rawson Learning Lab</h1>
-          <p>Something went wrong loading the full app. Try a hard refresh (Cmd+Shift+R).</p>
-          <p style="font-size:0.85rem;opacity:0.8">${String(err && err.message ? err.message : err)}</p>
-          <p><a href="?v=9" style="color:#a5d6a7">Reload clean link</a></p>
-          <button type="button" id="btnResetLocal" style="margin-top:1rem;padding:0.75rem 1rem;border-radius:10px;border:0;background:#43a047;color:#fff;font-weight:700;cursor:pointer">
-            Reset local data &amp; reload
-          </button>
-        </div>`;
-      document.getElementById("btnResetLocal")?.addEventListener("click", () => {
-        try {
-          localStorage.removeItem("rawson-learning-lab-v1");
-        } catch (_) {}
-        location.href = "?v=9&reset=1";
-      });
-    }
+    showFatalError(err);
   }
 })();
