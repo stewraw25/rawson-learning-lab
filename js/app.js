@@ -90,7 +90,7 @@ function topbar(extraRight = "") {
         <img class="logo-mark" src="assets/logo.svg" width="46" height="46" alt="Rawson Learning Lab" />
         <div>
           <h1>Rawson Learning Lab</h1>
-          <p>Homeschool garden · books · GCSE pathway</p>
+          <p>Homeschooling tuition · tailored for each student</p>
         </div>
       </div>
       <div class="pill-row">
@@ -178,8 +178,8 @@ function renderHome() {
     ${topbar(`<button class="btn btn-ghost" data-go="parent" type="button">Parent zone</button>`)}
     <section class="hero">
       <img class="hero-logo" src="assets/logo-icon.jpg" width="96" height="96" alt="Rawson Learning Lab" />
-      <h2>Learning in the <span class="sparkle">garden</span> &amp; the library</h2>
-      <p class="lead center">Homeschool hub for <strong>Bella-Rose</strong> (12) &amp; <strong>George</strong> (10) · English, Maths &amp; Science · UK GCSE foundations</p>
+      <h2>Homeschooling tuition programme <span class="sparkle">tailored for each student</span></h2>
+      <p class="lead center">For <strong>Bella-Rose</strong> (12) &amp; <strong>George</strong> (10) · English, Maths &amp; Science · UK GCSE foundations</p>
     </section>
     <div class="grid-2">
       ${profileCard("bella")}

@@ -14,7 +14,7 @@ const LEARNERS = {
     stage: "ks3",
     emoji: "🌸",
     theme: "bella",
-    tagline: "Garden scholar · KS3 on the GCSE pathway",
+    tagline: "Personalised KS3 path toward GCSE",
   },
   george: {
     id: "george",
@@ -25,7 +25,7 @@ const LEARNERS = {
     stage: "ks2",
     emoji: "🍃",
     theme: "george",
-    tagline: "Outdoor explorer · KS2 GCSE foundations",
+    tagline: "Personalised KS2 path toward GCSE",
   },
 };
 
