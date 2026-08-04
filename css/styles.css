@@ -187,31 +187,192 @@ h2.section-title {
 }
 
 /* —— Home / profiles —— */
-.hero {
-  text-align: center;
-  padding: 1.5rem 0 2rem;
-}
 .hero-logo {
-  width: 96px;
-  height: 96px;
-  border-radius: 28px;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
   display: block;
-  margin: 0 auto 1rem;
-  box-shadow: 0 14px 36px rgba(46, 125, 50, 0.45);
+  margin: 0 0 0.85rem;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
   border: 2px solid rgba(243, 230, 200, 0.3);
 }
-.hero h2 {
-  font-family: var(--display);
-  font-size: clamp(1.8rem, 4vw, 2.6rem);
-  margin: 0 0 0.5rem;
-  line-height: 1.15;
-  font-weight: 700;
-}
-.hero .sparkle {
+.sparkle {
   background: linear-gradient(90deg, #ffd54f, #a5d6a7, #81c784);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+/* Homepage website layout */
+.home-hero {
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  margin-bottom: 1.75rem;
+  min-height: 320px;
+  display: grid;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+.home-hero-media {
+  position: absolute;
+  inset: 0;
+}
+.home-hero-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.home-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    rgba(26, 46, 31, 0.94) 0%,
+    rgba(26, 46, 31, 0.78) 48%,
+    rgba(26, 46, 31, 0.35) 100%
+  );
+}
+.home-hero-copy {
+  position: relative;
+  z-index: 1;
+  padding: 1.75rem 1.5rem 2rem;
+  max-width: 36rem;
+}
+.home-hero-copy h2 {
+  font-family: var(--display);
+  font-size: clamp(1.45rem, 3.4vw, 2.1rem);
+  margin: 0 0 0.55rem;
+  line-height: 1.22;
+  font-weight: 700;
+}
+.home-kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c5e1a5;
+}
+.home-hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.1rem;
+}
+.home-section {
+  margin-bottom: 1.75rem;
+}
+.home-score-card {
+  text-align: left;
+}
+.home-score-card .avatar.mini {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  font-size: 1.5rem;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+.home-score-card.bella .avatar {
+  background: linear-gradient(145deg, var(--bella), var(--bella-2));
+}
+.home-score-card.george .avatar {
+  background: linear-gradient(145deg, var(--george), var(--george-2));
+}
+.home-score-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.home-score-head h3 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.1rem;
+}
+.home-score-head .muted {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+}
+.home-avg {
+  margin-left: auto;
+  text-align: right;
+}
+.home-avg-num {
+  display: block;
+  font-family: var(--display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
+}
+.home-score-row {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr 4rem;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 0.45rem;
+}
+.home-score-bar {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.home-score-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #66bb6a, #ffd54f);
+}
+.home-last {
+  font-size: 0.8rem;
+  margin: 0.65rem 0 0;
+}
+.home-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+.home-feature {
+  padding: 0;
+  overflow: hidden;
+}
+.home-feature img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  display: block;
+}
+.home-feature h3 {
+  margin: 0.85rem 1rem 0.35rem;
+  font-family: var(--display);
+  font-size: 1.05rem;
+}
+.home-feature p {
+  margin: 0 1rem 1rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .home-features {
+    grid-template-columns: 1fr;
+  }
+  .home-score-row {
+    grid-template-columns: 4.5rem 1fr 3.5rem;
+    font-size: 0.75rem;
+  }
+  .home-hero {
+    min-height: 280px;
+  }
 }
 
 .profile-card {

@@ -90,7 +90,7 @@ function topbar(extraRight = "") {
         <img class="logo-mark" src="assets/logo.svg" width="46" height="46" alt="Rawson Learning Lab" />
         <div>
           <h1>Rawson Learning Lab</h1>
-          <p>Homeschooling tuition · tailored for each student</p>
+          <p>AI tutors · learning that fits around life</p>
         </div>
       </div>
       <div class="pill-row">
@@ -173,87 +173,185 @@ function questionLearnPayload(subject, skillId, q) {
 }
 
 // —— HOME ——
+function recentScoresSummary(id) {
+  const p = state.profiles[id] || defaultProfile(id);
+  const L = LEARNERS[id];
+  const subjects = ["maths", "english", "science"].map((sub) => {
+    const d = p.diagnostics?.[sub];
+    const overall = subjectOverall(p, sub);
+    return {
+      sub,
+      name: SUBJECTS[sub].name,
+      emoji: SUBJECTS[sub].emoji,
+      test: d?.completed ? d.score : null,
+      level: overall,
+      date: d?.date || null,
+    };
+  });
+  const recentLessons = (p.lessonHistory || []).slice(-3).reverse();
+  const lastLesson = recentLessons[0] || null;
+  const avgTest = subjects.filter((s) => s.test != null);
+  const avg =
+    avgTest.length > 0
+      ? Math.round(avgTest.reduce((a, s) => a + s.test, 0) / avgTest.length)
+      : null;
+
+  return { p, L, subjects, recentLessons, lastLesson, avg };
+}
+
+function scoreBoardCard(id) {
+  const { p, L, subjects, lastLesson, avg } = recentScoresSummary(id);
+  const bars = subjects
+    .map((s) => {
+      const pct = s.level ?? s.test ?? 0;
+      const label =
+        s.test != null ? `${s.test}% test` : s.level != null ? `~${s.level}%` : "—";
+      return `
+        <div class="home-score-row">
+          <span>${s.emoji} ${s.name}</span>
+          <div class="home-score-bar"><i style="width:${Math.max(pct, 4)}%"></i></div>
+          <strong>${label}</strong>
+        </div>`;
+    })
+    .join("");
+
+  const lastLine = lastLesson
+    ? `Last lesson: ${SUBJECTS[lastLesson.subject]?.name || lastLesson.subject} · ${
+        lastLesson.score
+      }% · ${lastLesson.date || ""}`
+    : "No lessons completed yet";
+
+  return `
+    <article class="card home-score-card ${L.theme}">
+      <div class="home-score-head">
+        <div class="avatar mini">${L.emoji}</div>
+        <div>
+          <h3>${escapeHtml(L.fullName)}</h3>
+          <p class="muted">Age ${L.age} · Lv ${p.level} · ${p.xp} XP · 🔥 ${p.streak || 0}</p>
+        </div>
+        <div class="home-avg">
+          <span class="home-avg-num">${avg != null ? avg + "%" : "—"}</span>
+          <span class="muted">avg test</span>
+        </div>
+      </div>
+      <div class="home-score-bars">${bars}</div>
+      <p class="home-last muted">${escapeHtml(lastLine)}</p>
+      <button class="btn btn-primary btn-block mt-1" type="button" data-pick="${id}">
+        Open ${escapeHtml(L.name)}'s hub →
+      </button>
+    </article>`;
+}
+
 function renderHome() {
-  appEl.innerHTML = `
+  // Pull latest cloud scores if family sync is on (non-blocking feel: await before paint)
+  const paint = () => {
+    appEl.innerHTML = `
     ${topbar(`<button class="btn btn-ghost" data-go="parent" type="button">Parent zone</button>`)}
-    <section class="hero">
-      <img class="hero-logo" src="assets/logo-icon.jpg" width="96" height="96" alt="Rawson Learning Lab" />
-      <h2>Homeschooling tuition programme <span class="sparkle">tailored for each student</span></h2>
-      <p class="lead center">For <strong>Bella-Rose</strong> (12) &amp; <strong>George</strong> (10) · English, Maths &amp; Science · UK GCSE foundations</p>
+
+    <section class="home-hero">
+      <div class="home-hero-media">
+        <img src="assets/hero-home.jpg" alt="Homeschool study table with books in a garden setting" />
+        <div class="home-hero-overlay"></div>
+      </div>
+      <div class="home-hero-copy">
+        <img class="hero-logo" src="assets/logo.svg" width="72" height="72" alt="Rawson Learning Lab" />
+        <p class="home-kicker">Rawson Learning Lab</p>
+        <h2>Homeschooling with <span class="sparkle">AI tutors</span> — so learning fits around life</h2>
+        <p class="lead">Personal paths for <strong>Bella-Rose</strong> &amp; <strong>George</strong> · English, Maths &amp; Science · UK GCSE foundations</p>
+        <div class="home-hero-cta">
+          <button class="btn btn-primary btn-lg" type="button" data-pick="bella">Bella-Rose 🌸</button>
+          <button class="btn btn-secondary btn-lg" type="button" data-pick="george">George 🍃</button>
+        </div>
+      </div>
     </section>
-    <div class="grid-2">
-      ${profileCard("bella")}
-      ${profileCard("george")}
-    </div>
+
+    <section class="home-section">
+      <h2 class="section-title">Recent scores</h2>
+      <p class="lead">How each student is doing right now (updates with family cloud).</p>
+      <div class="grid-2">
+        ${scoreBoardCard("bella")}
+        ${scoreBoardCard("george")}
+      </div>
+    </section>
+
+    <section class="home-section">
+      <h2 class="section-title">How it works</h2>
+      <div class="home-features">
+        <article class="card home-feature">
+          <img src="assets/feature-books.jpg" alt="Classic school books" />
+          <h3>Placement &amp; practice</h3>
+          <p class="muted">Tests find gaps, then lessons teach step by step — not just quizzes.</p>
+        </article>
+        <article class="card home-feature">
+          <img src="assets/feature-ai.jpg" alt="AI tutoring concept" />
+          <h3>AI tutors on demand</h3>
+          <p class="muted">“Learn about this subject” opens a full walkthrough when they’re stuck.</p>
+        </article>
+        <article class="card home-feature">
+          <img src="assets/logo-icon.jpg" alt="Garden learning brand" />
+          <h3>Fits real life</h3>
+          <p class="muted">Short sessions, cloud sync across iMacs, parent view of progress.</p>
+        </article>
+      </div>
+    </section>
+
     <div class="parent-bar">
-      <button class="btn btn-primary" type="button" data-go="sync">☁️ Family cloud sync</button>
-      <button class="btn btn-secondary" type="button" id="btnExport">⬇ Export backup</button>
-      <button class="btn btn-secondary" type="button" id="btnImport">⬆ Import backup</button>
+      <button class="btn btn-primary" type="button" data-go="parent">Parent zone</button>
+      <button class="btn btn-secondary" type="button" data-go="sync">☁️ Family cloud</button>
+      <button class="btn btn-secondary" type="button" id="btnExport">⬇ Export</button>
+      <button class="btn btn-secondary" type="button" id="btnImport">⬆ Import</button>
       <input type="file" id="importFile" accept="application/json" hidden />
     </div>
     <p class="muted center mt-1" style="font-size:0.8rem">
       ${
         isSyncEnabled()
-          ? "☁️ Family cloud is ON — progress shares across your iMacs."
-          : "Tip: set up Family cloud sync once so Mum/Dad can watch progress live on another Mac."
+          ? "☁️ Family cloud is ON — scores refresh from the cloud when you open this page."
+          : "Tip: turn on Family cloud so scores stay in sync on every Mac."
       }
     </p>
   `;
-  bindShell();
-  appEl.querySelectorAll("[data-pick]").forEach((el) => {
-    el.addEventListener("click", async () => {
-      state.activeLearner = el.dataset.pick;
-      await refreshFromCloud({ silent: true });
-      await save();
-      go("dashboard");
+    bindShell();
+    appEl.querySelectorAll("[data-pick]").forEach((el) => {
+      el.addEventListener("click", async () => {
+        state.activeLearner = el.dataset.pick;
+        await refreshFromCloud({ silent: true });
+        await save({ pushCloud: false });
+        go("dashboard");
+      });
     });
-  });
-  document.getElementById("btnExport").onclick = () => {
-    const blob = new Blob([exportState(state)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `rawson-learning-backup-${todayKey()}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    document.getElementById("btnExport").onclick = () => {
+      const blob = new Blob([exportState(state)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `rawson-learning-backup-${todayKey()}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+    document.getElementById("btnImport").onclick = () =>
+      document.getElementById("importFile").click();
+    document.getElementById("importFile").onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        state = importState(text);
+        save({ pushCloud: false });
+        alert("Progress imported!");
+        go("home");
+      } catch {
+        alert("Could not import that file.");
+      }
+    };
   };
-  document.getElementById("btnImport").onclick = () =>
-    document.getElementById("importFile").click();
-  document.getElementById("importFile").onchange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      state = importState(text);
-      save();
-      alert("Progress imported!");
-      go("home");
-    } catch {
-      alert("Could not import that file.");
-    }
-  };
-}
 
-function profileCard(id) {
-  const L = LEARNERS[id];
-  const p = state.profiles[id];
-  const tests = Object.values(p.diagnostics).filter((d) => d?.completed).length;
-  const lessons = p.lessonHistory.length;
-  return `
-    <article class="card profile-card ${L.theme}" data-pick="${id}">
-      <div class="avatar">${L.emoji}</div>
-      <h3>${escapeHtml(L.fullName)}</h3>
-      <div class="age">Age ${L.age} · ${L.yearGroup}</div>
-      <p class="muted mb-1">${escapeHtml(L.tagline)}</p>
-      <div class="profile-stats">
-        <span class="stat-chip">Lv ${p.level}</span>
-        <span class="stat-chip">${p.xp} XP</span>
-        <span class="stat-chip">${tests}/3 tests</span>
-        <span class="stat-chip">${lessons} lessons</span>
-      </div>
-      <button class="btn btn-primary btn-block mt-2" type="button">Enter ${escapeHtml(
-        L.name
-      )}'s hub →</button>
-    </article>`;
+  if (isSyncEnabled()) {
+    appEl.innerHTML = `${topbar(`<button class="btn btn-ghost" data-go="parent" type="button">Parent zone</button>`)}
+      <p class="muted center" style="padding:2rem">Refreshing scores from family cloud…</p>`;
+    bindShell();
+    refreshFromCloud({ silent: true }).finally(paint);
+  } else {
+    paint();
+  }
 }
 
 // —— DASHBOARD ——
