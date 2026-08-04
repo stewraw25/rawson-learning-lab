@@ -13,6 +13,9 @@ let syncStatus = ""; // parent diagnostics only
 let autoSyncTimer = null;
 let saveToastTimer = null;
 let debouncedSaveTimer = null;
+/** Cancels stale home-page repaints that stole focus from George's hub */
+let homePaintGeneration = 0;
+let currentScreen = "home";
 
 function stopParentPoll() {
   if (parentPollTimer) {
@@ -69,11 +72,7 @@ async function save(options = {}) {
     if (who && state.profiles[who]) {
       const result = await pushProfile(who, state.profiles[who]);
       if (result?.remote && result.skipped) {
-        state.profiles[who] = {
-          ...defaultProfile(who),
-          ...result.remote,
-          id: who,
-        };
+        state.profiles[who] = normalizeProfile(who, result.remote);
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         } catch (_) {
@@ -227,7 +226,10 @@ function go(screen, params = {}) {
   } catch (_) {
     /* ignore */
   }
-  // Refresh root in case DOM was replaced
+  // Leaving home — cancel any pending home repaint from cloud load
+  if (screen !== "home") {
+    homePaintGeneration++;
+  }
   appEl = getAppEl();
   if (!appEl) {
     console.error("Missing #app element");
@@ -235,7 +237,7 @@ function go(screen, params = {}) {
   }
   // If learner data is broken, force home
   if (screen !== "home" && screen !== "parent" && screen !== "sync" && screen !== "aiSettings") {
-    if (!state.activeLearner || !state.profiles[state.activeLearner]) {
+    if (!state.activeLearner || !LEARNERS[state.activeLearner]) {
       state.activeLearner = null;
       screen = "home";
     } else {
@@ -245,6 +247,7 @@ function go(screen, params = {}) {
       );
     }
   }
+  currentScreen = screen;
   const routes = {
     home: renderHome,
     dashboard: renderDashboard,
@@ -262,14 +265,67 @@ function go(screen, params = {}) {
     if (fn) fn(params);
   } catch (err) {
     console.error("Screen failed:", screen, err);
-    // Fall back to a safe home paint
     try {
-      state.activeLearner = null;
-      renderHome();
+      // Stay with learner if possible — show a simple hub recovery
+      if (state.activeLearner && LEARNERS[state.activeLearner]) {
+        appEl.innerHTML =
+          topbar() +
+          `<div class="card" style="margin-top:1rem">
+            <h2>Almost there</h2>
+            <p class="muted">Couldn’t open that screen. Your progress is still saved.</p>
+            <p class="muted" style="font-size:0.8rem">${escapeHtml(String(err.message || err))}</p>
+            <button class="btn btn-primary" type="button" id="btnRetryHub">Open hub again</button>
+            <button class="btn btn-secondary" type="button" data-go="home">Home</button>
+          </div>` +
+          siteFooter();
+        bindShell();
+        const btn = document.getElementById("btnRetryHub");
+        if (btn) btn.onclick = () => go("dashboard");
+      } else {
+        state.activeLearner = null;
+        renderHome();
+      }
     } catch (err2) {
       showFatalError(err2 || err);
     }
   }
+}
+
+/** Open a kid hub — load cloud first, never get sent back to home by a race */
+async function openLearnerHub(learnerId) {
+  if (!LEARNERS[learnerId]) return;
+  homePaintGeneration++; // cancel home repaint
+  state.activeLearner = learnerId;
+
+  // Ensure profile shell exists
+  state.profiles[learnerId] = normalizeProfile(
+    learnerId,
+    state.profiles[learnerId]
+  );
+
+  try {
+    ensureCloudEnabled();
+    await refreshFromCloud({ silent: true });
+  } catch (e) {
+    console.warn("openLearnerHub cloud", e);
+  }
+
+  state.profiles[learnerId] = normalizeProfile(
+    learnerId,
+    state.profiles[learnerId]
+  );
+
+  // Persist selection locally (don't block hub on cloud)
+  try {
+    saveState(state);
+  } catch (_) {
+    /* ignore */
+  }
+
+  // Push quietly in background — never block opening hub
+  save({ quiet: true, learnerId }).catch(() => {});
+
+  go("dashboard");
 }
 
 function showFatalError(err) {
@@ -483,8 +539,18 @@ function scoreBoardCard(id) {
 }
 
 function renderHome() {
-  // Pull latest cloud scores if family sync is on (non-blocking feel: await before paint)
+  const myGen = ++homePaintGeneration;
+  state.activeLearner = null; // home = no kid selected
+
   const paint = () => {
+    // Don't stomp on George's hub if user already opened it
+    if (myGen !== homePaintGeneration) return;
+    if (currentScreen !== "home") return;
+    if (state.activeLearner) return;
+
+    appEl = getAppEl();
+    if (!appEl) return;
+
     appEl.innerHTML = `
     ${topbar(`<button class="btn btn-ghost" data-go="parent" type="button">Parent zone</button>`)}
 
@@ -507,7 +573,7 @@ function renderHome() {
 
     <section class="home-section">
       <h2 class="section-title">Recent scores</h2>
-      <p class="lead">How each student is doing right now (updates with family cloud).</p>
+      <p class="lead">How each student is doing right now (updates automatically).</p>
       <div class="grid-2">
         ${scoreBoardCard("bella")}
         ${scoreBoardCard("george")}
@@ -530,7 +596,7 @@ function renderHome() {
         <article class="card home-feature">
           <img src="assets/logo-icon.jpg" alt="Garden learning brand" />
           <h3>Fits real life</h3>
-          <p class="muted">Short sessions, cloud sync across iMacs, parent view of progress.</p>
+          <p class="muted">Short sessions, auto-save, parent view of progress.</p>
         </article>
       </div>
     </section>
@@ -542,60 +608,80 @@ function renderHome() {
       <input type="file" id="importFile" accept="application/json" hidden />
     </div>
     <p class="muted center mt-1" style="font-size:0.8rem">
-      Progress saves automatically after every test and lesson — kids don’t need to do anything.
+      Progress saves automatically — kids just open their hub and learn.
     </p>
     ${siteFooter()}
   `;
     bindShell();
     appEl.querySelectorAll("[data-pick]").forEach((el) => {
-      el.addEventListener("click", async () => {
-        state.activeLearner = el.dataset.pick;
-        await refreshFromCloud({ silent: true });
-        await save({ quiet: true });
-        go("dashboard");
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const id = el.getAttribute("data-pick");
+        openLearnerHub(id);
       });
     });
-    document.getElementById("btnExport").onclick = () => {
-      const blob = new Blob([exportState(state)], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `rawson-learning-backup-${todayKey()}.json`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    };
-    document.getElementById("btnImport").onclick = () =>
-      document.getElementById("importFile").click();
-    document.getElementById("importFile").onchange = async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      try {
-        const text = await file.text();
-        state = importState(text);
-        save({ pushCloud: false });
-        alert("Progress imported!");
-        go("home");
-      } catch {
-        alert("Could not import that file.");
-      }
-    };
+    const exp = document.getElementById("btnExport");
+    if (exp) {
+      exp.onclick = () => {
+        const blob = new Blob([exportState(state)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `rawson-learning-backup-${todayKey()}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      };
+    }
+    const imp = document.getElementById("btnImport");
+    const impFile = document.getElementById("importFile");
+    if (imp && impFile) {
+      imp.onclick = () => impFile.click();
+      impFile.onchange = async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        try {
+          const text = await file.text();
+          state = importState(text);
+          for (const id of Object.keys(LEARNERS)) {
+            state.profiles[id] = normalizeProfile(id, state.profiles[id]);
+          }
+          saveState(state);
+          alert("Progress imported!");
+          go("home");
+        } catch {
+          alert("Could not import that file.");
+        }
+      };
+    }
   };
 
-  // Always silent auto-sync then paint (no kid buttons)
-  appEl.innerHTML = `${topbar(`<button class="btn btn-ghost" data-go="parent" type="button">Parent zone</button>`)}
-    <p class="muted center" style="padding:2rem">Loading…</p>`;
-  bindShell();
+  // Paint immediately with local scores, then refresh from cloud and repaint if still on home
+  paint();
   ensureCloudEnabled();
-  refreshFromCloud({ silent: true }).finally(paint);
+  refreshFromCloud({ silent: true })
+    .then(() => {
+      if (myGen === homePaintGeneration && currentScreen === "home" && !state.activeLearner) {
+        paint();
+      }
+    })
+    .catch(() => {});
 }
 
 // —— DASHBOARD ——
 function renderDashboard() {
-  if (!state.activeLearner || !learner() || !profile()) {
-    state.activeLearner = null;
+  if (!state.activeLearner || !LEARNERS[state.activeLearner]) {
     return go("home");
   }
+  // Never bounce to home for missing shell — recreate it
+  state.profiles[state.activeLearner] = normalizeProfile(
+    state.activeLearner,
+    state.profiles[state.activeLearner]
+  );
   const L = learner();
   const p = profile();
+  if (!L || !p) {
+    return go("home");
+  }
   const xpInLevel = (p.xp || 0) % 100;
 
   appEl.innerHTML = `
@@ -652,13 +738,32 @@ function renderDashboard() {
 function subjectDashCard(subject) {
   const S = SUBJECTS[subject];
   const p = profile();
-  const overall = subjectOverall(p, subject);
-  const diag = p.diagnostics[subject];
-  const next = nextLesson(p, subject);
-  let status;
-  if (!diag?.completed) status = "Placement test ready";
-  else if (next) status = `Next: ${LESSONS[subject][next]?.title || next}`;
-  else status = "Course complete — retake lessons anytime";
+  if (!p) {
+    return `<article class="card subject-card"><h3>${S.name}</h3></article>`;
+  }
+  let overall = null;
+  let diag = null;
+  let next = null;
+  let status = "Placement test ready";
+  try {
+    overall = subjectOverall(p, subject);
+    diag = p.diagnostics && p.diagnostics[subject];
+    next = nextLesson(p, subject);
+    if (diag && diag.completed) {
+      if (next && LESSONS[subject] && LESSONS[subject][next]) {
+        status = `Next: ${LESSONS[subject][next].title || next}`;
+      } else if (next) {
+        status = `Next lesson ready`;
+      } else {
+        status = "Course complete — retake lessons anytime";
+      }
+    } else {
+      status = "Placement test ready";
+    }
+  } catch (e) {
+    console.warn("subjectDashCard", subject, e);
+    status = "Open to continue";
+  }
 
   return `
     <article class="card subject-card ${S.colour}" data-subject="${subject}" style="cursor:pointer">

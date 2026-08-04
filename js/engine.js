@@ -36,15 +36,39 @@ function normalizeProfile(learnerId, raw) {
   if (!p.diagnostics || typeof p.diagnostics !== "object" || Array.isArray(p.diagnostics)) {
     p.diagnostics = {};
   }
+  // Clean diagnostic entries
+  for (const [sk, d] of Object.entries(p.diagnostics)) {
+    if (!d || typeof d !== "object") {
+      delete p.diagnostics[sk];
+      continue;
+    }
+    if (d.answers && (typeof d.answers !== "object" || Array.isArray(d.answers))) {
+      d.answers = {};
+    }
+    if (d.skillScores && (typeof d.skillScores !== "object" || Array.isArray(d.skillScores))) {
+      d.skillScores = {};
+    }
+  }
   if (!p.courses || typeof p.courses !== "object" || Array.isArray(p.courses)) {
     p.courses = {};
   }
+  // Fix course shapes from Firebase (completed must be object, path must be array)
+  for (const [sk, c] of Object.entries(p.courses)) {
+    if (!c || typeof c !== "object") {
+      delete p.courses[sk];
+      continue;
+    }
+    if (!Array.isArray(c.path)) c.path = [];
+    if (!c.completed || typeof c.completed !== "object" || Array.isArray(c.completed)) {
+      c.completed = {};
+    }
+  }
   if (!Array.isArray(p.badges)) p.badges = [];
   if (!Array.isArray(p.lessonHistory)) p.lessonHistory = [];
-  if (typeof p.xp !== "number" || Number.isNaN(p.xp)) p.xp = 0;
-  if (typeof p.level !== "number" || Number.isNaN(p.level)) p.level = 1;
-  if (typeof p.streak !== "number" || Number.isNaN(p.streak)) p.streak = 0;
-  if (typeof p.updatedAt !== "number") p.updatedAt = 0;
+  if (typeof p.xp !== "number" || Number.isNaN(p.xp)) p.xp = Number(p.xp) || 0;
+  if (typeof p.level !== "number" || Number.isNaN(p.level)) p.level = Number(p.level) || 1;
+  if (typeof p.streak !== "number" || Number.isNaN(p.streak)) p.streak = Number(p.streak) || 0;
+  if (typeof p.updatedAt !== "number") p.updatedAt = Number(p.updatedAt) || 0;
   if (!p.fullName) p.fullName = base.fullName;
   return p;
 }
@@ -347,8 +371,14 @@ function subjectOverall(profile, subject) {
 }
 
 function nextLesson(profile, subject) {
-  if (!profile.courses[subject]) buildCourse(profile, subject);
+  if (!profile.courses || !profile.courses[subject] || !Array.isArray(profile.courses[subject].path)) {
+    buildCourse(profile, subject);
+  }
   const course = profile.courses[subject];
+  if (!course || !Array.isArray(course.path)) return null;
+  if (!course.completed || typeof course.completed !== "object" || Array.isArray(course.completed)) {
+    course.completed = {};
+  }
   for (const skillId of course.path) {
     if (!course.completed[skillId]) return skillId;
   }
