@@ -1,0 +1,187 @@
+.learn-body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(900px 500px at 10% 0%, rgba(255, 213, 79, 0.1), transparent 50%),
+    radial-gradient(700px 400px at 100% 20%, rgba(102, 187, 106, 0.15), transparent 45%),
+    linear-gradient(180deg, #1e3324 0%, #1a2e1f 100%);
+  color: #f7f1e3;
+  font-family: "Nunito", system-ui, sans-serif;
+}
+
+.learn-shell {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 3rem;
+}
+
+.learn-header {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.learn-logo {
+  border-radius: 12px;
+  border: 1px solid rgba(243, 230, 200, 0.25);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.learn-eyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #a5d6a7;
+}
+
+.learn-header h1 {
+  margin: 0.15rem 0 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+
+.learn-header .btn {
+  margin-left: auto;
+}
+
+.learn-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #b7c4b0;
+}
+
+.learn-question {
+  margin-bottom: 1rem;
+  border-top: 3px solid #8d6e63;
+}
+
+.learn-q-text {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.2rem;
+  line-height: 1.4;
+  margin: 0 0 0.75rem;
+}
+
+.learn-passage {
+  border-left: 3px solid #d4a017;
+  padding-left: 0.75rem;
+  margin: 0 0 0.75rem;
+  color: #b7c4b0;
+  font-style: italic;
+}
+
+.learn-options {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #cfd8c8;
+  line-height: 1.55;
+}
+
+.learn-meta {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  color: #a5d6a7;
+  font-weight: 700;
+}
+
+.learn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.learn-status {
+  font-size: 0.85rem;
+  color: #b7c4b0;
+  font-weight: 700;
+}
+
+.learn-guide {
+  min-height: 200px;
+  border-top: 3px solid #66bb6a;
+}
+
+.guide-content {
+  line-height: 1.6;
+  font-size: 1rem;
+  color: #f7f1e3;
+}
+
+.guide-content h2 {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.15rem;
+  margin: 1.35rem 0 0.5rem;
+  color: #ffd54f;
+}
+
+.guide-content h2:first-child {
+  margin-top: 0;
+}
+
+.guide-content p {
+  margin: 0.4rem 0 0.7rem;
+}
+
+.guide-content ul,
+.guide-content ol {
+  margin: 0.35rem 0 0.85rem;
+  padding-left: 1.25rem;
+  color: #e8f0e4;
+}
+
+.guide-content li {
+  margin-bottom: 0.35rem;
+}
+
+.guide-content strong {
+  color: #fff8e1;
+}
+
+.guide-content code {
+  background: rgba(0, 0, 0, 0.25);
+  padding: 0.1rem 0.35rem;
+  border-radius: 6px;
+  font-size: 0.92em;
+}
+
+.learn-footer {
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.btn-learn-about {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 10px;
+  border: 1.5px solid rgba(232, 197, 71, 0.45);
+  background: rgba(232, 197, 71, 0.12);
+  color: #ffe082;
+  font-weight: 800;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-learn-about:hover {
+  background: rgba(232, 197, 71, 0.22);
+  border-color: #ffd54f;
+}
+
+.btn-learn-about:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -94,6 +94,80 @@ Never be condescending. Use British spelling. Keep answers under 180 words unles
 Format practice question clearly at the end if you include one.`;
 }
 
+const LEARN_SESSION_PREFIX = "rawson-learn-session-";
+
+/**
+ * Open a full browser window with an AI-guided walkthrough for this question.
+ * @param {object} ctx
+ */
+function openLearnAboutSubject(ctx) {
+  const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    localStorage.setItem(
+      LEARN_SESSION_PREFIX + id,
+      JSON.stringify({
+        ...ctx,
+        createdAt: Date.now(),
+      })
+    );
+  } catch (e) {
+    alert("Could not open the learning window (storage full or blocked).");
+    return;
+  }
+  // Relative path works on GitHub Pages and local files
+  const url = new URL("learn.html", window.location.href);
+  url.searchParams.set("id", id);
+  const w = window.open(url.toString(), "rawson_learn_" + id, "noopener,noreferrer");
+  if (!w) {
+    alert("Please allow pop-ups for this site so the learning window can open.");
+  }
+}
+
+/** Shared prompt for the full learning window walkthrough */
+function buildLearnWalkthroughPrompt(ctx) {
+  const optionsText =
+    ctx.type === "multi" && Array.isArray(ctx.options)
+      ? ctx.options.map((o, i) => `${String.fromCharCode(65 + i)}) ${o}`).join("\n")
+      : "(typed answer)";
+  const learnerLine = ctx.learnerName
+    ? `Student: ${ctx.learnerName}, age ${ctx.age || "?"} (${ctx.yearGroup || "UK school"}).`
+    : "Student: UK homeschool learner.";
+
+  return `You are a patient UK home-education tutor in a garden learning studio.
+${learnerLine}
+Subject: ${ctx.subjectName || ctx.subject || "General"}
+Topic/skill: ${ctx.skillName || ctx.skillId || "this topic"}
+
+QUESTION:
+${ctx.passage ? `Passage: ${ctx.passage}\n` : ""}${ctx.question}
+
+${ctx.type === "multi" ? `Options:\n${optionsText}` : "The student types their own answer."}
+
+Teacher mark-scheme note (use to guide; do NOT dump the final answer in step 1): ${ctx.explain || "n/a"}
+
+Write a clear learning guide with these exact sections and markdown headings:
+
+## What this is about
+(2–3 friendly sentences)
+
+## What you need to know first
+(bullet key facts / rules)
+
+## Worked example (step by step)
+Number the steps. Show the thinking. British spelling.
+
+## How to tackle THIS question
+Guide them through the process without spoiling in the first line. Reveal the answer only in the final step labelled **Answer**.
+
+## Check you understand
+One short similar practice question (and its answer in brackets).
+
+## Encouragement
+One short positive line.
+
+Keep it suitable for a ${ctx.age || 11}-year-old. Use British English.`;
+}
+
 /**
  * When student is wrong, ask Grok for a personalised re-teach.
  */

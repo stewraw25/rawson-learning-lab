@@ -136,6 +136,42 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+/** Build context + open AI learning window for a question */
+function learnAboutButtonHtml() {
+  return `<button type="button" class="btn-learn-about" id="btnLearnAbout">📖 Learn about this subject</button>`;
+}
+
+function bindLearnAbout(btn, payload) {
+  if (!btn) return;
+  btn.onclick = () => {
+    const L = state.activeLearner ? learner() : null;
+    openLearnAboutSubject({
+      ...payload,
+      learnerId: state.activeLearner || null,
+      learnerName: L?.fullName || L?.name || "",
+      age: L?.age,
+      yearGroup: L?.yearGroup,
+    });
+  };
+}
+
+function questionLearnPayload(subject, skillId, q) {
+  return {
+    subject,
+    subjectName: SUBJECTS[subject]?.name || subject,
+    skillId: skillId || q.skill || "",
+    skillName:
+      (skillId && SKILLS[subject]?.[skillId]?.name) ||
+      (q.skill && SKILLS[subject]?.[q.skill]?.name) ||
+      "This topic",
+    question: q.q,
+    passage: q.passage || "",
+    type: q.type,
+    options: q.options || null,
+    explain: q.explain || "",
+  };
+}
+
 // —— HOME ——
 function renderHome() {
   appEl.innerHTML = `
@@ -433,6 +469,7 @@ function renderDiagnostic({ subject }) {
         }
         <h3>${escapeHtml(q.q)}</h3>
         <div id="qBody"></div>
+        ${learnAboutButtonHtml()}
         <div id="feedback"></div>
         <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
           <button class="btn btn-primary" type="button" id="btnCheck" ${
@@ -445,6 +482,10 @@ function renderDiagnostic({ subject }) {
       </div>
     `;
     bindShell();
+    bindLearnAbout(
+      document.getElementById("btnLearnAbout"),
+      questionLearnPayload(subject, q.skill, q)
+    );
     const body = document.getElementById("qBody");
     if (q.type === "multi") {
       body.innerHTML = `<div class="options">${q.options
@@ -644,6 +685,7 @@ function renderLesson({ subject, skillId }) {
         }
         <h3 class="teach-heading">${escapeHtml(q.q)}</h3>
         <div id="qBody"></div>
+        ${learnAboutButtonHtml()}
         <div id="feedback"></div>
         <div id="aiHelpBox"></div>
         <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
@@ -744,6 +786,11 @@ function renderLesson({ subject, skillId }) {
     revealed = false;
     const body = document.getElementById("qBody");
     if (!body || !q) return;
+
+    bindLearnAbout(
+      document.getElementById("btnLearnAbout"),
+      questionLearnPayload(subject, skillId, q)
+    );
 
     if (q.type === "multi") {
       body.innerHTML = `<div class="options">${q.options
