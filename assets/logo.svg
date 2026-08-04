@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Rawson Learning Lab">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff6bcb"/>
+      <stop offset="45%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#3dd6c6"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#5b8cff" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- Rounded tile -->
+  <rect x="8" y="8" width="112" height="112" rx="32" fill="url(#bg)" filter="url(#soft)"/>
+  <rect x="8" y="8" width="112" height="112" rx="32" fill="url(#shine)"/>
+
+  <!-- Open book -->
+  <path d="M28 46c14 0 22-6 28-10v48c-7 5-16 9-28 9V46z" fill="#fff" opacity="0.95"/>
+  <path d="M100 46c-14 0-22-6-28-10v48c7 5 16 9 28 9V46z" fill="#fff" opacity="0.88"/>
+  <path d="M56 36c6 4 10 6 18 6s12-2 18-6" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+  <!-- spine -->
+  <path d="M64 36v48" stroke="#c4b5fd" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Lines on pages -->
+  <path d="M36 58h14M36 68h12M36 78h14" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round" opacity="0.55"/>
+  <path d="M78 58h14M78 68h12M78 78h14" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- Star spark -->
+  <g transform="translate(88 30)">
+    <path d="M0-12 L3-3 L12 0 L3 3 L0 12 L-3 3 L-12 0 L-3-3 Z" fill="#ffd166"/>
+  </g>
+  <!-- small sparkles -->
+  <circle cx="34" cy="34" r="3" fill="#fff" opacity="0.9"/>
+  <circle cx="98" cy="88" r="2.5" fill="#ffd166"/>
+</svg>

@@ -67,11 +67,11 @@ a { color: inherit; }
   width: 46px;
   height: 46px;
   border-radius: 14px;
-  display: grid;
-  place-items: center;
-  font-weight: 900;
-  background: linear-gradient(135deg, #ff6bcb, #5b8cff);
+  display: block;
+  object-fit: cover;
   box-shadow: 0 8px 24px rgba(91, 140, 255, 0.35);
+  flex-shrink: 0;
+  background: transparent;
 }
 
 .logo h1 {
@@ -183,6 +183,14 @@ h2.section-title {
 .hero {
   text-align: center;
   padding: 1.5rem 0 2rem;
+}
+.hero-logo {
+  width: 88px;
+  height: 88px;
+  border-radius: 26px;
+  display: block;
+  margin: 0 auto 1rem;
+  box-shadow: 0 12px 36px rgba(139, 92, 246, 0.4);
 }
 .hero h2 {
   font-family: var(--display);

@@ -82,7 +82,7 @@ function topbar(extraRight = "") {
   return `
     <header class="topbar">
       <div class="logo" role="button" tabindex="0" data-go="home">
-        <div class="logo-mark">R</div>
+        <img class="logo-mark" src="assets/logo.svg" width="46" height="46" alt="Rawson Learning Lab" />
         <div>
           <h1>Rawson Learning Lab</h1>
           <p>English · Maths · Science · GCSE pathway</p>
@@ -136,6 +136,7 @@ function renderHome() {
   appEl.innerHTML = `
     ${topbar(`<button class="btn btn-ghost" data-go="parent" type="button">Parent zone</button>`)}
     <section class="hero">
+      <img class="hero-logo" src="assets/logo.svg" width="88" height="88" alt="Rawson Learning Lab" />
       <h2>Learning that feels like a <span class="sparkle">game</span></h2>
       <p class="lead center">Built for <strong>Bella-Rose</strong> (12) &amp; <strong>George</strong> (10) · UK curriculum · GCSE-ready foundations</p>
     </section>
