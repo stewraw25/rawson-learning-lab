@@ -782,6 +782,29 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
   color: #c5e1a5 !important;
 }
 
+/* Auto-save toast for kids */
+.auto-save-toast {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(120%);
+  background: linear-gradient(135deg, #2e7d32, #43a047);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 0.7rem 1.25rem;
+  border-radius: 999px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.auto-save-toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
 /* Powered-by credit */
 .site-powered {
   margin: 2rem 0 0.5rem;
