@@ -889,143 +889,95 @@ function parentKid(id) {
     </div>`;
 }
 
-// —— FAMILY SYNC SETUP ——
+// —— FAMILY SYNC SETUP (simple one-click) ——
 function renderSyncSetup() {
-  const cfg = getSyncConfig();
+  const on = isSyncEnabled();
   appEl.innerHTML = `
     ${topbar(`<button class="btn btn-ghost" data-go="parent" type="button">← Parent zone</button>`)}
-    <h2 class="section-title">☁️ Family cloud sync</h2>
-    <p class="lead">
-      Bella-Rose’s iMac and George’s iMac upload progress.
-      Your iMac downloads it so you can watch live in Parent zone.
-    </p>
+    <h2 class="section-title">☁️ Family cloud</h2>
+    <p class="lead">One button on each Mac. That’s it.</p>
+
+    <div class="card mb-2" style="text-align:center;padding:1.75rem">
+      ${
+        on
+          ? `<p style="font-size:1.15rem;font-weight:800;color:var(--ok);margin:0 0 0.5rem">✓ This Mac is connected</p>
+             <p class="muted" style="margin:0 0 1rem">Family: <strong style="color:var(--gold)">${escapeHtml(
+               getSyncConfig().familyCode
+             )}</strong></p>
+             <p id="syncSetupMsg" class="muted" style="min-height:1.4em;font-size:0.9rem"></p>
+             <div style="display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:center">
+               <button class="btn btn-primary btn-lg" type="button" id="btnOneClick">Reconnect / test</button>
+               <button class="btn btn-ok btn-lg" type="button" id="btnSeed">Upload progress from this Mac</button>
+               <button class="btn btn-secondary" type="button" data-go="parent">Open Parent zone →</button>
+             </div>`
+          : `<p class="muted" style="margin:0 0 1.25rem;max-width:28rem;margin-left:auto;margin-right:auto">
+               Connects to your <strong style="color:var(--text)">Rawson Labs</strong> cloud so all three iMacs share progress.
+             </p>
+             <p id="syncSetupMsg" class="muted" style="min-height:1.4em;font-size:0.9rem"></p>
+             <button class="btn btn-primary btn-lg" type="button" id="btnOneClick" style="font-size:1.15rem;padding:1rem 1.75rem">
+               ☁️ Turn on family cloud on this Mac
+             </button>`
+      }
+    </div>
 
     <div class="card mb-2">
-      <h3 style="margin-top:0">How it works</h3>
-      <ol class="muted" style="line-height:1.65;margin:0;padding-left:1.2rem">
-        <li>You create a free Google Firebase database (one-time, 5 mins)</li>
-        <li>You create a Family code on <strong style="color:var(--text)">your</strong> Mac</li>
-        <li>Enter the same code + database URL on the kids’ Macs</li>
-        <li>Leave Parent zone open on your Mac — it refreshes every 5 seconds</li>
+      <h3 style="margin-top:0">What to do on each computer</h3>
+      <ol class="muted" style="line-height:1.7;margin:0;padding-left:1.2rem">
+        <li><strong style="color:var(--text)">Your Mac</strong> — press the green button above, then open Parent zone and leave it open</li>
+        <li><strong style="color:var(--text)">Bella-Rose’s Mac</strong> — open the same website → Parent zone → Family cloud → press the same button</li>
+        <li><strong style="color:var(--text)">George’s Mac</strong> — same as Bella-Rose</li>
+        <li>Kids pick <em>their</em> name and learn as normal — you watch live on your Mac</li>
       </ol>
-    </div>
-
-    <div class="card mb-2">
-      <h3 style="margin-top:0">Step A — Free Firebase database (once)</h3>
-      <ol class="muted" style="line-height:1.65;margin:0;padding-left:1.2rem;font-size:0.92rem">
-        <li>Open <a href="https://console.firebase.google.com/" target="_blank" rel="noopener" style="color:#7ec0f0">console.firebase.google.com</a> and sign in with Google</li>
-        <li>Click <strong style="color:var(--text)">Add project</strong> → name it e.g. <em>Rawson Learning</em> → continue (Google Analytics can be off)</li>
-        <li>In the left menu: <strong style="color:var(--text)">Build → Realtime Database</strong> → Create database</li>
-        <li>Choose a location (e.g. <em>europe-west</em>) → start in <strong style="color:var(--text)">test mode</strong> for now</li>
-        <li>At the top of the Data tab, copy the database URL — looks like:<br>
-          <code style="color:var(--gold);font-size:0.8rem">https://something-default-rtdb.europe-west1.firebasedatabase.app</code>
-        </li>
-      </ol>
-      <p class="muted mt-1" style="font-size:0.85rem">
-        Test mode allows read/write for 30 days with open rules — fine for a private family code.
-        You can tighten rules later.
-      </p>
-    </div>
-
-    <div class="card mb-2">
-      <h3 style="margin-top:0">Step B — Connect this Mac</h3>
-      <div class="form-grid-sync">
-        <label class="sync-label">
-          Database URL
-          <input type="url" id="dbUrl" class="input-answer" placeholder="https://….firebasedatabase.app"
-            value="${escapeHtml(cfg?.databaseURL || "")}" />
-        </label>
-        <label class="sync-label">
-          Family code
-          <input type="text" id="familyCode" class="input-answer" placeholder="RAWSON-XXXX-XXXX"
-            value="${escapeHtml(cfg?.familyCode || "")}" style="text-transform:uppercase" />
-        </label>
-      </div>
-      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1rem">
-        <button class="btn btn-secondary" type="button" id="btnGenCode">Generate new family code</button>
-        <button class="btn btn-primary" type="button" id="btnSaveJoin">Save &amp; join family</button>
-        <button class="btn btn-ok" type="button" id="btnSeed">Upload this Mac’s progress to cloud</button>
-      </div>
-      <p id="syncSetupMsg" class="muted mt-1" style="font-size:0.85rem"></p>
-    </div>
-
-    <div class="card mb-2">
-      <h3 style="margin-top:0">Step C — Kids’ iMacs</h3>
-      <p class="muted">On Bella-Rose’s and George’s Macs: open this site → Parent zone → Family sync → paste the same Database URL and Family code → Save &amp; join.</p>
-      <button class="btn btn-secondary" type="button" id="btnCopyInvite" ${
-        cfg ? "" : "disabled"
-      }>Copy invite instructions</button>
-      <pre id="inviteBox" class="muted" style="white-space:pre-wrap;background:rgba(0,0,0,0.25);padding:0.9rem;border-radius:12px;font-size:0.8rem;margin-top:0.75rem">${
-        cfg ? escapeHtml(inviteText()) : "Save join details first…"
-      }</pre>
     </div>
 
     <div class="card">
-      <h3 style="margin-top:0">Disconnect</h3>
-      <button class="btn btn-ghost" type="button" id="btnDisconnect">Turn off cloud sync on this Mac</button>
+      <button class="btn btn-ghost" type="button" id="btnDisconnect">Turn off cloud on this Mac only</button>
     </div>
   `;
   bindShell();
 
-  // minimal styles for labels in this screen
-  if (!document.getElementById("syncExtraCss")) {
-    const s = document.createElement("style");
-    s.id = "syncExtraCss";
-    s.textContent = `
-      .form-grid-sync { display:grid; gap:0.85rem; }
-      .sync-label { display:flex; flex-direction:column; gap:0.35rem; font-size:0.8rem; font-weight:800; color:var(--muted); }
-      .sync-label code { font-weight:600; }
-    `;
-    document.head.appendChild(s);
-  }
-
   const msg = document.getElementById("syncSetupMsg");
-  document.getElementById("btnGenCode").onclick = () => {
-    document.getElementById("familyCode").value = generateFamilyCode();
-  };
-  document.getElementById("btnSaveJoin").onclick = async () => {
-    const databaseURL = document.getElementById("dbUrl").value.trim();
-    const familyCode = document.getElementById("familyCode").value.trim().toUpperCase();
-    if (!databaseURL || !familyCode) {
-      msg.textContent = "Please enter both Database URL and Family code.";
-      return;
-    }
-    setSyncConfig({ databaseURL: normaliseDatabaseURL(databaseURL), familyCode });
-    msg.textContent = "Saved. Pulling any existing family data…";
+
+  async function oneClick() {
+    msg.textContent = "Connecting…";
     try {
-      await refreshFromCloud();
-      msg.textContent = "Joined family cloud ✓ — open Parent zone to watch live.";
-      document.getElementById("inviteBox").textContent = inviteText();
-      document.getElementById("btnCopyInvite").disabled = false;
+      enableBuiltinCloud();
+      await testCloudConnection();
+      await refreshFromCloud({ silent: true });
+      // Seed if cloud empty for both profiles
+      try {
+        await seedCloudFromLocal(state);
+        saveState(state);
+      } catch {
+        /* may already have data */
+      }
+      msg.textContent = "Connected ✓ You’re on the family cloud.";
+      go("sync");
     } catch (e) {
+      console.error(e);
       msg.textContent =
-        "Saved locally, but cloud test failed. Check the Database URL and that Realtime Database is in test mode. " +
+        "Couldn’t connect. In Firebase open Rules and make sure test mode allows read/write. " +
         (e.message || "");
     }
-  };
-  document.getElementById("btnSeed").onclick = async () => {
-    if (!isSyncEnabled()) {
-      msg.textContent = "Save & join first.";
-      return;
-    }
-    try {
-      await seedCloudFromLocal(state);
-      saveState(state);
-      msg.textContent = "Uploaded both kids’ profiles from this Mac ✓";
-    } catch (e) {
-      msg.textContent = "Upload failed: " + (e.message || e);
-    }
-  };
-  document.getElementById("btnCopyInvite").onclick = async () => {
-    try {
-      await navigator.clipboard.writeText(inviteText());
-      msg.textContent = "Invite copied — paste into Notes and open on the kids’ Macs.";
-    } catch {
-      msg.textContent = "Could not copy — select the text in the box manually.";
-    }
-  };
+  }
+
+  document.getElementById("btnOneClick").onclick = oneClick;
+  const seed = document.getElementById("btnSeed");
+  if (seed) {
+    seed.onclick = async () => {
+      msg.textContent = "Uploading…";
+      try {
+        if (!isSyncEnabled()) enableBuiltinCloud();
+        await seedCloudFromLocal(state);
+        saveState(state);
+        msg.textContent = "Uploaded ✓";
+      } catch (e) {
+        msg.textContent = "Upload failed: " + (e.message || e);
+      }
+    };
+  }
   document.getElementById("btnDisconnect").onclick = () => {
-    if (confirm("Turn off cloud sync on this Mac only? Progress stays on this Mac.")) {
+    if (confirm("Turn off cloud on this Mac only?")) {
       setSyncConfig(null);
       go("sync");
     }

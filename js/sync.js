@@ -1,18 +1,28 @@
 /**
  * Family cloud sync via Firebase Realtime Database (REST API)
  * Each kid's Mac writes only their profile; parent Mac reads both live.
+ *
+ * Pre-configured for Rawson Labs Firebase (Stewart's project).
+ * One-click join on each Mac — no URL pasting needed.
  */
 
 const SYNC_CONFIG_KEY = "rawson-learning-sync-config-v1";
-const FIREBASE_SDK_HINT = true;
+
+/** Built-in cloud for this family — from Firebase project "Rawson Labs" */
+const BUILTIN_CLOUD = {
+  databaseURL:
+    "https://rawson-labs-default-rtdb.europe-west1.firebasedatabase.app",
+  familyCode: "RAWSON-HOME",
+};
 
 function getSyncConfig() {
   try {
     const raw = localStorage.getItem(SYNC_CONFIG_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (raw) return JSON.parse(raw);
   } catch {
-    return null;
+    /* ignore */
   }
+  return null;
 }
 
 function setSyncConfig(cfg) {
@@ -23,9 +33,39 @@ function setSyncConfig(cfg) {
   localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(cfg));
 }
 
+/** One-click: use the built-in Rawson Labs cloud */
+function enableBuiltinCloud() {
+  setSyncConfig({
+    databaseURL: BUILTIN_CLOUD.databaseURL,
+    familyCode: BUILTIN_CLOUD.familyCode,
+  });
+  return getSyncConfig();
+}
+
 function isSyncEnabled() {
   const c = getSyncConfig();
   return !!(c && c.databaseURL && c.familyCode);
+}
+
+/** Quick read/write test so we know Firebase rules allow access */
+async function testCloudConnection() {
+  const root = familyRoot();
+  if (!root) throw new Error("Sync not configured");
+  const probe = { ok: true, t: Date.now() };
+  const putRes = await fetch(`${root}/_ping.json`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(probe),
+  });
+  if (!putRes.ok) {
+    const text = await putRes.text();
+    throw new Error(`Cannot write to cloud (${putRes.status}). ${text.slice(0, 100)}`);
+  }
+  const getRes = await fetch(`${root}/_ping.json`);
+  if (!getRes.ok) {
+    throw new Error(`Cannot read from cloud (${getRes.status})`);
+  }
+  return true;
 }
 
 function normaliseDatabaseURL(url) {
@@ -143,20 +183,14 @@ async function fetchMeta() {
 }
 
 function inviteText() {
-  const c = getSyncConfig();
-  if (!c) return "";
   return [
-    "Rawson Learning Lab — Family Sync",
+    "Rawson Learning Lab — Family Cloud",
     "",
     "1. Open: https://stewraw25.github.io/rawson-learning-lab/",
-    "2. Go to Parent zone → Family sync",
-    "3. Paste this Family code:",
-    c.familyCode,
-    "4. Paste this Database URL:",
-    normaliseDatabaseURL(c.databaseURL),
-    "5. Click Join family",
+    "2. Parent zone → Family cloud",
+    "3. Press: Turn on family cloud on this Mac",
     "",
-    "Do this once on each iMac (Bella-Rose, George, and Mum/Dad).",
+    "Do this once on each iMac.",
   ].join("\n");
 }
 
