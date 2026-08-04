@@ -4,9 +4,49 @@
 
 let state = loadState();
 const appEl = document.getElementById("app");
+let parentPollTimer = null;
+let syncStatus = ""; // shown in UI after push/pull
 
-function save() {
+function stopParentPoll() {
+  if (parentPollTimer) {
+    clearInterval(parentPollTimer);
+    parentPollTimer = null;
+  }
+}
+
+async function save(options = {}) {
+  const { pushCloud = true } = options;
   saveState(state);
+  if (pushCloud && isSyncEnabled() && state.activeLearner) {
+    try {
+      syncStatus = "Saving to family cloud…";
+      await pushProfile(state.activeLearner, state.profiles[state.activeLearner]);
+      syncStatus = "Cloud saved ✓ " + formatTime(Date.now());
+    } catch (err) {
+      console.error(err);
+      syncStatus = "Cloud save failed — still saved on this Mac";
+    }
+  }
+}
+
+async function refreshFromCloud(opts = {}) {
+  const { silent = false } = opts;
+  if (!isSyncEnabled()) return false;
+  try {
+    if (!silent) syncStatus = "Syncing…";
+    const result = await pullProfiles(state);
+    if (result.changed) {
+      saveState(state);
+      syncStatus = "Updated from family cloud ✓ " + formatTime(Date.now());
+    } else if (!silent) {
+      syncStatus = "Up to date ✓ " + formatTime(Date.now());
+    }
+    return result.changed;
+  } catch (err) {
+    console.error(err);
+    if (!silent) syncStatus = "Cloud sync error — check Family sync setup";
+    return false;
+  }
 }
 
 function profile() {
@@ -18,6 +58,7 @@ function learner() {
 }
 
 function go(screen, params = {}) {
+  stopParentPoll();
   window.scrollTo(0, 0);
   const routes = {
     home: renderHome,
@@ -28,6 +69,7 @@ function go(screen, params = {}) {
     lessonResult: renderLessonResult,
     parent: renderParent,
     subject: renderSubject,
+    sync: renderSyncSetup,
   };
   const fn = routes[screen];
   if (fn) fn(params);
@@ -101,17 +143,25 @@ function renderHome() {
       ${profileCard("george")}
     </div>
     <div class="parent-bar">
-      <button class="btn btn-secondary" type="button" id="btnExport">⬇ Export progress</button>
-      <button class="btn btn-secondary" type="button" id="btnImport">⬆ Import progress</button>
+      <button class="btn btn-primary" type="button" data-go="sync">☁️ Family cloud sync</button>
+      <button class="btn btn-secondary" type="button" id="btnExport">⬇ Export backup</button>
+      <button class="btn btn-secondary" type="button" id="btnImport">⬆ Import backup</button>
       <input type="file" id="importFile" accept="application/json" hidden />
     </div>
-    <p class="muted center mt-1" style="font-size:0.8rem">Progress saves automatically on this device. Export a backup to share between computers.</p>
+    <p class="muted center mt-1" style="font-size:0.8rem">
+      ${
+        isSyncEnabled()
+          ? "☁️ Family cloud is ON — progress shares across your iMacs."
+          : "Tip: set up Family cloud sync once so Mum/Dad can watch progress live on another Mac."
+      }
+    </p>
   `;
   bindShell();
   appEl.querySelectorAll("[data-pick]").forEach((el) => {
-    el.addEventListener("click", () => {
+    el.addEventListener("click", async () => {
       state.activeLearner = el.dataset.pick;
-      save();
+      await refreshFromCloud({ silent: true });
+      await save();
       go("dashboard");
     });
   });
@@ -330,9 +380,9 @@ function renderSubject({ subject }) {
   const retake = document.getElementById("retakeDiag");
   if (start) start.onclick = () => go("diagnostic", { subject });
   if (retake) retake.onclick = () => go("diagnostic", { subject });
-  document.getElementById("regenCourse")?.addEventListener("click", () => {
+  document.getElementById("regenCourse")?.addEventListener("click", async () => {
     buildCourse(p, subject);
-    save();
+    await save();
     go("subject", { subject });
   });
   appEl.querySelectorAll("[data-lesson]").forEach((btn) => {
@@ -451,10 +501,10 @@ function renderDiagnostic({ subject }) {
     };
   }
 
-  function finish() {
+  async function finish() {
     const result = scoreDiagnostic(subject, state.activeLearner, answers);
     recordDiagnostic(profile(), subject, answers, result);
-    save();
+    await save();
     go("diagnosticResult", { subject, result });
   }
 
@@ -593,11 +643,11 @@ function renderLesson({ subject, skillId }) {
       document.getElementById("btnNext").style.display = "inline-flex";
     };
 
-    document.getElementById("btnNext").onclick = () => {
+    document.getElementById("btnNext").onclick = async () => {
       if (index + 1 >= items.length) {
         const scorePct = Math.round((correctCount / items.length) * 100);
         recordLesson(profile(), subject, skillId, scorePct);
-        save();
+        await save();
         go("lessonResult", { subject, skillId, scorePct, correctCount, total: items.length });
       } else {
         index++;
@@ -633,32 +683,66 @@ function renderLessonResult({ subject, skillId, scorePct, correctCount, total })
 
 // —— PARENT ZONE ——
 function renderParent() {
+  const synced = isSyncEnabled();
+  const cfg = getSyncConfig();
+
   appEl.innerHTML = `
     ${topbar(`<button class="btn btn-ghost" data-go="home" type="button">Home</button>`)}
     <h2 class="section-title">Parent zone</h2>
-    <p class="lead">Progress for Bella-Rose Rawson &amp; George Rawson · UK GCSE pathway foundations</p>
-    ${parentKid("bella")}
-    ${parentKid("george")}
+    <p class="lead">Live progress for Bella-Rose &amp; George · watch from your iMac while they learn on theirs</p>
+
+    <div class="card mb-2" style="border-color:${synced ? "rgba(61,220,151,0.45)" : "rgba(255,209,102,0.45)"}">
+      <h3 style="margin-top:0">☁️ Family cloud ${synced ? "· connected" : "· not set up"}</h3>
+      ${
+        synced
+          ? `<p class="muted" style="margin:0 0 0.75rem">Family code: <strong style="color:var(--gold)">${escapeHtml(
+              cfg.familyCode
+            )}</strong></p>
+             <p class="muted" id="syncStatusLine" style="margin:0 0 0.75rem;font-size:0.85rem">${escapeHtml(
+               syncStatus || "Live refresh every 5 seconds when this page is open."
+             )}</p>
+             <p class="muted" id="metaLine" style="margin:0 0 0.75rem;font-size:0.85rem"></p>
+             <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+               <button class="btn btn-primary" type="button" id="btnPullNow">Refresh now</button>
+               <button class="btn btn-secondary" type="button" data-go="sync">Sync settings</button>
+             </div>`
+          : `<p class="muted">To see updates on <strong style="color:var(--text)">your</strong> iMac when they finish tasks on <strong style="color:var(--text)">theirs</strong>, set up free family cloud sync (about 5 minutes, once).</p>
+             <button class="btn btn-primary btn-lg mt-1" type="button" data-go="sync">Set up family cloud →</button>`
+      }
+    </div>
+
+    <div id="parentKids">
+      ${parentKid("bella")}
+      ${parentKid("george")}
+    </div>
+
     <div class="card mt-2">
-      <h3 style="margin-top:0">Backup &amp; devices</h3>
-      <p class="muted">Data stays in this browser. Export regularly, or import on another device so progress follows you.</p>
+      <h3 style="margin-top:0">Recent activity</h3>
+      <div id="activityFeed" class="muted" style="font-size:0.9rem;line-height:1.5">
+        ${activityFeedHtml()}
+      </div>
+    </div>
+
+    <div class="card mt-2">
+      <h3 style="margin-top:0">Local backup (optional)</h3>
+      <p class="muted">Extra safety copy as a file — not required if cloud sync is on.</p>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-        <button class="btn btn-primary" type="button" id="pExport">Export all progress</button>
-        <button class="btn btn-secondary" type="button" id="pImport">Import backup</button>
+        <button class="btn btn-secondary" type="button" id="pExport">Export file</button>
+        <button class="btn btn-secondary" type="button" id="pImport">Import file</button>
         <input type="file" id="pFile" accept="application/json" hidden />
       </div>
     </div>
+
     <div class="card mt-2">
       <h3 style="margin-top:0">Curriculum note</h3>
       <p class="muted" style="margin:0;line-height:1.55">
-        Content is aligned to the <strong style="color:var(--text)">English National Curriculum</strong>
-        (KS2 for George, KS3 for Bella-Rose) with skills mapped toward
-        <strong style="color:var(--text)">GCSE Maths, English Language &amp; Combined/Triple Science</strong>.
-        This is a practice hub, not a full exam board course — use it alongside school.
+        English National Curriculum (KS2 George · KS3 Bella-Rose) mapped toward
+        GCSE Maths, English Language &amp; Science foundations. Complements school.
       </p>
     </div>
   `;
   bindShell();
+
   document.getElementById("pExport").onclick = () => {
     const blob = new Blob([exportState(state)], { type: "application/json" });
     const a = document.createElement("a");
@@ -671,13 +755,100 @@ function renderParent() {
   document.getElementById("pFile").onchange = async (e) => {
     try {
       state = importState(await e.target.files[0].text());
-      save();
+      await save({ pushCloud: false });
       alert("Imported!");
       go("parent");
     } catch {
       alert("Import failed");
     }
   };
+
+  const pullBtn = document.getElementById("btnPullNow");
+  if (pullBtn) {
+    pullBtn.onclick = async () => {
+      await refreshFromCloud();
+      go("parent");
+    };
+  }
+
+  if (synced) {
+    // Initial pull + live poll while parent page is open
+    (async () => {
+      await refreshFromCloud({ silent: true });
+      const kids = document.getElementById("parentKids");
+      const feed = document.getElementById("activityFeed");
+      const status = document.getElementById("syncStatusLine");
+      if (kids) kids.innerHTML = parentKid("bella") + parentKid("george");
+      if (feed) feed.innerHTML = activityFeedHtml();
+      if (status) status.textContent = syncStatus || "Live";
+      try {
+        const meta = await fetchMeta();
+        const metaLine = document.getElementById("metaLine");
+        if (metaLine && meta) {
+          metaLine.textContent = meta.lastActivityName
+            ? `Last activity: ${meta.lastActivityName} · ${formatTime(meta.lastActivityAt)}`
+            : "";
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+
+    parentPollTimer = setInterval(async () => {
+      const changed = await refreshFromCloud({ silent: true });
+      const status = document.getElementById("syncStatusLine");
+      if (status) status.textContent = syncStatus || "Live";
+      if (changed) {
+        const kids = document.getElementById("parentKids");
+        const feed = document.getElementById("activityFeed");
+        if (kids) kids.innerHTML = parentKid("bella") + parentKid("george");
+        if (feed) feed.innerHTML = activityFeedHtml();
+      }
+      try {
+        const meta = await fetchMeta();
+        const metaLine = document.getElementById("metaLine");
+        if (metaLine && meta?.lastActivityName) {
+          metaLine.textContent = `Last activity: ${meta.lastActivityName} · ${formatTime(
+            meta.lastActivityAt
+          )}`;
+        }
+      } catch {
+        /* ignore */
+      }
+    }, 5000);
+  }
+}
+
+function activityFeedHtml() {
+  const events = [];
+  for (const id of Object.keys(LEARNERS)) {
+    const p = state.profiles[id];
+    const name = LEARNERS[id].name;
+    for (const [sub, d] of Object.entries(p.diagnostics || {})) {
+      if (d?.completed) {
+        events.push({
+          t: d.date || "",
+          ts: p.updatedAt || 0,
+          text: `${name} finished ${SUBJECTS[sub].name} placement test — ${d.score}%`,
+        });
+      }
+    }
+    for (const h of p.lessonHistory || []) {
+      events.push({
+        t: h.date || "",
+        ts: p.updatedAt || 0,
+        text: `${name} completed ${SUBJECTS[h.subject].name}: ${
+          LESSONS[h.subject][h.skillId]?.title || h.skillId
+        } (${h.score}%)`,
+      });
+    }
+  }
+  events.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  const top = events.slice(0, 12);
+  if (!top.length) {
+    return "No activity yet — when the kids finish a test or lesson (with cloud sync on), it will show up here.";
+  }
+  return top.map((e) => `• ${escapeHtml(e.text)}`).join("<br>");
 }
 
 function parentKid(id) {
@@ -707,7 +878,8 @@ function parentKid(id) {
   )}</h3>
       <p class="muted">Age ${L.age} · ${L.yearGroup} · Level ${p.level} · ${
     p.xp
-  } XP · Streak ${p.streak} days · ${p.badges.length} badges</p>
+  } XP · Streak ${p.streak} days · ${p.badges.length} badges
+      · Updated ${formatTime(p.updatedAt)}</p>
       <div class="table-wrap">
         <table class="progress-table">
           <thead><tr><th>Subject</th><th>Test</th><th>Date</th><th>Lessons</th><th>Level</th></tr></thead>
@@ -717,5 +889,157 @@ function parentKid(id) {
     </div>`;
 }
 
+// —— FAMILY SYNC SETUP ——
+function renderSyncSetup() {
+  const cfg = getSyncConfig();
+  appEl.innerHTML = `
+    ${topbar(`<button class="btn btn-ghost" data-go="parent" type="button">← Parent zone</button>`)}
+    <h2 class="section-title">☁️ Family cloud sync</h2>
+    <p class="lead">
+      Bella-Rose’s iMac and George’s iMac upload progress.
+      Your iMac downloads it so you can watch live in Parent zone.
+    </p>
+
+    <div class="card mb-2">
+      <h3 style="margin-top:0">How it works</h3>
+      <ol class="muted" style="line-height:1.65;margin:0;padding-left:1.2rem">
+        <li>You create a free Google Firebase database (one-time, 5 mins)</li>
+        <li>You create a Family code on <strong style="color:var(--text)">your</strong> Mac</li>
+        <li>Enter the same code + database URL on the kids’ Macs</li>
+        <li>Leave Parent zone open on your Mac — it refreshes every 5 seconds</li>
+      </ol>
+    </div>
+
+    <div class="card mb-2">
+      <h3 style="margin-top:0">Step A — Free Firebase database (once)</h3>
+      <ol class="muted" style="line-height:1.65;margin:0;padding-left:1.2rem;font-size:0.92rem">
+        <li>Open <a href="https://console.firebase.google.com/" target="_blank" rel="noopener" style="color:#7ec0f0">console.firebase.google.com</a> and sign in with Google</li>
+        <li>Click <strong style="color:var(--text)">Add project</strong> → name it e.g. <em>Rawson Learning</em> → continue (Google Analytics can be off)</li>
+        <li>In the left menu: <strong style="color:var(--text)">Build → Realtime Database</strong> → Create database</li>
+        <li>Choose a location (e.g. <em>europe-west</em>) → start in <strong style="color:var(--text)">test mode</strong> for now</li>
+        <li>At the top of the Data tab, copy the database URL — looks like:<br>
+          <code style="color:var(--gold);font-size:0.8rem">https://something-default-rtdb.europe-west1.firebasedatabase.app</code>
+        </li>
+      </ol>
+      <p class="muted mt-1" style="font-size:0.85rem">
+        Test mode allows read/write for 30 days with open rules — fine for a private family code.
+        You can tighten rules later.
+      </p>
+    </div>
+
+    <div class="card mb-2">
+      <h3 style="margin-top:0">Step B — Connect this Mac</h3>
+      <div class="form-grid-sync">
+        <label class="sync-label">
+          Database URL
+          <input type="url" id="dbUrl" class="input-answer" placeholder="https://….firebasedatabase.app"
+            value="${escapeHtml(cfg?.databaseURL || "")}" />
+        </label>
+        <label class="sync-label">
+          Family code
+          <input type="text" id="familyCode" class="input-answer" placeholder="RAWSON-XXXX-XXXX"
+            value="${escapeHtml(cfg?.familyCode || "")}" style="text-transform:uppercase" />
+        </label>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1rem">
+        <button class="btn btn-secondary" type="button" id="btnGenCode">Generate new family code</button>
+        <button class="btn btn-primary" type="button" id="btnSaveJoin">Save &amp; join family</button>
+        <button class="btn btn-ok" type="button" id="btnSeed">Upload this Mac’s progress to cloud</button>
+      </div>
+      <p id="syncSetupMsg" class="muted mt-1" style="font-size:0.85rem"></p>
+    </div>
+
+    <div class="card mb-2">
+      <h3 style="margin-top:0">Step C — Kids’ iMacs</h3>
+      <p class="muted">On Bella-Rose’s and George’s Macs: open this site → Parent zone → Family sync → paste the same Database URL and Family code → Save &amp; join.</p>
+      <button class="btn btn-secondary" type="button" id="btnCopyInvite" ${
+        cfg ? "" : "disabled"
+      }>Copy invite instructions</button>
+      <pre id="inviteBox" class="muted" style="white-space:pre-wrap;background:rgba(0,0,0,0.25);padding:0.9rem;border-radius:12px;font-size:0.8rem;margin-top:0.75rem">${
+        cfg ? escapeHtml(inviteText()) : "Save join details first…"
+      }</pre>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">Disconnect</h3>
+      <button class="btn btn-ghost" type="button" id="btnDisconnect">Turn off cloud sync on this Mac</button>
+    </div>
+  `;
+  bindShell();
+
+  // minimal styles for labels in this screen
+  if (!document.getElementById("syncExtraCss")) {
+    const s = document.createElement("style");
+    s.id = "syncExtraCss";
+    s.textContent = `
+      .form-grid-sync { display:grid; gap:0.85rem; }
+      .sync-label { display:flex; flex-direction:column; gap:0.35rem; font-size:0.8rem; font-weight:800; color:var(--muted); }
+      .sync-label code { font-weight:600; }
+    `;
+    document.head.appendChild(s);
+  }
+
+  const msg = document.getElementById("syncSetupMsg");
+  document.getElementById("btnGenCode").onclick = () => {
+    document.getElementById("familyCode").value = generateFamilyCode();
+  };
+  document.getElementById("btnSaveJoin").onclick = async () => {
+    const databaseURL = document.getElementById("dbUrl").value.trim();
+    const familyCode = document.getElementById("familyCode").value.trim().toUpperCase();
+    if (!databaseURL || !familyCode) {
+      msg.textContent = "Please enter both Database URL and Family code.";
+      return;
+    }
+    setSyncConfig({ databaseURL: normaliseDatabaseURL(databaseURL), familyCode });
+    msg.textContent = "Saved. Pulling any existing family data…";
+    try {
+      await refreshFromCloud();
+      msg.textContent = "Joined family cloud ✓ — open Parent zone to watch live.";
+      document.getElementById("inviteBox").textContent = inviteText();
+      document.getElementById("btnCopyInvite").disabled = false;
+    } catch (e) {
+      msg.textContent =
+        "Saved locally, but cloud test failed. Check the Database URL and that Realtime Database is in test mode. " +
+        (e.message || "");
+    }
+  };
+  document.getElementById("btnSeed").onclick = async () => {
+    if (!isSyncEnabled()) {
+      msg.textContent = "Save & join first.";
+      return;
+    }
+    try {
+      await seedCloudFromLocal(state);
+      saveState(state);
+      msg.textContent = "Uploaded both kids’ profiles from this Mac ✓";
+    } catch (e) {
+      msg.textContent = "Upload failed: " + (e.message || e);
+    }
+  };
+  document.getElementById("btnCopyInvite").onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteText());
+      msg.textContent = "Invite copied — paste into Notes and open on the kids’ Macs.";
+    } catch {
+      msg.textContent = "Could not copy — select the text in the box manually.";
+    }
+  };
+  document.getElementById("btnDisconnect").onclick = () => {
+    if (confirm("Turn off cloud sync on this Mac only? Progress stays on this Mac.")) {
+      setSyncConfig(null);
+      go("sync");
+    }
+  };
+}
+
 // —— Boot ——
-go(state.activeLearner ? "dashboard" : "home");
+(async function boot() {
+  if (isSyncEnabled()) {
+    try {
+      await refreshFromCloud({ silent: true });
+    } catch {
+      /* offline ok */
+    }
+  }
+  go(state.activeLearner ? "dashboard" : "home");
+})();

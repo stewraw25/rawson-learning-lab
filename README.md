@@ -8,7 +8,8 @@ Fun UK curriculum practice hub for **Bella-Rose Rawson** (12) and **George Rawso
 - Personalised courses that prioritise weaker skills (GCSE pathway mapping)
 - XP, levels, streaks and badges
 - Progress autosaves in the browser
-- **Export / Import** JSON backups (use this to move progress between devices)
+- **Family cloud sync** (Firebase) so kids’ iMacs push progress and a parent Mac watches live
+- **Export / Import** JSON backups as a safety net
 
 ## Live site
 

@@ -23,6 +23,7 @@ function defaultProfile(learnerId) {
     },
     lessonHistory: [],
     parentNotes: "",
+    updatedAt: Date.now(),
   };
 }
 
@@ -53,6 +54,10 @@ function createFreshState() {
 }
 
 function saveState(state) {
+  // Bump updatedAt on active profile so cloud merge knows who is newer
+  if (state.activeLearner && state.profiles[state.activeLearner]) {
+    state.profiles[state.activeLearner].updatedAt = Date.now();
+  }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
