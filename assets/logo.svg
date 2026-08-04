@@ -1,39 +1,73 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Rawson Learning Lab">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ff6bcb"/>
-      <stop offset="45%" stop-color="#8b5cf6"/>
-      <stop offset="100%" stop-color="#3dd6c6"/>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#a8d8ea"/>
+      <stop offset="55%" stop-color="#c8e6c9"/>
+      <stop offset="100%" stop-color="#81c784"/>
     </linearGradient>
-    <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
-      <stop offset="55%" stop-color="#ffffff" stop-opacity="0"/>
+    <linearGradient id="bookL" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f5e6c8"/>
+      <stop offset="100%" stop-color="#e8d4a8"/>
     </linearGradient>
-    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#5b8cff" flood-opacity="0.45"/>
+    <linearGradient id="bookR" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#efe0c0"/>
+      <stop offset="100%" stop-color="#dcc896"/>
+    </linearGradient>
+    <linearGradient id="cover" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6d4c41"/>
+      <stop offset="100%" stop-color="#4e342e"/>
+    </linearGradient>
+    <filter id="soft" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="#2e7d32" flood-opacity="0.35"/>
     </filter>
   </defs>
 
-  <!-- Rounded tile -->
-  <rect x="8" y="8" width="112" height="112" rx="32" fill="url(#bg)" filter="url(#soft)"/>
-  <rect x="8" y="8" width="112" height="112" rx="32" fill="url(#shine)"/>
+  <!-- Soft garden tile -->
+  <rect x="6" y="6" width="116" height="116" rx="30" fill="url(#sky)" filter="url(#soft)"/>
 
-  <!-- Open book -->
-  <path d="M28 46c14 0 22-6 28-10v48c-7 5-16 9-28 9V46z" fill="#fff" opacity="0.95"/>
-  <path d="M100 46c-14 0-22-6-28-10v48c7 5 16 9 28 9V46z" fill="#fff" opacity="0.88"/>
-  <path d="M56 36c6 4 10 6 18 6s12-2 18-6" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
-  <!-- spine -->
-  <path d="M64 36v48" stroke="#c4b5fd" stroke-width="3" stroke-linecap="round"/>
-
-  <!-- Lines on pages -->
-  <path d="M36 58h14M36 68h12M36 78h14" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round" opacity="0.55"/>
-  <path d="M78 58h14M78 68h12M78 78h14" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
-
-  <!-- Star spark -->
-  <g transform="translate(88 30)">
-    <path d="M0-12 L3-3 L12 0 L3 3 L0 12 L-3 3 L-12 0 L-3-3 Z" fill="#ffd166"/>
+  <!-- Sun -->
+  <circle cx="96" cy="28" r="12" fill="#ffd54f"/>
+  <g stroke="#ffd54f" stroke-width="2" stroke-linecap="round" opacity="0.85">
+    <line x1="96" y1="10" x2="96" y2="14"/>
+    <line x1="96" y1="42" x2="96" y2="46"/>
+    <line x1="78" y1="28" x2="82" y2="28"/>
+    <line x1="110" y1="28" x2="114" y2="28"/>
+    <line x1="83" y1="15" x2="86" y2="18"/>
+    <line x1="106" y1="38" x2="109" y2="41"/>
   </g>
-  <!-- small sparkles -->
-  <circle cx="34" cy="34" r="3" fill="#fff" opacity="0.9"/>
-  <circle cx="98" cy="88" r="2.5" fill="#ffd166"/>
+
+  <!-- Grass hill -->
+  <ellipse cx="64" cy="108" rx="52" ry="18" fill="#66bb6a"/>
+  <ellipse cx="64" cy="112" rx="48" ry="12" fill="#43a047"/>
+
+  <!-- Simple flowers -->
+  <g transform="translate(24 92)">
+    <circle cx="0" cy="0" r="4" fill="#ef5350"/>
+    <circle cx="-4" cy="2" r="3.5" fill="#ef9a9a"/>
+    <circle cx="4" cy="2" r="3.5" fill="#ef9a9a"/>
+    <circle cx="0" cy="0" r="2" fill="#ffecb3"/>
+    <line x1="0" y1="4" x2="0" y2="14" stroke="#2e7d32" stroke-width="2"/>
+  </g>
+  <g transform="translate(104 94)">
+    <circle cx="0" cy="0" r="3.5" fill="#ab47bc"/>
+    <circle cx="-3.5" cy="1.5" r="3" fill="#ce93d8"/>
+    <circle cx="3.5" cy="1.5" r="3" fill="#ce93d8"/>
+    <circle cx="0" cy="0" r="1.8" fill="#fff59d"/>
+    <line x1="0" y1="3" x2="0" y2="12" stroke="#2e7d32" stroke-width="2"/>
+  </g>
+
+  <!-- Old book (open) with brown leather spine feel -->
+  <path d="M30 42c16-2 26-10 34-14v52c-10 6-22 10-34 10V42z" fill="url(#bookL)" stroke="#8d6e63" stroke-width="1.5"/>
+  <path d="M98 42c-16-2-26-10-34-14v52c10 6 22 10 34 10V42z" fill="url(#bookR)" stroke="#8d6e63" stroke-width="1.5"/>
+  <!-- leather spine strip -->
+  <path d="M62 30c1 0 2 0 2 0v54c-2 1-2 1-4 0V30z" fill="url(#cover)"/>
+  <!-- page lines (old school ruled feel) -->
+  <path d="M38 52h18M38 60h16M38 68h18M38 76h14" stroke="#a1887f" stroke-width="1.6" stroke-linecap="round" opacity="0.7"/>
+  <path d="M72 52h18M72 60h16M72 68h18M72 76h14" stroke="#a1887f" stroke-width="1.6" stroke-linecap="round" opacity="0.55"/>
+  <!-- tiny bookmark ribbon -->
+  <path d="M64 78l-4 14 4-3 4 3z" fill="#c62828"/>
+
+  <!-- Soft leaves behind book -->
+  <ellipse cx="26" cy="58" rx="8" ry="4" fill="#4caf50" transform="rotate(-35 26 58)" opacity="0.85"/>
+  <ellipse cx="102" cy="60" rx="8" ry="4" fill="#66bb6a" transform="rotate(30 102 60)" opacity="0.85"/>
 </svg>

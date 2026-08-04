@@ -1,25 +1,29 @@
 :root {
-  --bg: #0f1221;
-  --bg-soft: #171b31;
-  --surface: #1e2440;
-  --surface-2: #272e52;
-  --text: #f4f6ff;
-  --muted: #a8b0d6;
-  --line: rgba(255, 255, 255, 0.1);
-  --bella: #ff6bcb;
-  --bella-2: #c44dff;
-  --george: #3dd6c6;
-  --george-2: #3b8bff;
-  --maths: #5b8cff;
-  --english: #ff8c5a;
-  --science: #4ade80;
-  --gold: #ffd166;
-  --danger: #ff6b6b;
-  --ok: #3ddc97;
+  /* Garden + old-school books palette */
+  --bg: #1a2e1f;
+  --bg-soft: #243528;
+  --surface: #2a3d30;
+  --surface-2: #354a3b;
+  --parchment: #f3e6c8;
+  --text: #f7f1e3;
+  --muted: #b7c4b0;
+  --line: rgba(243, 230, 200, 0.12);
+  --bella: #e891a8;
+  --bella-2: #c45c7a;
+  --george: #6dbf8a;
+  --george-2: #3d8f6a;
+  --maths: #6b9fd4;
+  --english: #d4a017;
+  --science: #7cb342;
+  --gold: #e8c547;
+  --leaf: #66bb6a;
+  --bark: #8d6e63;
+  --danger: #e57373;
+  --ok: #81c784;
   --radius: 18px;
-  --shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
   --font: "Nunito", system-ui, sans-serif;
-  --display: "Space Grotesk", "Nunito", sans-serif;
+  --display: "Fraunces", "Georgia", "Nunito", serif;
 }
 
 * { box-sizing: border-box; }
@@ -28,10 +32,10 @@ html, body {
   min-height: 100%;
   font-family: var(--font);
   background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(255, 107, 203, 0.15), transparent 50%),
-    radial-gradient(900px 500px at 100% 0%, rgba(61, 214, 198, 0.12), transparent 45%),
-    radial-gradient(800px 400px at 50% 100%, rgba(91, 140, 255, 0.1), transparent 40%),
-    var(--bg);
+    radial-gradient(900px 500px at 15% -5%, rgba(255, 213, 79, 0.12), transparent 50%),
+    radial-gradient(800px 480px at 95% 10%, rgba(102, 187, 106, 0.18), transparent 45%),
+    radial-gradient(700px 400px at 50% 110%, rgba(141, 110, 99, 0.2), transparent 40%),
+    linear-gradient(180deg, #1e3324 0%, #1a2e1f 40%, #15251a 100%);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
@@ -69,9 +73,10 @@ a { color: inherit; }
   border-radius: 14px;
   display: block;
   object-fit: cover;
-  box-shadow: 0 8px 24px rgba(91, 140, 255, 0.35);
+  box-shadow: 0 8px 22px rgba(46, 125, 50, 0.4);
   flex-shrink: 0;
   background: transparent;
+  border: 1px solid rgba(243, 230, 200, 0.25);
 }
 
 .logo h1 {
@@ -121,9 +126,9 @@ a { color: inherit; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
 .btn-primary {
-  background: linear-gradient(135deg, #5b8cff, #8b5cf6);
+  background: linear-gradient(135deg, #43a047, #2e7d32);
   color: white;
-  box-shadow: 0 8px 24px rgba(91, 140, 255, 0.35);
+  box-shadow: 0 8px 24px rgba(46, 125, 50, 0.35);
 }
 .btn-secondary {
   background: var(--surface-2);
@@ -143,7 +148,9 @@ a { color: inherit; }
 .btn-lg { padding: 0.95rem 1.4rem; font-size: 1.05rem; }
 
 .card {
-  background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 40%), var(--surface);
+  background:
+    linear-gradient(180deg, rgba(243, 230, 200, 0.06), transparent 45%),
+    var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 1.25rem;
@@ -185,21 +192,23 @@ h2.section-title {
   padding: 1.5rem 0 2rem;
 }
 .hero-logo {
-  width: 88px;
-  height: 88px;
-  border-radius: 26px;
+  width: 96px;
+  height: 96px;
+  border-radius: 28px;
   display: block;
   margin: 0 auto 1rem;
-  box-shadow: 0 12px 36px rgba(139, 92, 246, 0.4);
+  box-shadow: 0 14px 36px rgba(46, 125, 50, 0.45);
+  border: 2px solid rgba(243, 230, 200, 0.3);
 }
 .hero h2 {
   font-family: var(--display);
   font-size: clamp(1.8rem, 4vw, 2.6rem);
   margin: 0 0 0.5rem;
   line-height: 1.15;
+  font-weight: 700;
 }
 .hero .sparkle {
-  background: linear-gradient(90deg, #ff6bcb, #ffd166, #3dd6c6);
+  background: linear-gradient(90deg, #ffd54f, #a5d6a7, #81c784);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -408,7 +417,7 @@ h2.section-title {
 .progress-track > span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #5b8cff, #3dd6c6);
+  background: linear-gradient(90deg, #66bb6a, #ffd54f);
   transition: width 0.3s ease;
 }
 
@@ -477,7 +486,7 @@ h2.section-title {
   font-family: var(--display);
   font-size: 3.5rem;
   font-weight: 700;
-  background: linear-gradient(90deg, #ffd166, #3dd6c6);
+  background: linear-gradient(90deg, #ffd54f, #81c784);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -501,7 +510,7 @@ h2.section-title {
   display: block;
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, #5b8cff, #3dd6c6);
+  background: linear-gradient(90deg, #66bb6a, #a5d6a7);
 }
 
 /* —— Parent —— */
@@ -602,7 +611,14 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
   color: #c4b5fd;
 }
 .tutor-card {
-  border-top: 3px solid #8b5cf6;
+  border-top: 3px solid #8d6e63;
+}
+.ai-bubble {
+  background: linear-gradient(135deg, rgba(102, 187, 106, 0.15), rgba(255, 213, 79, 0.08)) !important;
+  border-color: rgba(102, 187, 106, 0.4) !important;
+}
+.ai-bubble strong {
+  color: #c5e1a5 !important;
 }
 
 @media (max-width: 720px) {

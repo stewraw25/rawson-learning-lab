@@ -85,7 +85,7 @@ function topbar(extraRight = "") {
         <img class="logo-mark" src="assets/logo.svg" width="46" height="46" alt="Rawson Learning Lab" />
         <div>
           <h1>Rawson Learning Lab</h1>
-          <p>English · Maths · Science · GCSE pathway</p>
+          <p>Homeschool garden · books · GCSE pathway</p>
         </div>
       </div>
       <div class="pill-row">
@@ -136,9 +136,9 @@ function renderHome() {
   appEl.innerHTML = `
     ${topbar(`<button class="btn btn-ghost" data-go="parent" type="button">Parent zone</button>`)}
     <section class="hero">
-      <img class="hero-logo" src="assets/logo.svg" width="88" height="88" alt="Rawson Learning Lab" />
-      <h2>Learning that feels like a <span class="sparkle">game</span></h2>
-      <p class="lead center">Built for <strong>Bella-Rose</strong> (12) &amp; <strong>George</strong> (10) · UK curriculum · GCSE-ready foundations</p>
+      <img class="hero-logo" src="assets/logo.svg" width="96" height="96" alt="Rawson Learning Lab" />
+      <h2>Learning in the <span class="sparkle">garden</span> &amp; the library</h2>
+      <p class="lead center">Homeschool hub for <strong>Bella-Rose</strong> (12) &amp; <strong>George</strong> (10) · English, Maths &amp; Science · UK GCSE foundations</p>
     </section>
     <div class="grid-2">
       ${profileCard("bella")}
@@ -227,7 +227,7 @@ function renderDashboard() {
     <div class="welcome-banner ${L.theme}">
       <div>
         <h2>Hey ${escapeHtml(L.name)}! ${L.emoji}</h2>
-        <p class="muted" style="margin:0.35rem 0 0">Your personalised path to GCSE-ready English, Maths &amp; Science</p>
+        <p class="muted" style="margin:0.35rem 0 0">Your homeschool path — English, Maths &amp; Science toward GCSE</p>
       </div>
       <div class="xp-ring">
         <div class="lvl">Level ${p.level}</div>

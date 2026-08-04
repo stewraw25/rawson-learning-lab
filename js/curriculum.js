@@ -12,9 +12,9 @@ const LEARNERS = {
     age: 12,
     yearGroup: "Year 7–8",
     stage: "ks3",
-    emoji: "🌟",
+    emoji: "🌸",
     theme: "bella",
-    tagline: "KS3 superstar on the GCSE pathway",
+    tagline: "Garden scholar · KS3 on the GCSE pathway",
   },
   george: {
     id: "george",
@@ -23,9 +23,9 @@ const LEARNERS = {
     age: 10,
     yearGroup: "Year 5–6",
     stage: "ks2",
-    emoji: "🚀",
+    emoji: "🍃",
     theme: "george",
-    tagline: "KS2 explorer building GCSE foundations",
+    tagline: "Outdoor explorer · KS2 GCSE foundations",
   },
 };
 
