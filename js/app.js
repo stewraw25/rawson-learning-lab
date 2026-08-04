@@ -141,7 +141,7 @@ function renderHome() {
   appEl.innerHTML = `
     ${topbar(`<button class="btn btn-ghost" data-go="parent" type="button">Parent zone</button>`)}
     <section class="hero">
-      <img class="hero-logo" src="assets/logo.svg" width="96" height="96" alt="Rawson Learning Lab" />
+      <img class="hero-logo" src="assets/logo-icon.jpg" width="96" height="96" alt="Rawson Learning Lab" />
       <h2>Learning in the <span class="sparkle">garden</span> &amp; the library</h2>
       <p class="lead center">Homeschool hub for <strong>Bella-Rose</strong> (12) &amp; <strong>George</strong> (10) · English, Maths &amp; Science · UK GCSE foundations</p>
     </section>
@@ -1332,7 +1332,7 @@ function renderAiSettings() {
           <h1 style="margin-top:0">Rawson Learning Lab</h1>
           <p>Something went wrong loading the full app. Try a hard refresh (Cmd+Shift+R).</p>
           <p style="font-size:0.85rem;opacity:0.8">${String(err && err.message ? err.message : err)}</p>
-          <p><a href="?v=8" style="color:#a5d6a7">Reload clean link</a></p>
+          <p><a href="?v=9" style="color:#a5d6a7">Reload clean link</a></p>
           <button type="button" id="btnResetLocal" style="margin-top:1rem;padding:0.75rem 1rem;border-radius:10px;border:0;background:#43a047;color:#fff;font-weight:700;cursor:pointer">
             Reset local data &amp; reload
           </button>
@@ -1341,7 +1341,7 @@ function renderAiSettings() {
         try {
           localStorage.removeItem("rawson-learning-lab-v1");
         } catch (_) {}
-        location.href = "?v=8&reset=1";
+        location.href = "?v=9&reset=1";
       });
     }
   }
