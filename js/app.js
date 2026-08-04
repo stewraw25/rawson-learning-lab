@@ -117,7 +117,12 @@ function topbar(extraRight = "") {
 function siteFooter() {
   return `
     <footer class="site-powered">
-      <span>Powered via <strong>Grok</strong> &amp; <strong>Rawson LABS</strong></span>
+      <span class="powered-label">Powered via</span>
+      <span class="powered-brands">
+        <img class="powered-logo powered-grok" src="assets/grok-logo.svg" alt="Grok" height="28" />
+        <span class="powered-amp">&amp;</span>
+        <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg" alt="Rawson LABS" height="28" />
+      </span>
     </footer>`;
 }
 

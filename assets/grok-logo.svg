@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 36" role="img" aria-label="Grok">
+  <!-- Minimal powered-by mark in xAI/Grok spirit: dark pill + wordmark -->
+  <rect width="120" height="36" rx="10" fill="#0a0a0a"/>
+  <rect x="0.75" y="0.75" width="118.5" height="34.5" rx="9.25" fill="none" stroke="#333" stroke-width="1"/>
+  <!-- stylised G mark -->
+  <circle cx="18" cy="18" r="9" fill="none" stroke="#fff" stroke-width="2.4"/>
+  <path d="M18 12.5v5.5h5.2" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Grok word -->
+  <text x="34" y="23.5" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="700" fill="#ffffff" letter-spacing="0.02em">Grok</text>
+</svg>

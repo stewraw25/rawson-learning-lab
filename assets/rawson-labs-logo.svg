@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 168 36" role="img" aria-label="Rawson LABS">
+  <defs>
+    <linearGradient id="rlbg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a3d30"/>
+      <stop offset="100%" stop-color="#1a2e1f"/>
+    </linearGradient>
+    <linearGradient id="rlgold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffd54f"/>
+      <stop offset="100%" stop-color="#e8c547"/>
+    </linearGradient>
+  </defs>
+  <rect width="168" height="36" rx="10" fill="url(#rlbg)"/>
+  <rect x="0.75" y="0.75" width="166.5" height="34.5" rx="9.25" fill="none" stroke="#f3e6c8" stroke-opacity="0.28" stroke-width="1"/>
+  <!-- mark: book + leaf -->
+  <g transform="translate(8 7)">
+    <path d="M2 4h8v14H2z" fill="#f3e6c8" opacity="0.95"/>
+    <path d="M10 4h8v14h-8z" fill="#e8d4a8"/>
+    <path d="M9.5 3.5v15" stroke="#8d6e63" stroke-width="1.2"/>
+    <path d="M20 8c4 1 6 4 6 8-4-1-6-4-6-8z" fill="#66bb6a"/>
+  </g>
+  <text x="38" y="16" font-family="Georgia, Fraunces, serif" font-size="11" font-weight="700" fill="#f7f1e3">Rawson</text>
+  <text x="38" y="28" font-family="system-ui, sans-serif" font-size="10" font-weight="800" fill="url(#rlgold)" letter-spacing="0.14em">LABS</text>
+</svg>

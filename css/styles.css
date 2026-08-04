@@ -785,16 +785,41 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
 /* Powered-by credit */
 .site-powered {
   margin: 2rem 0 0.5rem;
-  padding: 0.85rem 1rem;
+  padding: 1rem 1rem 0.75rem;
   text-align: center;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   color: var(--muted);
   border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
 }
-.site-powered strong {
-  color: var(--gold);
+.powered-label {
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  opacity: 0.85;
+}
+.powered-brands {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.7rem;
+}
+.powered-logo {
+  display: block;
+  height: 30px;
+  width: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+.powered-amp {
+  font-size: 0.95rem;
+  color: var(--muted);
   font-weight: 800;
 }
 
