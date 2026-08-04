@@ -1,10 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 36" role="img" aria-label="Grok">
-  <!-- Minimal powered-by mark in xAI/Grok spirit: dark pill + wordmark -->
-  <rect width="120" height="36" rx="10" fill="#0a0a0a"/>
-  <rect x="0.75" y="0.75" width="118.5" height="34.5" rx="9.25" fill="none" stroke="#333" stroke-width="1"/>
-  <!-- stylised G mark -->
-  <circle cx="18" cy="18" r="9" fill="none" stroke="#fff" stroke-width="2.4"/>
-  <path d="M18 12.5v5.5h5.2" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Grok word -->
-  <text x="34" y="23.5" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="700" fill="#ffffff" letter-spacing="0.02em">Grok</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 36" role="img" aria-label="Grok">
+  <!-- Clean dark wordmark — no clock-like circle -->
+  <rect width="108" height="36" rx="10" fill="#0a0a0a"/>
+  <rect x="1" y="1" width="106" height="34" rx="9" fill="none" stroke="#3a3a3a" stroke-width="1"/>
+  <!-- Simple star / spark (not a clock) -->
+  <path d="M16 10l1.6 4.4H22l-3.6 2.8 1.4 4.4L16 19.2l-3.8 2.4 1.4-4.4L10 14.4h4.4z" fill="#fff"/>
+  <!-- Grok text as paths-free system font wordmark -->
+  <text
+    x="30"
+    y="24"
+    font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif"
+    font-size="16"
+    font-weight="700"
+    fill="#ffffff"
+    letter-spacing="0.04em">Grok</text>
 </svg>
