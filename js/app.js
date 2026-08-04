@@ -34,7 +34,12 @@ async function refreshFromCloud(opts = {}) {
   if (!isSyncEnabled()) return false;
   try {
     if (!silent) syncStatus = "Syncing…";
-    const result = await pullProfiles(state);
+    const result = await Promise.race([
+      pullProfiles(state),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Cloud timeout")), 8000)
+      ),
+    ]);
     if (result.changed) {
       saveState(state);
       syncStatus = "Updated from family cloud ✓ " + formatTime(Date.now());
@@ -1308,12 +1313,36 @@ function renderAiSettings() {
 
 // —— Boot ——
 (async function boot() {
-  if (isSyncEnabled()) {
-    try {
-      await refreshFromCloud({ silent: true });
-    } catch {
-      /* offline ok */
+  try {
+    if (isSyncEnabled()) {
+      try {
+        await refreshFromCloud({ silent: true });
+      } catch {
+        /* offline / timeout ok — still open the app */
+      }
+    }
+    go(state.activeLearner ? "dashboard" : "home");
+  } catch (err) {
+    console.error("Boot failed", err);
+    // Last resort UI so the page is never a blank screen
+    const el = document.getElementById("app");
+    if (el) {
+      el.innerHTML = `
+        <div style="padding:2rem;font-family:system-ui;max-width:32rem;margin:2rem auto;color:#f7f1e3;background:#2a3d30;border-radius:16px">
+          <h1 style="margin-top:0">Rawson Learning Lab</h1>
+          <p>Something went wrong loading the full app. Try a hard refresh (Cmd+Shift+R).</p>
+          <p style="font-size:0.85rem;opacity:0.8">${String(err && err.message ? err.message : err)}</p>
+          <p><a href="?v=8" style="color:#a5d6a7">Reload clean link</a></p>
+          <button type="button" id="btnResetLocal" style="margin-top:1rem;padding:0.75rem 1rem;border-radius:10px;border:0;background:#43a047;color:#fff;font-weight:700;cursor:pointer">
+            Reset local data &amp; reload
+          </button>
+        </div>`;
+      document.getElementById("btnResetLocal")?.addEventListener("click", () => {
+        try {
+          localStorage.removeItem("rawson-learning-lab-v1");
+        } catch (_) {}
+        location.href = "?v=8&reset=1";
+      });
     }
   }
-  go(state.activeLearner ? "dashboard" : "home");
 })();
