@@ -6,10 +6,23 @@ Fun UK curriculum practice hub for **Bella-Rose Rawson** (12) and **George Rawso
 
 - Placement tests in **English**, **Maths** and **Science**
 - Personalised courses that prioritise weaker skills (GCSE pathway mapping)
+- **Adaptive lessons**: teach → worked example → practice; struggle path + diagrams + BBC Bitesize / Oak links
+- Optional **Grok (xAI) AI tutor** for personalised explanations (see Parent zone → AI settings)
 - XP, levels, streaks and badges
 - Progress autosaves in the browser
 - **Family cloud sync** (Firebase) so kids’ iMacs push progress and a parent Mac watches live
 - **Export / Import** JSON backups as a safety net
+
+### Optional Grok proxy
+
+Browser apps often cannot call the xAI API directly (CORS). Deploy `worker/` as a Cloudflare Worker and paste the URL into AI settings:
+
+```bash
+cd worker
+npx wrangler login
+npx wrangler secret put XAI_API_KEY
+npx wrangler deploy
+```
 
 ## Live site
 

@@ -1,0 +1,221 @@
+/**
+ * Adaptive tutor engine + optional Grok (xAI) enhancement
+ */
+
+const AI_KEY_STORAGE = "rawson-learning-xai-key";
+const AI_PROXY_STORAGE = "rawson-learning-xai-proxy";
+
+function getAiKey() {
+  try {
+    return localStorage.getItem(AI_KEY_STORAGE) || "";
+  } catch {
+    return "";
+  }
+}
+
+function setAiKey(key) {
+  if (!key) localStorage.removeItem(AI_KEY_STORAGE);
+  else localStorage.setItem(AI_KEY_STORAGE, key.trim());
+}
+
+function getAiProxy() {
+  try {
+    return localStorage.getItem(AI_PROXY_STORAGE) || "";
+  } catch {
+    return "";
+  }
+}
+
+function setAiProxy(url) {
+  if (!url) localStorage.removeItem(AI_PROXY_STORAGE);
+  else localStorage.setItem(AI_PROXY_STORAGE, url.trim().replace(/\/$/, ""));
+}
+
+function isAiConfigured() {
+  return !!(getAiKey() || getAiProxy());
+}
+
+/**
+ * Call Grok via proxy (preferred) or direct API if key set.
+ * Proxy should accept POST { messages, model } and forward to xAI.
+ */
+async function askGrok(messages, opts = {}) {
+  const model = opts.model || "grok-3-mini";
+  const proxy = getAiProxy();
+  const key = getAiKey();
+
+  if (proxy) {
+    const res = await fetch(`${proxy}/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(key ? { "X-Api-Key": key } : {}),
+      },
+      body: JSON.stringify({ messages, model }),
+    });
+    if (!res.ok) throw new Error(`AI proxy error ${res.status}`);
+    const data = await res.json();
+    return (
+      data.choices?.[0]?.message?.content ||
+      data.content ||
+      data.reply ||
+      ""
+    );
+  }
+
+  if (!key) throw new Error("No AI key or proxy configured");
+
+  // Direct xAI call (may fail on CORS in browser — proxy recommended)
+  const res = await fetch("https://api.x.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.5,
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`xAI error ${res.status}: ${t.slice(0, 120)}`);
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || "";
+}
+
+function tutorSystemPrompt(learnerMeta) {
+  return `You are a friendly UK tutor for ${learnerMeta.fullName}, age ${learnerMeta.age} (${learnerMeta.yearGroup}).
+Follow the English National Curriculum. Keep language clear and encouraging.
+Explain mistakes simply, give one mini worked example, then one similar practice question.
+Never be condescending. Use British spelling. Keep answers under 180 words unless asked.
+Format practice question clearly at the end if you include one.`;
+}
+
+/**
+ * When student is wrong, ask Grok for a personalised re-teach.
+ */
+async function grokStruggleHelp({
+  learnerMeta,
+  subject,
+  skillName,
+  question,
+  userAnswer,
+  correctExplain,
+}) {
+  const messages = [
+    { role: "system", content: tutorSystemPrompt(learnerMeta) },
+    {
+      role: "user",
+      content: `Subject: ${subject}
+Skill: ${skillName}
+Question: ${question}
+Student answered: ${userAnswer}
+Mark scheme hint: ${correctExplain}
+
+The student got this wrong. Explain gently why, teach the idea in 3 short steps, and end with ONE new similar question (multiple choice with 4 options labelled A-D, and state the correct letter).`,
+    },
+  ];
+  return askGrok(messages);
+}
+
+/**
+ * Create an adaptive session state for a skill module
+ */
+function createTutorSession(subject, skillId, learnerId) {
+  const mod = getTeachModule(subject, skillId);
+  if (!mod) return null;
+  return {
+    subject,
+    skillId,
+    learnerId,
+    phase: "teach", // teach | example | practice | struggle_teach | struggle_practice | video | complete
+    practiceIndex: 0,
+    practiceCorrect: 0,
+    practiceTotal: 0,
+    wrongStreak: 0,
+    totalWrong: 0,
+    struggleUsed: false,
+    videoShown: false,
+    aiHelp: null,
+    history: [],
+    startedAt: Date.now(),
+  };
+}
+
+function currentPracticeList(session) {
+  const mod = getTeachModule(session.subject, session.skillId);
+  if (session.phase === "struggle_practice") {
+    return mod.struggle?.practice || mod.practice;
+  }
+  return mod.practice;
+}
+
+function sessionProgress(session) {
+  const list = currentPracticeList(session);
+  if (session.phase === "teach" || session.phase === "example") {
+    return { label: "Learning", pct: session.phase === "teach" ? 10 : 25 };
+  }
+  if (session.phase === "video") return { label: "Video boost", pct: 50 };
+  if (session.phase === "complete") return { label: "Done", pct: 100 };
+  const idx = session.practiceIndex;
+  const n = list.length || 1;
+  const base = session.phase.startsWith("struggle") ? 55 : 30;
+  const span = session.phase.startsWith("struggle") ? 35 : 60;
+  return {
+    label: `Question ${Math.min(idx + 1, n)} / ${n}`,
+    pct: Math.min(99, base + Math.round((idx / n) * span)),
+  };
+}
+
+/**
+ * After answering: returns { correct, nextPhase updates to apply }
+ */
+function handlePracticeAnswer(session, question, userAnswer) {
+  const ok = checkAnswer(question, userAnswer);
+  session.practiceTotal++;
+  session.history.push({
+    q: question.q,
+    ok,
+    answer: userAnswer,
+    at: Date.now(),
+  });
+
+  if (ok) {
+    session.practiceCorrect++;
+    session.wrongStreak = 0;
+    session.practiceIndex++;
+    const list = currentPracticeList(session);
+    if (session.practiceIndex >= list.length) {
+      session.phase = "complete";
+    }
+  } else {
+    session.totalWrong++;
+    session.wrongStreak++;
+    // Branch into struggle path
+    if (!session.struggleUsed && session.wrongStreak >= 1) {
+      session.struggleUsed = true;
+      session.phase = "struggle_teach";
+      session.practiceIndex = 0;
+    } else if (session.wrongStreak >= 2 && !session.videoShown) {
+      session.videoShown = true;
+      session.phase = "video";
+    } else {
+      // stay on question but mark for feedback — caller shows explain then next
+      session.practiceIndex++;
+      const list = currentPracticeList(session);
+      if (session.practiceIndex >= list.length) {
+        session.phase = "complete";
+      }
+    }
+  }
+
+  return ok;
+}
+
+function scoreSession(session) {
+  if (!session.practiceTotal) return 0;
+  return Math.round((session.practiceCorrect / session.practiceTotal) * 100);
+}

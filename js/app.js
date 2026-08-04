@@ -70,6 +70,7 @@ function go(screen, params = {}) {
     parent: renderParent,
     subject: renderSubject,
     sync: renderSyncSetup,
+    aiSettings: renderAiSettings,
   };
   const fn = routes[screen];
   if (fn) fn(params);
@@ -258,8 +259,9 @@ function renderDashboard() {
       <h3 style="margin-top:0;font-family:var(--display)">How it works</h3>
       <ol class="muted" style="line-height:1.6;margin:0;padding-left:1.2rem">
         <li><strong style="color:var(--text)">Placement test</strong> — see where you are in each subject</li>
-        <li><strong style="color:var(--text)">Personal course</strong> — we prioritise your weaker skills (GCSE-linked)</li>
-        <li><strong style="color:var(--text)">Lessons &amp; XP</strong> — practise, level up, earn badges</li>
+        <li><strong style="color:var(--text)">Personal course</strong> — weaker skills first (GCSE-linked)</li>
+        <li><strong style="color:var(--text)">Adaptive lessons</strong> — teach → example → practice; if you struggle it slows down &amp; helps</li>
+        <li><strong style="color:var(--text)">XP &amp; badges</strong> — level up as you learn</li>
       </ol>
     </div>
   `;
@@ -364,7 +366,7 @@ function renderSubject({ subject }) {
                       }" type="button" data-lesson="${skillId}" ${
                     canDo ? "" : "disabled"
                   }>
-                        ${done ? "Practise again" : "Start"}
+                        ${done ? "Revise again" : "Learn & practise"}
                       </button>
                     </div>`;
                 })
@@ -545,51 +547,198 @@ function renderDiagnosticResult({ subject, result }) {
   document.getElementById("toCourse").onclick = () => go("subject", { subject });
 }
 
-// —— LESSON ——
+// —— ADAPTIVE LESSON (Teach → Example → Practice → branch if stuck) ——
 function renderLesson({ subject, skillId }) {
   if (!state.activeLearner) return go("home");
-  const lesson = LESSONS[subject][skillId];
-  const items = lesson.items;
-  const answers = {};
-  let index = 0;
-  let correctCount = 0;
+  const mod = getTeachModule(subject, skillId);
+  if (!mod) {
+    // Fallback to old item list if no teach module
+    alert("Lesson module missing — try another skill.");
+    return go("subject", { subject });
+  }
+
+  const session = createTutorSession(subject, skillId, state.activeLearner);
+  let answerVal = null;
   let revealed = false;
 
   function paint() {
-    const q = items[index];
-    const pct = Math.round((index / items.length) * 100);
+    const prog = sessionProgress(session);
+    const skillName = SKILLS[subject][skillId].name;
+    let bodyHtml = "";
+
+    if (session.phase === "teach") {
+      bodyHtml = `
+        <div class="phase-pill">📖 Teach</div>
+        <h3 class="teach-heading">${escapeHtml(mod.title)}</h3>
+        <p class="muted">${escapeHtml(mod.blurb)}</p>
+        ${mod.teach.visual ? `<div class="visual-wrap">${mod.teach.visual}</div>` : ""}
+        <ul class="teach-points">
+          ${mod.teach.points.map((p) => `<li>${escapeHtml(p)}</li>`).join("")}
+        </ul>
+        <button class="btn btn-primary btn-lg mt-2" type="button" id="btnAdvance">Got it — show example →</button>`;
+    } else if (session.phase === "example") {
+      bodyHtml = `
+        <div class="phase-pill">✏️ Example</div>
+        <h3 class="teach-heading">${escapeHtml(mod.example.title)}</h3>
+        <ol class="teach-steps">
+          ${mod.example.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}
+        </ol>
+        <button class="btn btn-primary btn-lg mt-2" type="button" id="btnAdvance">I'm ready to practise →</button>`;
+    } else if (session.phase === "struggle_teach") {
+      const st = mod.struggle || {};
+      bodyHtml = `
+        <div class="phase-pill phase-struggle">🛟 Let's slow down</div>
+        <h3 class="teach-heading">Another way to see it</h3>
+        <p class="muted">No worries — everyone gets stuck. Here's a simpler path.</p>
+        ${st.visual ? `<div class="visual-wrap">${st.visual}</div>` : ""}
+        <ul class="teach-points">
+          ${(st.points || []).map((p) => `<li>${escapeHtml(p)}</li>`).join("")}
+        </ul>
+        <div id="aiHelpBox"></div>
+        <button class="btn btn-primary btn-lg mt-2" type="button" id="btnAdvance">Try an easier question →</button>
+        ${
+          isAiConfigured()
+            ? `<button class="btn btn-secondary mt-1" type="button" id="btnAiHelp">✨ Ask AI tutor to explain differently</button>`
+            : `<p class="muted mt-1" style="font-size:0.8rem">Tip: Parent can turn on Grok AI in Parent zone for extra explanations.</p>`
+        }`;
+    } else if (session.phase === "video") {
+      const vid = getVideoForModule(mod);
+      bodyHtml = `
+        <div class="phase-pill">🎬 Video boost</div>
+        <h3 class="teach-heading">Watch a quick helper</h3>
+        <p class="muted">Trusted UK education site — open it, watch a bit, then come back.</p>
+        ${
+          vid
+            ? `<a class="btn btn-primary btn-lg" href="${escapeHtml(
+                vid.url
+              )}" target="_blank" rel="noopener">${escapeHtml(vid.title)} ↗</a>`
+            : `<p>Keep practising — you've got this.</p>`
+        }
+        <button class="btn btn-ok btn-lg mt-2" type="button" id="btnAdvance">Back to practice →</button>`;
+    } else if (session.phase === "complete") {
+      finishSession();
+      return;
+    } else {
+      // practice or struggle_practice
+      const list = currentPracticeList(session);
+      const q = list[session.practiceIndex];
+      if (!q) {
+        session.phase = "complete";
+        paint();
+        return;
+      }
+      bodyHtml = `
+        <div class="phase-pill">${
+          session.phase === "struggle_practice" ? "🛟 Easier practice" : "🎯 Practice"
+        }</div>
+        ${
+          q.passage
+            ? `<blockquote class="passage">${escapeHtml(q.passage)}</blockquote>`
+            : ""
+        }
+        <h3 class="teach-heading">${escapeHtml(q.q)}</h3>
+        <div id="qBody"></div>
+        <div id="feedback"></div>
+        <div id="aiHelpBox"></div>
+        <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <button class="btn btn-primary" type="button" id="btnCheck">Check</button>
+          <button class="btn btn-ok" type="button" id="btnAdvance" style="display:none">Continue →</button>
+        </div>`;
+    }
+
     appEl.innerHTML = `
       ${topbar()}
       <div class="quiz-header">
         <div>
-          <div class="q-meta">${SUBJECTS[subject].emoji} ${escapeHtml(
-      lesson.title
-    )} · ${index + 1}/${items.length}</div>
-          <strong>${escapeHtml(SKILLS[subject][skillId].name)}</strong>
+          <div class="q-meta">${SUBJECTS[subject].emoji} Adaptive lesson · ${escapeHtml(
+      skillName
+    )}</div>
+          <strong>${escapeHtml(mod.title)}</strong>
         </div>
-        <div class="progress-track" style="max-width:200px"><span style="width:${pct}%"></span></div>
-      </div>
-      <div class="card question-card">
-        ${
-          q.passage
-            ? `<blockquote class="muted" style="border-left:3px solid var(--science);padding-left:0.75rem;margin:0 0 1rem">${escapeHtml(
-                q.passage
-              )}</blockquote>`
-            : ""
-        }
-        <h3>${escapeHtml(q.q)}</h3>
-        <div id="qBody"></div>
-        <div id="feedback"></div>
-        <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
-          <button class="btn btn-primary" type="button" id="btnCheck">Check</button>
-          <button class="btn btn-ok" type="button" id="btnNext" style="display:none">${
-            index + 1 >= items.length ? "Finish lesson" : "Next →"
-          }</button>
+        <div style="min-width:140px">
+          <div class="muted" style="font-size:0.75rem;margin-bottom:0.25rem">${escapeHtml(
+            prog.label
+          )}</div>
+          <div class="progress-track"><span style="width:${prog.pct}%"></span></div>
         </div>
       </div>
+      <div class="card question-card tutor-card">${bodyHtml}</div>
+      <button class="btn btn-ghost mt-1" type="button" id="btnExitLesson">Exit lesson</button>
     `;
     bindShell();
+    document.getElementById("btnExitLesson").onclick = () =>
+      go("subject", { subject });
+
+    const adv = document.getElementById("btnAdvance");
+    if (adv && session.phase === "teach") {
+      adv.onclick = () => {
+        session.phase = "example";
+        paint();
+      };
+    } else if (adv && session.phase === "example") {
+      adv.onclick = () => {
+        session.phase = "practice";
+        session.practiceIndex = 0;
+        answerVal = null;
+        revealed = false;
+        paint();
+      };
+    } else if (adv && session.phase === "struggle_teach") {
+      adv.onclick = () => {
+        session.phase = "struggle_practice";
+        session.practiceIndex = 0;
+        answerVal = null;
+        revealed = false;
+        paint();
+      };
+    } else if (adv && session.phase === "video") {
+      adv.onclick = () => {
+        session.phase = session.struggleUsed ? "struggle_practice" : "practice";
+        answerVal = null;
+        revealed = false;
+        paint();
+      };
+    }
+
+    const aiBtn = document.getElementById("btnAiHelp");
+    if (aiBtn) {
+      aiBtn.onclick = async () => {
+        const box = document.getElementById("aiHelpBox");
+        box.innerHTML = `<p class="muted">✨ AI tutor is thinking…</p>`;
+        try {
+          const lastWrong = [...session.history].reverse().find((h) => !h.ok);
+          const text = await grokStruggleHelp({
+            learnerMeta: learner(),
+            subject: SUBJECTS[subject].name,
+            skillName,
+            question: lastWrong?.q || mod.title,
+            userAnswer: String(lastWrong?.answer ?? "?"),
+            correctExplain: mod.teach.points.join(" "),
+          });
+          box.innerHTML = `<div class="ai-bubble"><strong>✨ AI tutor</strong><p>${escapeHtml(
+            text
+          ).replace(/\n/g, "<br>")}</p></div>`;
+        } catch (e) {
+          box.innerHTML = `<p class="feedback bad">AI unavailable (${escapeHtml(
+            e.message || "error"
+          )}). Using built-in teaching instead — you're fine!</p>`;
+        }
+      };
+    }
+
+    if (session.phase === "practice" || session.phase === "struggle_practice") {
+      wirePracticeQuestion();
+    }
+  }
+
+  function wirePracticeQuestion() {
+    const list = currentPracticeList(session);
+    const q = list[session.practiceIndex];
+    answerVal = null;
+    revealed = false;
     const body = document.getElementById("qBody");
+    if (!body || !q) return;
+
     if (q.type === "multi") {
       body.innerHTML = `<div class="options">${q.options
         .map(
@@ -602,9 +751,11 @@ function renderLesson({ subject, skillId }) {
       body.querySelectorAll(".option").forEach((btn) => {
         btn.onclick = () => {
           if (revealed) return;
-          body.querySelectorAll(".option").forEach((b) => b.classList.remove("selected"));
+          body.querySelectorAll(".option").forEach((b) =>
+            b.classList.remove("selected")
+          );
           btn.classList.add("selected");
-          answers[index] = Number(btn.dataset.i);
+          answerVal = Number(btn.dataset.i);
         };
       });
     } else {
@@ -612,64 +763,133 @@ function renderLesson({ subject, skillId }) {
       const input = document.getElementById("typedAns");
       input.focus();
       input.oninput = () => {
-        answers[index] = input.value;
+        answerVal = input.value;
       };
       input.onkeydown = (e) => {
-        if (e.key === "Enter") document.getElementById("btnCheck").click();
+        if (e.key === "Enter") document.getElementById("btnCheck")?.click();
       };
     }
 
-    document.getElementById("btnCheck").onclick = () => {
+    document.getElementById("btnCheck").onclick = async () => {
       if (revealed) return;
-      if (answers[index] === undefined || answers[index] === "") {
-        alert("Answer first!");
+      if (answerVal === null || answerVal === "") {
+        alert("Pick or type an answer first!");
         return;
       }
       revealed = true;
-      const ok = checkAnswer(q, answers[index]);
-      if (ok) correctCount++;
+      const ok = checkAnswer(q, answerVal);
       const fb = document.getElementById("feedback");
       fb.className = `feedback ${ok ? "good" : "bad"}`;
-      fb.textContent = (ok ? "✓ Nice! " : "Almost — ") + q.explain;
+      fb.innerHTML = ok
+        ? `✓ Nice! ${escapeHtml(q.explain)}`
+        : `Not quite. ${escapeHtml(q.explain)}`;
+
       if (q.type === "multi") {
         body.querySelectorAll(".option").forEach((btn) => {
           const i = Number(btn.dataset.i);
           if (i === q.answer) btn.classList.add("correct");
-          if (i === answers[index] && !ok) btn.classList.add("wrong");
+          if (i === answerVal && !ok) btn.classList.add("wrong");
           btn.disabled = true;
         });
       }
       document.getElementById("btnCheck").disabled = true;
-      document.getElementById("btnNext").style.display = "inline-flex";
-    };
 
-    document.getElementById("btnNext").onclick = async () => {
-      if (index + 1 >= items.length) {
-        const scorePct = Math.round((correctCount / items.length) * 100);
-        recordLesson(profile(), subject, skillId, scorePct);
-        await save();
-        go("lessonResult", { subject, skillId, scorePct, correctCount, total: items.length });
-      } else {
-        index++;
-        revealed = false;
-        paint();
+      // Optional live AI tip on wrong
+      if (!ok && isAiConfigured()) {
+        const box = document.getElementById("aiHelpBox");
+        if (box) {
+          box.innerHTML = `<p class="muted" style="font-size:0.85rem">✨ Getting an extra AI tip…</p>`;
+          try {
+            const text = await grokStruggleHelp({
+              learnerMeta: learner(),
+              subject: SUBJECTS[subject].name,
+              skillName: SKILLS[subject][skillId].name,
+              question: q.q,
+              userAnswer:
+                q.type === "multi" ? q.options[answerVal] : String(answerVal),
+              correctExplain: q.explain,
+            });
+            box.innerHTML = `<div class="ai-bubble"><strong>✨ AI tip</strong><p>${escapeHtml(
+              text
+            ).replace(/\n/g, "<br>")}</p></div>`;
+          } catch {
+            box.innerHTML = "";
+          }
+        }
       }
+
+      const prevPhase = session.phase;
+      handlePracticeAnswer(session, q, answerVal);
+
+      document.getElementById("btnAdvance").style.display = "inline-flex";
+      document.getElementById("btnAdvance").onclick = () => {
+        // handlePracticeAnswer already advanced index / phase
+        if (session.phase === "complete") {
+          finishSession();
+          return;
+        }
+        // If phase changed to struggle/video, paint that; else next Q
+        if (
+          session.phase !== prevPhase ||
+          session.phase === "struggle_teach" ||
+          session.phase === "video"
+        ) {
+          paint();
+        } else {
+          paint();
+        }
+      };
     };
+  }
+
+  async function finishSession() {
+    const scorePct = scoreSession(session);
+    recordLesson(profile(), subject, skillId, scorePct);
+    // Store adaptive stats
+    if (!profile().tutorStats) profile().tutorStats = {};
+    profile().tutorStats[`${subject}:${skillId}`] = {
+      wrong: session.totalWrong,
+      struggle: session.struggleUsed,
+      video: session.videoShown,
+      at: todayKey(),
+    };
+    await save();
+    go("lessonResult", {
+      subject,
+      skillId,
+      scorePct,
+      correctCount: session.practiceCorrect,
+      total: session.practiceTotal,
+      struggle: session.struggleUsed,
+    });
   }
 
   paint();
 }
 
-function renderLessonResult({ subject, skillId, scorePct, correctCount, total }) {
+function renderLessonResult({
+  subject,
+  skillId,
+  scorePct,
+  correctCount,
+  total,
+  struggle,
+}) {
+  const mod = getTeachModule(subject, skillId);
   appEl.innerHTML = `
     ${topbar()}
     <div class="card score-hero celebrate mb-2">
-      <div class="q-meta">Lesson complete</div>
+      <div class="q-meta">Adaptive lesson complete</div>
       <h2 style="font-family:var(--display);margin:0.5rem 0">${escapeHtml(
-        LESSONS[subject][skillId].title
+        mod?.title || skillId
       )}</h2>
       <div class="score-big">${scorePct}%</div>
-      <p>${correctCount}/${total} correct · +XP earned!</p>
+      <p>${correctCount}/${total || "?"} correct on practice · +XP earned!</p>
+      ${
+        struggle
+          ? `<p class="muted">You used the support path — that's smart learning, not failure.</p>`
+          : ""
+      }
       <p class="muted">${escapeHtml(randomEncouragement())}</p>
     </div>
     <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
@@ -721,6 +941,20 @@ function renderParent() {
       <div id="activityFeed" class="muted" style="font-size:0.9rem;line-height:1.5">
         ${activityFeedHtml()}
       </div>
+    </div>
+
+    <div class="card mt-2">
+      <h3 style="margin-top:0">✨ AI tutor (Grok)</h3>
+      <p class="muted">
+        Lessons already adapt offline (teach → practice → easier path → video).
+        Optional Grok AI adds personalised explanations when they get stuck.
+        ${
+          isAiConfigured()
+            ? `<strong style="color:var(--ok)"> · AI is ON on this Mac</strong>`
+            : `<strong style="color:var(--gold)"> · AI not connected yet</strong>`
+        }
+      </p>
+      <button class="btn btn-primary" type="button" data-go="aiSettings">AI settings →</button>
     </div>
 
     <div class="card mt-2">
@@ -980,6 +1214,93 @@ function renderSyncSetup() {
     if (confirm("Turn off cloud on this Mac only?")) {
       setSyncConfig(null);
       go("sync");
+    }
+  };
+}
+
+// —— AI SETTINGS ——
+function renderAiSettings() {
+  const key = getAiKey();
+  const proxy = getAiProxy();
+  appEl.innerHTML = `
+    ${topbar(`<button class="btn btn-ghost" data-go="parent" type="button">← Parent zone</button>`)}
+    <h2 class="section-title">✨ AI tutor settings</h2>
+    <p class="lead">Adaptive lessons work <strong>without</strong> AI. Grok is optional for richer explanations.</p>
+
+    <div class="card mb-2">
+      <h3 style="margin-top:0">What works right now (no key needed)</h3>
+      <ul class="muted" style="line-height:1.6">
+        <li>Teach → example → practice for every skill</li>
+        <li>If they get stuck → simpler path + diagrams</li>
+        <li>Video boost links to BBC Bitesize / Oak National Academy</li>
+        <li>Personal course still prioritises weak skills from tests</li>
+      </ul>
+    </div>
+
+    <div class="card mb-2">
+      <h3 style="margin-top:0">Optional: connect Grok (xAI)</h3>
+      <p class="muted" style="font-size:0.9rem">
+        1. Create an API key at
+        <a href="https://console.x.ai/" target="_blank" rel="noopener" style="color:#7ec0f0">console.x.ai</a>
+        (Stewart’s xAI account)<br>
+        2. Paste it below on <strong style="color:var(--text)">each Mac</strong> that should use AI<br>
+        3. Browser apps often need a small proxy (CORS). If direct call fails, deploy
+        <code style="color:var(--gold)">worker/</code> from this project and paste the proxy URL.
+      </p>
+      <label class="sync-label" style="display:flex;flex-direction:column;gap:0.35rem;font-size:0.8rem;font-weight:800;color:var(--muted)">
+        xAI API key
+        <input type="password" id="aiKey" class="input-answer" placeholder="xai-…" value="${escapeHtml(
+          key
+        )}" autocomplete="off" />
+      </label>
+      <label class="sync-label mt-1" style="display:flex;flex-direction:column;gap:0.35rem;font-size:0.8rem;font-weight:800;color:var(--muted)">
+        AI proxy URL (optional)
+        <input type="url" id="aiProxy" class="input-answer" placeholder="https://your-worker.workers.dev" value="${escapeHtml(
+          proxy
+        )}" />
+      </label>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1rem">
+        <button class="btn btn-primary" type="button" id="btnSaveAi">Save AI settings</button>
+        <button class="btn btn-secondary" type="button" id="btnTestAi">Test AI</button>
+        <button class="btn btn-ghost" type="button" id="btnClearAi">Clear</button>
+      </div>
+      <p id="aiMsg" class="muted mt-1" style="font-size:0.85rem"></p>
+    </div>
+  `;
+  bindShell();
+  const msg = document.getElementById("aiMsg");
+  document.getElementById("btnSaveAi").onclick = () => {
+    setAiKey(document.getElementById("aiKey").value);
+    setAiProxy(document.getElementById("aiProxy").value);
+    msg.textContent = isAiConfigured()
+      ? "Saved ✓ AI tutor enabled on this Mac."
+      : "Cleared — using built-in adaptive lessons only.";
+  };
+  document.getElementById("btnClearAi").onclick = () => {
+    setAiKey("");
+    setAiProxy("");
+    document.getElementById("aiKey").value = "";
+    document.getElementById("aiProxy").value = "";
+    msg.textContent = "AI cleared on this Mac.";
+  };
+  document.getElementById("btnTestAi").onclick = async () => {
+    setAiKey(document.getElementById("aiKey").value);
+    setAiProxy(document.getElementById("aiProxy").value);
+    msg.textContent = "Testing…";
+    try {
+      const reply = await askGrok([
+        {
+          role: "user",
+          content:
+            "In one short friendly sentence for a 10-year-old in the UK: what is half of 10?",
+        },
+      ]);
+      msg.textContent = "AI OK ✓ “" + reply.slice(0, 120) + "”";
+    } catch (e) {
+      msg.textContent =
+        "Test failed: " +
+        (e.message || e) +
+        " — Built-in lessons still work. A proxy may be required for browser calls.";
     }
   };
 }
