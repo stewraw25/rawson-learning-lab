@@ -219,7 +219,55 @@ function learner() {
   return LEARNERS[state.activeLearner] || null;
 }
 
-function go(screen, params = {}) {
+/**
+ * Hash router so browser Back works inside the lab.
+ * #/dashboard  #/subject/maths  #/lesson/maths/algebra/1
+ */
+function parseHashRoute() {
+  const h = (location.hash || "").replace(/^#\/?/, "");
+  if (!h) return { screen: "home", params: {} };
+  const parts = h.split("/").filter(Boolean);
+  const screen = parts[0] || "home";
+  const params = {};
+  if (screen === "subject" && parts[1]) params.subject = parts[1];
+  if (screen === "diagnostic" && parts[1]) params.subject = parts[1];
+  if (screen === "lesson") {
+    params.subject = parts[1];
+    params.skillId = parts[2];
+    params.stage = Number(parts[3]) || 1;
+  }
+  if (screen === "exam") {
+    params.subject = parts[1];
+    params.packStage = Number(parts[2]) || 4;
+    params.mode = parts[3] || "practice";
+  }
+  if (screen === "power5") {
+    params.subject = parts[1] || "maths";
+  }
+  return { screen, params };
+}
+
+function hashFor(screen, params = {}) {
+  if (screen === "home") return "#/";
+  if (screen === "dashboard") return "#/dashboard";
+  if (screen === "subject") return `#/subject/${params.subject || "maths"}`;
+  if (screen === "diagnostic") return `#/diagnostic/${params.subject || "maths"}`;
+  if (screen === "lesson")
+    return `#/lesson/${params.subject}/${params.skillId}/${params.stage || 1}`;
+  if (screen === "exam")
+    return `#/exam/${params.subject}/${params.packStage || 4}/${params.mode || "practice"}`;
+  if (screen === "power5") return `#/power5/${params.subject || "maths"}`;
+  if (screen === "parent") return "#/parent";
+  if (screen === "aiSettings") return "#/aiSettings";
+  if (screen === "sync") return "#/sync";
+  // Results: point hash at a safe parent so refresh/back doesn't blank out
+  if (screen === "lessonResult" || screen === "diagnosticResult" || screen === "examResult") {
+    return `#/subject/${params.subject || "maths"}`;
+  }
+  return `#/${screen}`;
+}
+
+function go(screen, params = {}, opts = {}) {
   stopParentPoll();
   try {
     window.scrollTo(0, 0);
@@ -248,6 +296,31 @@ function go(screen, params = {}) {
     }
   }
   currentScreen = screen;
+
+  // Browser history: real places get a hash entry; result screens replace
+  // so Back returns to the hub/subject instead of a broken empty result.
+  const ephemeral = new Set([
+    "diagnosticResult",
+    "lessonResult",
+    "examResult",
+  ]);
+  if (!opts.fromHash) {
+    const nextHash = hashFor(screen, params);
+    try {
+      if (ephemeral.has(screen)) {
+        history.replaceState({ screen, params }, "", nextHash);
+      } else if (location.hash !== nextHash) {
+        history.pushState({ screen, params }, "", nextHash);
+      }
+    } catch (_) {
+      try {
+        location.hash = nextHash;
+      } catch (__) {
+        /* ignore */
+      }
+    }
+  }
+
   const routes = {
     home: renderHome,
     dashboard: renderDashboard,
@@ -261,6 +334,7 @@ function go(screen, params = {}) {
     subject: renderSubject,
     sync: renderSyncSetup,
     aiSettings: renderAiSettings,
+    power5: renderPower5,
   };
   const fn = routes[screen];
   try {
@@ -291,6 +365,35 @@ function go(screen, params = {}) {
       showFatalError(err2 || err);
     }
   }
+}
+
+function onHashNavigation() {
+  const { screen, params } = parseHashRoute();
+  const allowed = new Set([
+    "home",
+    "dashboard",
+    "subject",
+    "diagnostic",
+    "lesson",
+    "exam",
+    "power5",
+    "parent",
+    "sync",
+    "aiSettings",
+  ]);
+  const safeScreen = allowed.has(screen) ? screen : "dashboard";
+  // Require learner for deep links except home/parent/settings
+  if (
+    safeScreen !== "home" &&
+    safeScreen !== "parent" &&
+    safeScreen !== "sync" &&
+    safeScreen !== "aiSettings" &&
+    (!state.activeLearner || !LEARNERS[state.activeLearner])
+  ) {
+    go("home", {}, { fromHash: true });
+    return;
+  }
+  go(safeScreen, params, { fromHash: true });
 }
 
 /** Open a kid hub — load cloud first, never get sent back to home by a race */
@@ -617,13 +720,13 @@ function renderHome() {
         </article>
         <article class="card home-feature">
           <img src="${illustFor("welcome","george").src}" alt="" />
-          <h3>AI tutors on demand</h3>
-          <p class="muted">“Learn about this subject” opens a full walkthrough when they’re stuck.</p>
+          <h3>Coach + Power 5</h3>
+          <p class="muted">Your AI coach remembers where you left off. Power 5 is a 5-question blitz to stay sharp in under 90 seconds.</p>
         </article>
         <article class="card home-feature">
           <img src="${illustFor("pathway","george").src}" alt="" />
           <h3>Path to GCSE A*</h3>
-          <p class="muted">Six stages from Foundation to A* Mastery — finish each level to unlock the next.</p>
+          <p class="muted">Six stages: F → I → S → C → H → A*. Finish every lesson in a level to unlock the next.</p>
         </article>
       </div>
     </section>
@@ -743,6 +846,13 @@ function renderDashboard() {
         <p style="margin:0.5rem 0 0;font-weight:800">${daily.done} / ${daily.goal}${
     daily.met ? " · Goal hit! 🎉" : ""
   }</p>
+        ${
+          p.streak
+            ? `<p class="muted" style="margin:0.4rem 0 0;font-size:0.85rem">🔥 ${p.streak}-day streak${
+                p.streak >= 7 ? " · Week Warrior!" : ""
+              }</p>`
+            : ""
+        }
       </div>
       <div class="card continue-card">
         <h3 style="margin-top:0;font-family:var(--display)">▶️ Do this next</h3>
@@ -750,9 +860,30 @@ function renderDashboard() {
           nextAct?.label || "Open a subject to begin"
         )}</p>
         <button class="btn btn-primary btn-lg btn-xl" type="button" id="btnContinue" style="max-width:100%">
-          ${nextAct?.type === "unlock" ? "Unlock next stage →" : "Let's go →"}
+          ${
+            nextAct?.type === "unlock"
+              ? "Unlock next stage →"
+              : nextAct?.type === "power5"
+                ? "⚡ Power 5 →"
+                : "Let's go →"
+          }
         </button>
       </div>
+    </div>
+
+    <div class="quick-actions mb-2" role="group" aria-label="Quick actions">
+      <button type="button" class="quick-act" id="btnPower5Maths" title="5 quick Maths questions">
+        <span class="qa-emoji">⚡</span>
+        <span class="qa-label">Power 5 Maths</span>
+      </button>
+      <button type="button" class="quick-act" id="btnPower5English" title="5 quick English questions">
+        <span class="qa-emoji">⚡</span>
+        <span class="qa-label">Power 5 English</span>
+      </button>
+      <button type="button" class="quick-act" id="btnPower5Science" title="5 quick Science questions">
+        <span class="qa-emoji">⚡</span>
+        <span class="qa-label">Power 5 Science</span>
+      </button>
     </div>
 
     <h2 class="section-title">Your subjects</h2>
@@ -816,8 +947,267 @@ function renderDashboard() {
         mode: "practice",
       });
     }
+    if (nextAct.type === "power5") {
+      return go("power5", { subject: nextAct.subject || "maths" });
+    }
     go("dashboard");
   });
+  document.getElementById("btnPower5Maths")?.addEventListener("click", () =>
+    go("power5", { subject: "maths" })
+  );
+  document.getElementById("btnPower5English")?.addEventListener("click", () =>
+    go("power5", { subject: "english" })
+  );
+  document.getElementById("btnPower5Science")?.addEventListener("click", () =>
+    go("power5", { subject: "science" })
+  );
+}
+
+/**
+ * Power 5 — ultra-fast 5-question drill to stay sharp.
+ * Instant feedback, XP, confetti, badges. Under 90s = Speed Demon.
+ */
+function renderPower5({ subject }) {
+  if (!state.activeLearner) return go("home");
+  subject = subject || "maths";
+  if (!SUBJECTS[subject]) subject = "maths";
+  const p = profile();
+  const qs = buildPower5Questions(p, subject);
+  if (!qs?.length) {
+    alert("No questions ready yet — try a placement test or a lesson first.");
+    return go("subject", { subject });
+  }
+
+  const answers = {};
+  let index = 0;
+  let revealed = false;
+  let answerVal = null;
+  let keyHandler = null;
+  let tickId = null;
+  const startedAt = Date.now();
+  const targetSec =
+    typeof power5TargetSeconds === "function" ? power5TargetSeconds() : 90;
+
+  function cleanupP5() {
+    if (keyHandler) {
+      window.removeEventListener("keydown", keyHandler);
+      keyHandler = null;
+    }
+    if (tickId) {
+      clearInterval(tickId);
+      tickId = null;
+    }
+  }
+
+  function paint() {
+    cleanupP5();
+    const q = qs[index];
+    const pct = Math.round((index / qs.length) * 100);
+    const elapsed = Math.round((Date.now() - startedAt) / 1000);
+    appEl.innerHTML = `
+      ${topbar()}
+      <div class="quiz-header">
+        <div>
+          <div class="q-meta">⚡ Power 5 · ${SUBJECTS[subject].emoji} ${
+      SUBJECTS[subject].name
+    } · Q${index + 1} of ${qs.length}</div>
+          <strong>Keep sharp — short &amp; sweet · keys 1–4 select</strong>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.65rem">
+          <div class="power5-timer muted" id="p5Timer" title="Target under ${targetSec}s">${elapsed}s</div>
+          <div class="progress-track" style="max-width:140px"><span style="width:${pct}%"></span></div>
+        </div>
+      </div>
+      <div class="card question-card power5-card">
+        ${
+          q.passage
+            ? `<blockquote class="passage">${escapeHtml(q.passage)}</blockquote>`
+            : ""
+        }
+        <h3 class="teach-heading">${escapeHtml(q.q)}</h3>
+        <div id="qBody"></div>
+        <div id="feedback"></div>
+        <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <button class="btn btn-primary" type="button" id="btnCheck">Check</button>
+          <button class="btn btn-ok" type="button" id="btnNext" style="display:none">Next →</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost mt-1" type="button" id="btnExitP5">Exit</button>
+    `;
+    bindShell();
+    document.getElementById("btnExitP5").onclick = () => {
+      cleanupP5();
+      go("dashboard");
+    };
+    answerVal = null;
+    revealed = false;
+
+    tickId = setInterval(() => {
+      const el = document.getElementById("p5Timer");
+      if (!el || !document.body.contains(el)) {
+        clearInterval(tickId);
+        tickId = null;
+        return;
+      }
+      el.textContent = Math.round((Date.now() - startedAt) / 1000) + "s";
+    }, 500);
+
+    const body = document.getElementById("qBody");
+    if (q.type === "multi") {
+      body.innerHTML = `<div class="options">${q.options
+        .map(
+          (opt, i) =>
+            `<button type="button" class="option" data-i="${i}"><span class="opt-key">${
+              i + 1
+            }</span> ${escapeHtml(opt)}</button>`
+        )
+        .join("")}</div>`;
+      body.querySelectorAll(".option").forEach((btn) => {
+        btn.onclick = () => {
+          if (revealed) return;
+          body.querySelectorAll(".option").forEach((b) => b.classList.remove("selected"));
+          btn.classList.add("selected");
+          answerVal = Number(btn.dataset.i);
+        };
+      });
+      keyHandler = (e) => {
+        if (revealed) return;
+        if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA"))
+          return;
+        const n = Number(e.key);
+        if (n >= 1 && n <= (q.options?.length || 0)) {
+          const btn = body.querySelector(`.option[data-i="${n - 1}"]`);
+          if (btn) btn.click();
+        }
+        if (e.key === "Enter") document.getElementById("btnCheck")?.click();
+      };
+      window.addEventListener("keydown", keyHandler);
+    } else {
+      body.innerHTML = `<input class="input-answer" id="typedAns" placeholder="Type your answer…" autocomplete="off" />`;
+      const input = document.getElementById("typedAns");
+      input.focus();
+      input.oninput = () => {
+        answerVal = input.value;
+      };
+      input.onkeydown = (e) => {
+        if (e.key === "Enter") document.getElementById("btnCheck")?.click();
+      };
+    }
+
+    document.getElementById("btnCheck").onclick = () => {
+      if (revealed) return;
+      if (answerVal === null || answerVal === "") {
+        alert("Pick or type an answer first!");
+        return;
+      }
+      revealed = true;
+      const ok = checkAnswer(q, answerVal);
+      answers[index] = { ok, answer: answerVal };
+      const fb = document.getElementById("feedback");
+      fb.className = `feedback ${ok ? "good" : "bad"}`;
+      fb.innerHTML = ok
+        ? `✓ ${escapeHtml(q.explain || "Correct!")}`
+        : `Not quite. ${escapeHtml(q.explain || "")}`;
+      if (q.type === "multi") {
+        body.querySelectorAll(".option").forEach((btn) => {
+          const i = Number(btn.dataset.i);
+          if (i === q.answer) btn.classList.add("correct");
+          if (i === answerVal && !ok) btn.classList.add("wrong");
+          btn.disabled = true;
+        });
+      }
+      document.getElementById("btnCheck").disabled = true;
+      const nextBtn = document.getElementById("btnNext");
+      nextBtn.style.display = "inline-flex";
+      nextBtn.focus();
+      nextBtn.onclick = async () => {
+        if (index + 1 >= qs.length) {
+          cleanupP5();
+          await finishP5();
+        } else {
+          index++;
+          paint();
+        }
+      };
+      // Auto-advance on correct after short beat (speed)
+      if (ok) {
+        setTimeout(() => {
+          if (document.getElementById("btnNext") === nextBtn) nextBtn.click();
+        }, 550);
+      }
+    };
+  }
+
+  async function finishP5() {
+    const correct = Object.values(answers).filter((a) => a.ok).length;
+    const total = qs.length;
+    const scorePct = Math.round((correct / total) * 100);
+    const elapsedSec = Math.round((Date.now() - startedAt) / 1000);
+    const prof = profile();
+    updateStreak(prof);
+    recordDailyActivity(prof, "exam");
+    addXp(prof, 25 + Math.round(scorePct / 4) + (scorePct === 100 ? 15 : 0));
+    unlockBadge(prof, "power_blitz");
+    if (scorePct === 100) unlockBadge(prof, "power_perfect");
+    if (elapsedSec <= targetSec && scorePct >= 60) unlockBadge(prof, "speed_demon");
+    if ((prof.streak || 0) >= 7) unlockBadge(prof, "streak_7");
+    if (typeof ensureTutorMemory === "function") {
+      const m = ensureTutorMemory(prof);
+      m.lastSubject = subject;
+      m.weekDone = (m.weekDone || 0) + 1;
+      m.monthDone = (m.monthDone || 0) + 1;
+    }
+    if (!prof.examHistory) prof.examHistory = [];
+    prof.examHistory.push({
+      subject,
+      packStage: 0,
+      score: scorePct,
+      correct,
+      total,
+      date: todayKey(),
+      mode: "power5",
+      elapsedSec,
+    });
+    try {
+      await save({ quiet: false });
+    } catch (e) {
+      console.error(e);
+    }
+    if (scorePct >= 80) {
+      if (typeof fireConfetti === "function") fireConfetti();
+    }
+    const speedNote =
+      elapsedSec <= targetSec
+        ? ` · 🏎️ ${elapsedSec}s — under ${targetSec}s!`
+        : ` · ${elapsedSec}s`;
+    appEl.innerHTML = `
+      ${topbar()}
+      <div class="card score-hero celebrate mb-2 score-hero-art">
+        <img class="score-illust" src="${illustFor(
+          scorePct >= 80 ? "celebrate" : "welcome"
+        ).src}" alt="" />
+        <div class="q-meta">⚡ Power 5 complete${speedNote}</div>
+        <h2 style="font-family:var(--display);margin:0.5rem 0">${
+          SUBJECTS[subject].emoji
+        } ${SUBJECTS[subject].name}</h2>
+        <div class="score-big">${scorePct}%</div>
+        <p>${correct}/${total} correct · +XP earned!</p>
+        <p class="muted">${escapeHtml(randomEncouragement())}</p>
+      </div>
+      <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
+        <button class="btn btn-primary" type="button" id="p5Again">Another Power 5 →</button>
+        <button class="btn btn-secondary" type="button" id="p5Subject">Open ${
+          SUBJECTS[subject].name
+        }</button>
+        <button class="btn btn-ghost" type="button" data-go="dashboard">Hub</button>
+      </div>
+    `;
+    bindShell();
+    document.getElementById("p5Again").onclick = () => go("power5", { subject });
+    document.getElementById("p5Subject").onclick = () => go("subject", { subject });
+  }
+
+  paint();
 }
 
 function subjectDashCard(subject) {
@@ -946,6 +1336,7 @@ function examPacksCardHtml(subject, p, activeStage) {
     </div>
     <div class="course-list mt-1">${rows}</div>
     <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button class="btn btn-primary" type="button" id="btnPower5Sub">⚡ Power 5 (fast)</button>
       <button class="btn btn-secondary" type="button" id="btnRevision" ${
         revUnlocked ? "" : "disabled"
       }>🔁 Mixed revision (10 Qs)</button>
@@ -1230,12 +1621,13 @@ function renderExamResult({
     typeof EXAM_PACKS !== "undefined" ? EXAM_PACKS[subject]?.[packStage] : null;
   const modeLabel =
     mode === "timed" ? "Timed mock" : mode === "revision" ? "Revision" : "Practice";
+  if (scorePct >= 80 && typeof fireConfetti === "function") fireConfetti();
   appEl.innerHTML = `
     ${topbar()}
     <div class="card score-hero celebrate mb-2 score-hero-art">
-      <img class="score-illust" src="${illustFor("exam").src}" alt="${escapeHtml(
-    illustFor("exam").alt
-  )}" />
+      <img class="score-illust" src="${illustFor(
+        scorePct >= 80 ? "celebrate" : "exam"
+      ).src}" alt="${escapeHtml(illustFor("exam").alt)}" />
       <div class="q-meta">📝 ${escapeHtml(modeLabel)} complete${
     timedOut ? " · time up" : ""
   }</div>
@@ -1248,6 +1640,7 @@ function renderExamResult({
     </div>
     <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
       <button class="btn btn-primary" type="button" id="again">Try again</button>
+      <button class="btn btn-secondary" type="button" id="btnP5FromExam">⚡ Power 5</button>
       ${
         mode !== "timed" && pack
           ? `<button class="btn btn-secondary" type="button" id="timed">⏱️ Timed mock</button>`
@@ -1267,6 +1660,9 @@ function renderExamResult({
       questions: mode === "revision" ? buildRevisionQuestions(profile(), subject, 10) : null,
       title: mode === "revision" ? `${SUBJECTS[subject].name} mixed revision` : undefined,
     });
+  document.getElementById("btnP5FromExam")?.addEventListener("click", () =>
+    go("power5", { subject })
+  );
   document.getElementById("timed")?.addEventListener("click", () =>
     go("exam", { subject, packStage, mode: "timed" })
   );
@@ -1391,7 +1787,10 @@ function renderSubject({ subject }) {
       <div class="card next-step-card next-step-done mb-2">
         <p class="next-step-label">⭐ Amazing!</p>
         <h2 class="next-step-title">A* path complete for ${S.name}</h2>
-        <p class="next-step-desc">You can revise any lesson below or try exam workouts to stay sharp.</p>
+        <p class="next-step-desc">You can revise any lesson below, blitz a Power 5, or try exam workouts to stay sharp.</p>
+        <button class="btn btn-primary btn-xl" type="button" id="btnSubjectPower5">
+          ⚡ Power 5 ${S.name} →
+        </button>
       </div>`;
   } else if (nextId && nextMeta) {
     const nextIndex = path.indexOf(nextId) + 1;
@@ -1601,6 +2000,9 @@ function renderSubject({ subject }) {
       stage: Number(btn.dataset.stage) || activeStage,
     });
   });
+  document.getElementById("btnSubjectPower5")?.addEventListener("click", () =>
+    go("power5", { subject })
+  );
 
   appEl.querySelectorAll("[data-exam-stage]").forEach((btn) => {
     btn.addEventListener("click", () =>
@@ -1625,6 +2027,9 @@ function renderSubject({ subject }) {
       title: `${SUBJECTS[subject].name} mixed revision`,
     });
   });
+  document.getElementById("btnPower5Sub")?.addEventListener("click", () =>
+    go("power5", { subject })
+  );
   appEl.querySelectorAll("[data-switch-stage]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const s = Number(btn.dataset.switchStage);
@@ -1851,6 +2256,15 @@ function renderLesson({ subject, skillId, stage }) {
     return go("subject", { subject });
   }
 
+  // Revising a finished lesson? Offer a fast skip to practice.
+  let isRevise = false;
+  try {
+    const st = p.courses?.[subject]?.stages?.[stageNum];
+    isRevise = !!(st?.completed && st.completed[skillId]);
+  } catch (_) {
+    isRevise = false;
+  }
+
   const session = createTutorSession(
     subject,
     skillId,
@@ -1867,7 +2281,9 @@ function renderLesson({ subject, skillId, stage }) {
 
     if (session.phase === "teach") {
       bodyHtml = `
-        <div class="phase-pill">📖 Teach · ${escapeHtml(stageMeta.name)}</div>
+        <div class="phase-pill">📖 Teach · ${escapeHtml(stageMeta.name)}${
+        isRevise ? " · revise" : ""
+      }</div>
         <img class="lesson-illust" src="${illustFor("teach").src}" alt="${escapeHtml(
         illustFor("teach").alt
       )}" />
@@ -1880,7 +2296,7 @@ function renderLesson({ subject, skillId, stage }) {
         <p class="muted">${escapeHtml(mod.blurb)}</p>
         ${mod.teach.visual ? `<div class="visual-wrap">${mod.teach.visual}</div>` : ""}
         <ul class="teach-points" id="teachPointsList">
-          ${mod.teach.points.map((p) => `<li>${escapeHtml(p)}</li>`).join("")}
+          ${mod.teach.points.map((pt) => `<li>${escapeHtml(pt)}</li>`).join("")}
         </ul>
         ${
           typeof getVoicePrefs === "function" && getVoicePrefs().enabled
@@ -1892,7 +2308,14 @@ function renderLesson({ subject, skillId, stage }) {
         </div>`
             : ""
         }
-        <button class="btn btn-primary btn-lg mt-2" type="button" id="btnAdvance">Got it — show example →</button>`;
+        <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <button class="btn btn-primary btn-lg" type="button" id="btnAdvance">Got it — show example →</button>
+          ${
+            isRevise
+              ? `<button class="btn btn-secondary btn-lg" type="button" id="btnSkipPractice">⚡ Skip to practice</button>`
+              : ""
+          }
+        </div>`;
     } else if (session.phase === "example") {
       bodyHtml = `
         <div class="phase-pill">✏️ Example</div>
@@ -1900,7 +2323,14 @@ function renderLesson({ subject, skillId, stage }) {
         <ol class="teach-steps">
           ${mod.example.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}
         </ol>
-        <button class="btn btn-primary btn-lg mt-2" type="button" id="btnAdvance">I'm ready to practise →</button>`;
+        <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <button class="btn btn-primary btn-lg" type="button" id="btnAdvance">I'm ready to practise →</button>
+          ${
+            isRevise
+              ? `<button class="btn btn-secondary" type="button" id="btnSkipPractice">⚡ Skip to practice</button>`
+              : ""
+          }
+        </div>`;
     } else if (session.phase === "struggle_teach") {
       const st = mod.struggle || {};
       bodyHtml = `
@@ -1989,6 +2419,18 @@ function renderLesson({ subject, skillId, stage }) {
 
     const adv = document.getElementById("btnAdvance");
     if (typeof bindSpeakButtons === "function") bindSpeakButtons(appEl);
+
+    const skipP = document.getElementById("btnSkipPractice");
+    if (skipP) {
+      skipP.onclick = () => {
+        if (typeof stopSpeaking === "function") stopSpeaking();
+        session.phase = "practice";
+        session.practiceIndex = 0;
+        answerVal = null;
+        revealed = false;
+        paint();
+      };
+    }
 
     if (adv && session.phase === "teach") {
       adv.onclick = () => {
@@ -2297,6 +2739,8 @@ function renderLessonResult({
       <button class="btn btn-secondary" type="button" data-go="dashboard">Back to hub</button>
     </div>
   `;
+  if (scorePct >= 80 && typeof fireConfetti === "function") fireConfetti();
+  if ((p.streak || 0) >= 7) unlockBadge(p, "streak_7");
   bindShell();
   document.getElementById("more").onclick = () => go("subject", { subject });
   document.getElementById("unlockNext")?.addEventListener("click", async () => {
@@ -2304,6 +2748,18 @@ function renderLessonResult({
     await save();
     go("subject", { subject });
   });
+  // Extra win CTA after strong scores
+  if (scorePct >= 70) {
+    const more = document.getElementById("more");
+    if (more && more.parentElement) {
+      const p5 = document.createElement("button");
+      p5.className = "btn btn-secondary";
+      p5.type = "button";
+      p5.textContent = "⚡ Power 5 warm-down";
+      p5.onclick = () => go("power5", { subject });
+      more.parentElement.insertBefore(p5, more.nextSibling);
+    }
+  }
 }
 
 // —— PARENT ZONE ——
@@ -2500,9 +2956,37 @@ function activityFeedHtml() {
         } (${h.score}%)`,
       });
     }
+    for (const h of p.examHistory || []) {
+      const modeLabel =
+        h.mode === "power5"
+          ? "Power 5"
+          : h.mode === "timed"
+            ? "timed mock"
+            : h.mode === "revision"
+              ? "revision"
+              : "exam";
+      events.push({
+        t: h.date || "",
+        ts: p.updatedAt || 0,
+        text: `${name} ${modeLabel}: ${SUBJECTS[h.subject]?.name || h.subject} — ${h.score}%${
+          h.elapsedSec != null ? ` (${h.elapsedSec}s)` : ""
+        }`,
+      });
+    }
+    // Coach goals snapshot
+    if (typeof ensureTutorMemory === "function") {
+      const m = ensureTutorMemory(p);
+      if (m.weekDone > 0) {
+        events.push({
+          t: "",
+          ts: (p.updatedAt || 0) - 1,
+          text: `${name} this week: ${m.weekDone}/${m.weeklyGoal} activities · streak ${p.streak || 0}`,
+        });
+      }
+    }
   }
   events.sort((a, b) => (b.ts || 0) - (a.ts || 0));
-  const top = events.slice(0, 12);
+  const top = events.slice(0, 16);
   if (!top.length) {
     return "No activity yet — when the kids finish a test or lesson (with cloud sync on), it will show up here.";
   }
@@ -2851,7 +3335,30 @@ node worker/local-voice-proxy.mjs
       state.activeLearner &&
       LEARNERS[state.activeLearner] &&
       state.profiles[state.activeLearner];
-    go(canDash ? "dashboard" : "home");
+
+    // Browser back/forward inside the lab
+    window.addEventListener("popstate", () => {
+      try {
+        onHashNavigation();
+      } catch (e) {
+        console.warn("popstate nav", e);
+      }
+    });
+
+    // Deep link or resume from hash when possible
+    const route = parseHashRoute();
+    const deepOk =
+      route.screen &&
+      route.screen !== "home" &&
+      (canDash ||
+        route.screen === "parent" ||
+        route.screen === "sync" ||
+        route.screen === "aiSettings");
+    if (deepOk) {
+      go(route.screen, route.params, { fromHash: true });
+    } else {
+      go(canDash ? "dashboard" : "home");
+    }
   } catch (err) {
     console.error("Boot failed", err);
     showFatalError(err);

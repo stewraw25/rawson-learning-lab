@@ -168,6 +168,7 @@ function updateStreak(profile) {
   }
   profile.lastActiveDate = today;
   if (profile.streak >= 3) unlockBadge(profile, "streak_3");
+  if (profile.streak >= 7) unlockBadge(profile, "streak_7");
 }
 
 function addXp(profile, amount) {
@@ -806,27 +807,23 @@ function recordDailyActivity(profile, kind) {
 
 /**
  * Best next action for the hub "Continue" button.
+ * Order: resume last subject → any open lesson → unlock → missing placement → exams
  * @returns {{ type: string, subject?: string, skillId?: string, stage?: number, label: string } | null}
  */
 function findNextAction(profile) {
   if (!profile) return null;
   const subjects = ["maths", "english", "science"];
+  const mem =
+    typeof ensureTutorMemory === "function" ? ensureTutorMemory(profile) : null;
 
-  // Prefer in-progress lessons on active stages
-  for (const sub of subjects) {
+  function tryLesson(sub) {
     const diag = profile.diagnostics?.[sub];
-    if (!diag?.completed) {
-      return {
-        type: "diagnostic",
-        subject: sub,
-        label: `Start ${SUBJECTS[sub].name} placement test`,
-      };
+    if (!diag?.completed) return null;
+    try {
+      ensureCourseReady(profile, sub);
+    } catch (_) {
+      if (!profile.courses?.[sub]) buildCourse(profile, sub, 1);
     }
-  }
-
-  for (const sub of subjects) {
-    ensureCourseShape(profile, sub);
-    if (!profile.courses?.[sub]) buildCourse(profile, sub, 1);
     const stage = getActiveStage(profile, sub);
     const next = nextLesson(profile, sub, stage);
     if (next) {
@@ -840,7 +837,6 @@ function findNextAction(profile) {
         label: `Continue ${SUBJECTS[sub].name}: ${meta.title} (${stName})`,
       };
     }
-    // Stage complete — offer unlock
     if (stage < MAX_COURSE_STAGE && isStageComplete(profile, sub, stage)) {
       const ns = stage + 1;
       const nm = COURSE_STAGES[ns];
@@ -851,9 +847,33 @@ function findNextAction(profile) {
         label: `Unlock ${nm.emoji} ${nm.name} ${SUBJECTS[sub].name}`,
       };
     }
+    return null;
   }
 
-  // All lessons done — suggest exam workout
+  // 1) Resume where they left off
+  if (mem?.lastSubject && SUBJECTS[mem.lastSubject]) {
+    const r = tryLesson(mem.lastSubject);
+    if (r) return r;
+  }
+
+  // 2) Any subject with open work
+  for (const sub of subjects) {
+    const r = tryLesson(sub);
+    if (r) return r;
+  }
+
+  // 3) Missing placement (weakest first: none done → start maths)
+  for (const sub of subjects) {
+    if (!profile.diagnostics?.[sub]?.completed) {
+      return {
+        type: "diagnostic",
+        subject: sub,
+        label: `Start ${SUBJECTS[sub].name} placement test`,
+      };
+    }
+  }
+
+  // 4) Exam / power practice
   for (const sub of subjects) {
     const stage = getActiveStage(profile, sub) || 1;
     if (stage >= 4 && typeof EXAM_PACKS !== "undefined" && EXAM_PACKS[sub]) {
@@ -870,9 +890,94 @@ function findNextAction(profile) {
   }
 
   return {
-    type: "dashboard",
-    label: "Browse your subjects",
+    type: "power5",
+    subject: mem?.lastSubject || "maths",
+    label: "Power 5 — 5 quick questions (keep sharp!)",
   };
+}
+
+/**
+ * Build an ultra-fast 5-question drill from weak skills / completed content.
+ * Always returns up to 5 questions when any curriculum content exists.
+ */
+function buildPower5Questions(profile, subject) {
+  subject = subject || "maths";
+  const bank = [];
+  const seen = new Set();
+
+  function pushQ(q, skillId, stage) {
+    if (!q || !q.q) return;
+    const key = String(q.q).slice(0, 80);
+    if (seen.has(key)) return;
+    seen.add(key);
+    bank.push({ ...q, _skillId: skillId || null, _stage: stage || 1 });
+  }
+
+  // 1) Prefer diagnostic weak skills (lowest scores first)
+  const scores = profile.diagnostics?.[subject]?.skillScores || {};
+  const weak = Object.keys(SKILLS[subject] || {}).sort(
+    (a, b) => (scores[a] ?? 50) - (scores[b] ?? 50)
+  );
+  const stagesToTry = [1, 2, 3, 4, 5, 6];
+  for (const skillId of weak) {
+    for (const st of stagesToTry) {
+      if (typeof getTeachModule !== "function") continue;
+      const mod = getTeachModule(subject, skillId, st, profile.id);
+      if (!mod?.practice?.length) continue;
+      for (const q of mod.practice) pushQ(q, skillId, st);
+      break;
+    }
+  }
+
+  // 2) Completed-lesson revision bank
+  if (bank.length < 5 && typeof buildRevisionQuestions === "function") {
+    const rev = buildRevisionQuestions(profile, subject, 12) || [];
+    for (const q of rev) pushQ(q, q._skillId, q._stage);
+  }
+
+  // 3) Diagnostic placement bank (always available)
+  if (bank.length < 5 && typeof DIAGNOSTICS !== "undefined" && DIAGNOSTICS[subject]) {
+    const stage = profile.id && LEARNERS[profile.id] ? LEARNERS[profile.id].stage : "both";
+    for (const q of DIAGNOSTICS[subject]) {
+      if (q.stage === "both" || q.stage === stage || !q.stage) {
+        pushQ(q, q.skillId || null, 1);
+      }
+    }
+  }
+
+  // Shuffle
+  for (let i = bank.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [bank[i], bank[j]] = [bank[j], bank[i]];
+  }
+  return bank.slice(0, 5);
+}
+
+/** Estimate seconds remaining for a snappy Power 5 (for UI only) */
+function power5TargetSeconds() {
+  return 90;
+}
+
+/** Simple confetti burst for wins (DOM-based, no deps) */
+function fireConfetti() {
+  try {
+    const layer = document.createElement("div");
+    layer.className = "confetti-layer";
+    layer.setAttribute("aria-hidden", "true");
+    const colors = ["#e8c547", "#81c784", "#6b9fd4", "#e891a8", "#f3e6c8"];
+    for (let i = 0; i < 36; i++) {
+      const p = document.createElement("i");
+      p.style.left = Math.random() * 100 + "%";
+      p.style.background = colors[i % colors.length];
+      p.style.animationDelay = Math.random() * 0.4 + "s";
+      p.style.transform = `rotate(${Math.random() * 360}deg)`;
+      layer.appendChild(p);
+    }
+    document.body.appendChild(layer);
+    setTimeout(() => layer.remove(), 2200);
+  } catch (_) {
+    /* ignore */
+  }
 }
 
 /**

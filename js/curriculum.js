@@ -1175,6 +1175,10 @@ const BADGES = [
   { id: "daily_goal", name: "Daily Goal", emoji: "☀️", desc: "Hit today's learning goal" },
   { id: "timed_mock", name: "Under Pressure", emoji: "⏱️", desc: "Finish a timed mock exam" },
   { id: "revision_king", name: "Revision Pro", emoji: "🔁", desc: "Complete a mixed revision set" },
+  { id: "power_blitz", name: "Power Blitz", emoji: "⚡", desc: "Finish a Power 5 drill" },
+  { id: "power_perfect", name: "Perfect Five", emoji: "💥", desc: "Score 100% on a Power 5" },
+  { id: "speed_demon", name: "Speed Demon", emoji: "🏎️", desc: "Finish Power 5 in under 90 seconds" },
+  { id: "streak_7", name: "Week Warrior", emoji: "🗓️", desc: "Learn 7 days in a row" },
 ];
 
 const ENCOURAGEMENT = [

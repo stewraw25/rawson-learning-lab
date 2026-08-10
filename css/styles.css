@@ -1295,6 +1295,140 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
   50% { opacity: 0.65; }
 }
 
+/* —— Confetti wins —— */
+.confetti-layer {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  overflow: hidden;
+}
+.confetti-layer i {
+  position: absolute;
+  top: -12px;
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  opacity: 0.95;
+  animation: confetti-fall 2s ease-in forwards;
+}
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(105vh) rotate(720deg);
+    opacity: 0.15;
+  }
+}
+
+/* —— Hub quick actions (Power 5) —— */
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.55rem;
+}
+@media (max-width: 640px) {
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
+}
+.quick-act {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 14px;
+  border: 1px solid rgba(232, 197, 71, 0.4);
+  background:
+    linear-gradient(135deg, rgba(232, 197, 71, 0.12), rgba(129, 199, 132, 0.08)),
+    rgba(0, 0, 0, 0.22);
+  color: var(--text);
+  font-weight: 800;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.quick-act:hover {
+  transform: translateY(-2px);
+  border-color: rgba(232, 197, 71, 0.7);
+  background:
+    linear-gradient(135deg, rgba(232, 197, 71, 0.18), rgba(129, 199, 132, 0.12)),
+    rgba(0, 0, 0, 0.28);
+}
+.quick-act:active {
+  transform: translateY(0);
+}
+.qa-emoji {
+  font-size: 1.15rem;
+}
+.qa-label {
+  letter-spacing: 0.01em;
+}
+.power5-card {
+  border-color: rgba(232, 197, 71, 0.45) !important;
+  box-shadow: 0 0 0 1px rgba(232, 197, 71, 0.12), 0 12px 36px rgba(0, 0, 0, 0.28);
+}
+.power5-timer {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--gold);
+  min-width: 2.5rem;
+  text-align: center;
+  padding: 0.2rem 0.45rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--line);
+}
+.continue-card .btn-xl {
+  animation: next-pulse 2.6s ease-in-out infinite;
+}
+.opt-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-right: 0.35rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--line);
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--gold);
+  vertical-align: middle;
+}
+/* Instant paint feel */
+.lab-body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+#app {
+  min-height: 100vh;
+}
+.feedback {
+  animation: fb-in 0.18s ease-out;
+}
+@keyframes fb-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confetti-layer,
+  .next-step-primary,
+  .continue-card .btn-xl,
+  .exam-timer.timer-urgent,
+  .feedback {
+    animation: none !important;
+  }
+  .subject-card-art:hover .subject-art {
+    transform: none;
+  }
+}
+
 /* —— Fun Grok Imagine illustrations —— */
 .welcome-with-art {
   display: flex;

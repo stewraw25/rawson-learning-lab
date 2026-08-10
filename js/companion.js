@@ -254,8 +254,18 @@ function localCoachReply(profile, learnerMeta, question, nextAct) {
   if (/bored|fun|why|pointless/.test(q)) {
     return `Fair question. Every short lesson is a brick in a GCSE-strong brain. We keep chunks small on purpose so you stay sharp — like training laps, not a 10-hour slog. Pick one 10-minute win right now.`;
   }
+  if (/power\s*5|quick|drill|warm.?up|keep sharp|blitz/.test(q)) {
+    const sub = nextAct?.subject || "maths";
+    return `Power 5 is a super-fast 5-question blitz — perfect warm-up or cool-down. Tap **Power 5** on your hub (or Continue when you're all caught up). I'd start with ${SUBJECTS[sub]?.name || sub}. Aim under 90 seconds if you want the Speed Demon badge!`;
+  }
+  if (/streak|daily|habit/.test(q)) {
+    const d = typeof dailyProgress === "function" ? dailyProgress(profile) : null;
+    return d
+      ? `Today: ${d.done}/${d.goal} activities. Streaks grow when you open the lab and finish something every day — even a Power 5 counts. Consistency beats cramming.`
+      : `Open the hub each day and hit Continue or Power 5 — small daily practice wins.`;
+  }
 
-  return `I’m here. Try: “What next?”, “What am I stuck on?”, or describe a question. ${
+  return `I’m here. Try: “What next?”, “What am I stuck on?”, “Power 5”, or describe a question. ${
     isAiConfigured()
       ? "With AI connected I can also give a full personal explanation."
       : "(Parent can turn on full AI in Parent zone for deeper answers.)"
@@ -347,6 +357,7 @@ function coachPanelHtml(profile, learnerMeta, nextAct, opts) {
         <button type="button" class="coach-chip" data-coach-q="What should I do next?">What next?</button>
         <button type="button" class="coach-chip" data-coach-q="Where did I leave off?">Where did I leave off?</button>
         <button type="button" class="coach-chip" data-coach-q="What am I struggling with?">What am I stuck on?</button>
+        <button type="button" class="coach-chip" data-coach-q="Tell me about Power 5">⚡ Power 5?</button>
         <button type="button" class="coach-chip" data-coach-q="What do F I S C H A* mean?">What do the letters mean?</button>
       </div>
       <div id="coachChatLog" class="coach-chat-log" hidden></div>
