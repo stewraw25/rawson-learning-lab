@@ -6,7 +6,6 @@
 const TEACHER_NAME = "Coach";
 
 function escapeHtmlCoach(s) {
-  if (typeof escapeHtml === "function") return escapeHtmlCoach(s);
   return String(s ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
