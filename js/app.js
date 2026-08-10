@@ -635,12 +635,12 @@ function siteFooter() {
     <footer class="site-powered">
       <span class="powered-label">Powered via</span>
       <span class="powered-brands">
-        <span class="brand-chip brand-grok" title="Grok by xAI">
-          <img class="brand-grok-mark" src="assets/grok-mark.svg?v=45" alt="" width="22" height="22" />
+        <a class="brand-chip brand-grok" href="https://grok.com" target="_blank" rel="noopener noreferrer" title="Open Grok by xAI">
+          <img class="brand-grok-mark" src="assets/grok-mark.svg?v=46" alt="" width="28" height="28" />
           <span class="brand-grok-text">Grok</span>
-        </span>
+        </a>
         <span class="powered-amp">&amp;</span>
-        <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg?v=45" alt="Rawson Labs" height="40" width="188" />
+        <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg?v=46" alt="Rawson Labs" height="48" width="220" />
       </span>
     </footer>`;
 }
