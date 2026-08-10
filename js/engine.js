@@ -352,14 +352,58 @@ function ensureCourseShape(profile, subject) {
   const c = profile.courses[subject];
   if (!c) return null;
   profile.courses[subject] = migrateCourseEntry(c);
+  // Normalise string stage keys from Firebase ("1") → number keys
+  const stages = profile.courses[subject].stages || {};
+  const fixed = {};
+  for (const [k, st] of Object.entries(stages)) {
+    const n = Number(k);
+    if (!Number.isNaN(n) && st) fixed[n] = st;
+  }
+  profile.courses[subject].stages = fixed;
   return profile.courses[subject];
+}
+
+/**
+ * After placement: always ensure a non-empty lesson path for the active stage.
+ * Keeps any completed lesson scores already saved.
+ */
+function ensureCourseReady(profile, subject) {
+  if (!profile?.diagnostics?.[subject]?.completed) return null;
+  if (!profile.courses) profile.courses = {};
+  if (!profile.courses[subject]) {
+    buildCourse(profile, subject, 1);
+  } else {
+    ensureCourseShape(profile, subject);
+  }
+  const c = profile.courses[subject];
+  if (!c) return null;
+  const stage = Number(c.activeStage) || 1;
+  c.activeStage = stage;
+  let st = c.stages[stage];
+  if (!st || !Array.isArray(st.path) || st.path.length === 0) {
+    buildCourse(profile, subject, stage);
+    st = c.stages[stage];
+  }
+  // Still empty? force unfiltered skill path so kids are never stuck
+  if (!st || !st.path || !st.path.length) {
+    const skillIds = Object.keys(SKILLS[subject] || {});
+    c.stages[stage] = {
+      path: skillIds,
+      completed: (st && st.completed) || {},
+      generatedAt: Date.now(),
+      focusMessage:
+        (st && st.focusMessage) ||
+        `Your ${SUBJECTS[subject].name} lessons are ready — start at the top!`,
+    };
+  }
+  return c.stages[stage];
 }
 
 function getCourseStageData(profile, subject, stageNum) {
   const c = ensureCourseShape(profile, subject);
   if (!c) return null;
-  const stage = stageNum || c.activeStage || 1;
-  return c.stages[stage] || null;
+  const stage = Number(stageNum) || Number(c.activeStage) || 1;
+  return c.stages[stage] || c.stages[String(stage)] || null;
 }
 
 function getActiveStage(profile, subject) {

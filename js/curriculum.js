@@ -63,7 +63,7 @@ const SUBJECTS = {
  * Bella adds horses; George adds F1 / go-karting.
  * Use illustFor(key, learnerId) so each child's hub feels personal.
  */
-const ILLUST_V = "27";
+const ILLUST_V = "28";
 
 const ILLUST_SHARED = {
   mascot: {

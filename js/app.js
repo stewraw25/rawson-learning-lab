@@ -1325,188 +1325,264 @@ function pathwayMapHtml(p) {
     <p class="muted" style="font-size:0.78rem;margin:0.5rem 0 0">✓ done · highlighted = current · locked stages open when you finish the one before</p>`;
 }
 
-// —— SUBJECT HUB ——
+// —— SUBJECT HUB (kid-clear layout) ——
 function renderSubject({ subject }) {
   if (!state.activeLearner) return go("home");
   const S = SUBJECTS[subject];
   const p = profile();
   const diag = p.diagnostics[subject];
-  if (diag?.completed && !p.courses[subject]) buildCourse(p, subject, 1);
-  if (diag?.completed) ensureCourseShape(p, subject);
 
-  const courseRoot = p.courses[subject] ? migrateCourseEntry(p.courses[subject]) : null;
-  if (courseRoot) p.courses[subject] = courseRoot;
-  const activeStage = courseRoot?.activeStage || 1;
+  // Always repair empty courses — keeps completed lesson scores
+  if (diag?.completed) {
+    ensureCourseReady(p, subject);
+  }
+
+  const courseRoot = p.courses[subject] ? ensureCourseShape(p, subject) : null;
+  const activeStage = Number(courseRoot?.activeStage) || 1;
   const stageMeta = COURSE_STAGES[activeStage] || COURSE_STAGES[1];
-  const stageData = courseRoot?.stages?.[activeStage] || null;
-  const stageComplete = stageData && isStageComplete(p, subject, activeStage);
+  let stageData = courseRoot?.stages?.[activeStage] || null;
+  if (diag?.completed && (!stageData || !stageData.path?.length)) {
+    ensureCourseReady(p, subject);
+    stageData = p.courses[subject]?.stages?.[activeStage] || null;
+  }
+
+  const path = (stageData && Array.isArray(stageData.path) && stageData.path) || [];
+  const completedMap = (stageData && stageData.completed) || {};
+  const doneCount = path.filter((id) => completedMap[id]).length;
+  const totalCount = path.length || 1;
+  const stagePct = Math.round((doneCount / totalCount) * 100);
+  const stageComplete = path.length > 0 && path.every((id) => completedMap[id]);
+  const nextId = path.length ? nextLesson(p, subject, activeStage) : null;
+  const nextMeta = nextId ? getLessonMeta(subject, nextId, activeStage) : null;
   const nextStageNum =
     stageComplete && activeStage < MAX_COURSE_STAGE ? activeStage + 1 : null;
-  const canStartNext =
-    nextStageNum &&
-    canAccessStage(p, subject, nextStageNum) &&
-    activeStage < nextStageNum;
+  const nextStageMeta = nextStageNum ? COURSE_STAGES[nextStageNum] : null;
   const pathPct = pathwayProgressPct(p, subject);
-  const nextId = stageData ? nextLesson(p, subject, activeStage) : null;
+  const kidName = learner().name;
 
-  // Full pathway stage tabs once diagnostic done
-  let stageTabsHtml = "";
-  if (diag?.completed) {
-    stageTabsHtml = `<div class="stage-tabs mt-1" style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.75rem">
-      ${Array.from({ length: MAX_COURSE_STAGE }, (_, i) => i + 1)
-        .map((s) => {
-          const meta = COURSE_STAGES[s];
-          const unlocked = s === 1 ? true : canAccessStage(p, subject, s);
-          const isActive = activeStage === s;
-          const done = isStageComplete(p, subject, s);
-          return `<button type="button" class="btn ${
-            isActive ? "btn-primary" : "btn-secondary"
-          }" style="font-size:0.8rem;padding:0.4rem 0.65rem" data-switch-stage="${s}" ${
-            unlocked ? "" : "disabled"
-          } title="${escapeHtml(
-            unlocked ? meta.gradeBand + " — " + meta.blurb : "Finish the previous stage to unlock"
-          )}">${meta.emoji} ${escapeHtml(meta.short)}${done ? " ✓" : ""}${
-            !unlocked ? " 🔒" : ""
-          }</button>`;
-        })
-        .join("")}
-    </div>
-    <p class="muted" style="font-size:0.8rem;margin:0 0 0.75rem">${escapeHtml(
-      stageMeta.name
-    )} · ${escapeHtml(stageMeta.gradeBand)} · pathway to A* <strong style="color:var(--gold)">${pathPct}%</strong></p>`;
-  }
-
-  let unlockBanner = "";
-  if (canStartNext && nextStageNum) {
-    const nextMeta = COURSE_STAGES[nextStageNum];
-    unlockBanner = `
-      <div class="card mb-2 celebrate unlock-banner-art" style="border-color:rgba(61,220,151,0.55);background:rgba(61,220,151,0.08)">
-        <img class="banner-illust" src="${illustFor("unlock").src}" alt="${escapeHtml(
-      illustFor("unlock").alt
-    )}" />
-        <div>
-        <h3 style="margin-top:0;font-family:var(--display)">${stageMeta.emoji} ${escapeHtml(
-      stageMeta.name
-    )} complete!</h3>
-        <p style="margin:0 0 0.75rem">Fantastic — ${escapeHtml(learner().name)} finished
-        <strong>${escapeHtml(stageMeta.name)} ${S.name}</strong>.
-        Next: <strong>${escapeHtml(nextMeta.name)}</strong> (${escapeHtml(nextMeta.gradeBand)}).</p>
-        <button class="btn btn-primary btn-lg" type="button" id="startNextStage" data-next-stage="${nextStageNum}">
-          ${nextMeta.emoji} Start ${escapeHtml(nextMeta.name)} ${S.name} →
+  // —— Giant “do this now” card ——
+  let nextStepHtml = "";
+  if (!diag?.completed) {
+    nextStepHtml = `
+      <div class="card next-step-card next-step-primary mb-2">
+        <p class="next-step-label">👆 Start here</p>
+        <h2 class="next-step-title">Placement test</h2>
+        <p class="next-step-desc">About 10 quick questions so we know what to teach ${escapeHtml(
+          kidName
+        )} first. Wrong answers help — be honest!</p>
+        <button class="btn btn-primary btn-xl" type="button" id="startDiag">
+          Start ${S.name} test →
         </button>
-        </div>
+      </div>`;
+  } else if (nextStageNum && stageComplete) {
+    nextStepHtml = `
+      <div class="card next-step-card next-step-unlock mb-2">
+        <p class="next-step-label">🎉 Level complete!</p>
+        <h2 class="next-step-title">${stageMeta.emoji} ${escapeHtml(
+      stageMeta.name
+    )} finished</h2>
+        <p class="next-step-desc">Brilliant work, ${escapeHtml(
+          kidName
+        )}! Unlock the next level: <strong>${escapeHtml(
+      nextStageMeta.name
+    )}</strong>.</p>
+        <button class="btn btn-primary btn-xl" type="button" id="startNextStage" data-next-stage="${nextStageNum}">
+          ${nextStageMeta.emoji} Unlock ${escapeHtml(nextStageMeta.name)} →
+        </button>
       </div>`;
   } else if (stageComplete && activeStage >= MAX_COURSE_STAGE) {
-    unlockBanner = `
-      <div class="card mb-2 unlock-banner-art" style="border-color:rgba(255,200,80,0.55)">
-        <img class="banner-illust" src="${illustFor("celebrate").src}" alt="${escapeHtml(
-      illustFor("celebrate").alt
-    )}" />
-        <div>
-        <h3 style="margin-top:0;font-family:var(--display)">⭐ A* Mastery complete in ${S.name}!</h3>
-        <p class="muted" style="margin:0">You've climbed the full pathway for this subject. Revise any stage below to stay sharp for exams.</p>
+    nextStepHtml = `
+      <div class="card next-step-card next-step-done mb-2">
+        <p class="next-step-label">⭐ Amazing!</p>
+        <h2 class="next-step-title">A* path complete for ${S.name}</h2>
+        <p class="next-step-desc">You can revise any lesson below or try exam workouts to stay sharp.</p>
+      </div>`;
+  } else if (nextId && nextMeta) {
+    const nextIndex = path.indexOf(nextId) + 1;
+    nextStepHtml = `
+      <div class="card next-step-card next-step-primary mb-2">
+        <p class="next-step-label">👆 Do this next</p>
+        <h2 class="next-step-title">${escapeHtml(nextMeta.title)}</h2>
+        <p class="next-step-desc">Lesson ${nextIndex} of ${
+      path.length
+    } · ${escapeHtml(stageMeta.name)} ${S.name}</p>
+        <button class="btn btn-primary btn-xl" type="button" id="btnDoNext"
+          data-lesson="${nextId}" data-stage="${activeStage}">
+          Start lesson →
+        </button>
+      </div>`;
+  } else {
+    nextStepHtml = `
+      <div class="card next-step-card mb-2">
+        <p class="next-step-label">Getting ready…</p>
+        <h2 class="next-step-title">Building your lessons</h2>
+        <p class="next-step-desc">Tap the green button if lessons don’t appear.</p>
+        <button class="btn btn-primary btn-xl" type="button" id="regenCourse">Show my lessons →</button>
+      </div>`;
+  }
+
+  // Stage progress chips (simple for kids)
+  const stageChips = diag?.completed
+    ? `<div class="stage-chip-row" role="list">
+        ${Array.from({ length: MAX_COURSE_STAGE }, (_, i) => i + 1)
+          .map((s) => {
+            const meta = COURSE_STAGES[s];
+            const unlocked = s === 1 ? true : canAccessStage(p, subject, s);
+            const isActive = activeStage === s;
+            const done = isStageComplete(p, subject, s);
+            return `<button type="button" role="listitem" class="stage-chip ${
+              isActive ? "is-active" : ""
+            } ${done ? "is-done" : ""} ${!unlocked ? "is-locked" : ""}"
+              data-switch-stage="${s}" ${unlocked ? "" : "disabled"}
+              title="${escapeHtml(meta.name)}">${
+              done ? "✓" : meta.short
+            }</button>`;
+          })
+          .join("")}
+      </div>
+      <p class="stage-chip-caption muted">
+        ${escapeHtml(stageMeta.emoji + " " + stageMeta.name)} · ${doneCount} of ${
+        path.length
+      } lessons done · whole path to A* <strong style="color:var(--gold)">${pathPct}%</strong>
+      </p>`
+    : "";
+
+  // Lesson list — big, clear states
+  let lessonsHtml = "";
+  if (diag?.completed && path.length) {
+    lessonsHtml = `
+      <div class="card mb-2">
+        <div class="lessons-head">
+          <h3 style="margin:0;font-family:var(--display)">Your ${escapeHtml(
+            stageMeta.name
+          )} lessons</h3>
+          <div class="lessons-progress">
+            <div class="skill-meter"><div class="skill-fill" style="width:${stagePct}%"></div></div>
+            <span class="muted" style="font-size:0.85rem;font-weight:800">${doneCount}/${
+      path.length
+    }</span>
+          </div>
+        </div>
+        <p class="muted" style="margin:0.5rem 0 1rem;font-size:0.9rem">
+          Finish them in order. Green = done. The bright one is next.
+        </p>
+        <div class="lesson-stack">
+          ${path
+            .map((skillId, i) => {
+              const lesson = getLessonMeta(subject, skillId, activeStage);
+              const done = completedMap[skillId];
+              const prevDone = i === 0 || completedMap[path[i - 1]];
+              const isNext = skillId === nextId;
+              const canDo = !!(done || isNext || prevDone);
+              let stateClass = "is-locked";
+              let badge = "🔒";
+              let action = "Locked";
+              if (done) {
+                stateClass = "is-done";
+                badge = "✓";
+                action = "Revise";
+              } else if (isNext || (canDo && !done)) {
+                stateClass = isNext ? "is-next" : "is-open";
+                badge = isNext ? "▶" : String(i + 1);
+                action = isNext ? "Start →" : "Open";
+              } else {
+                badge = String(i + 1);
+              }
+              return `
+                <button type="button" class="lesson-row ${stateClass}"
+                  data-lesson="${skillId}" data-stage="${activeStage}"
+                  ${canDo ? "" : "disabled"}>
+                  <span class="lesson-badge">${badge}</span>
+                  <span class="lesson-copy">
+                    <strong>${escapeHtml(lesson.title)}</strong>
+                    <span class="muted">${escapeHtml(
+                      lesson.blurb || SKILLS[subject][skillId]?.name || ""
+                    )}${
+                done && done.score != null ? ` · scored ${done.score}%` : ""
+              }</span>
+                  </span>
+                  <span class="lesson-action">${action}</span>
+                </button>`;
+            })
+            .join("")}
         </div>
       </div>`;
   }
+
+  // Secondary: placement + extras (smaller)
+  const secondaryHtml = diag?.completed
+    ? `<details class="card more-options mb-2">
+        <summary>More options (placement, exams, rebuild)</summary>
+        <div class="more-options-body">
+          <p style="margin:0 0 0.75rem">Placement score: <strong style="color:var(--gold)">${
+            diag.score
+          }%</strong> (${diag.correct}/${diag.total}) on ${escapeHtml(
+        diag.date || ""
+      )}</p>
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem">
+            <button class="btn btn-secondary" type="button" id="retakeDiag">Retake placement test</button>
+            <button class="btn btn-ghost" type="button" id="regenCourse">Rebuild lesson list</button>
+          </div>
+          ${examPacksCardHtml(subject, p, activeStage)}
+        </div>
+      </details>`
+    : "";
 
   appEl.innerHTML = `
     ${topbar()}
     <button class="btn btn-ghost mb-1" type="button" data-go="dashboard">← Back to hub</button>
-    <div class="subject-hero-art card mb-2">
-      <img src="${subjectIllust(subject).src}" alt="${escapeHtml(subjectIllust(subject).alt || S.name)}" />
-      <div class="subject-hero-copy">
-        <h2 class="section-title" style="margin:0">${S.emoji} ${S.name}</h2>
-        <p class="lead" style="margin:0.35rem 0 0">Full GCSE → A* pathway (${
-          learner().yearGroup
-        }) · ${stageMeta.emoji} <strong>${escapeHtml(stageMeta.name)}</strong></p>
+
+    <div class="subject-top card mb-2">
+      <img class="subject-top-img" src="${subjectIllust(subject).src}" alt="" />
+      <div>
+        <h1 class="subject-top-title">${S.emoji} ${S.name}</h1>
+        <p class="muted" style="margin:0.25rem 0 0">For ${escapeHtml(
+          kidName
+        )} · ${escapeHtml(learner().yearGroup)}</p>
       </div>
     </div>
 
-    <div class="card mb-2">
-      <h3 style="margin-top:0">1. Placement test</h3>
-      ${
-        diag?.completed
-          ? `<p>Last score: <strong style="color:var(--gold)">${diag.score}%</strong> (${diag.correct}/${diag.total}) on ${diag.date}</p>
-             <button class="btn btn-secondary" type="button" id="retakeDiag">Retake test</button>`
-          : `<p class="muted">Find your starting level — about 10–12 questions. Be honest; wrong answers help us teach better!</p>
-             <button class="btn btn-primary btn-lg" type="button" id="startDiag">Start ${S.name} placement test →</button>`
-      }
-    </div>
-
-    ${unlockBanner}
-
-    <div class="card">
-      <h3 style="margin-top:0">2. Your personalised course</h3>
-      ${stageTabsHtml}
-      <p class="muted">${
-        stageData
-          ? escapeHtml(stageData.focusMessage || stageMeta.blurb)
-          : "Complete the placement test and we'll build a course aimed at your gaps."
-      }</p>
-      ${
-        stageData
-          ? `<div class="course-list mt-1">
-              ${stageData.path
-                .map((skillId, i) => {
-                  const lesson = getLessonMeta(subject, skillId, activeStage);
-                  const done = stageData.completed[skillId];
-                  const prevDone =
-                    i === 0 || stageData.completed[stageData.path[i - 1]];
-                  const isNext = skillId === nextId;
-                  const canDo =
-                    diag?.completed && (done || isNext || i === 0 || prevDone);
-                  return `
-                    <div class="course-item ${done ? "done" : ""} ${
-                      !canDo ? "locked" : ""
-                    }">
-                      <div class="num">${done ? "✓" : i + 1}</div>
-                      <div class="body">
-                        <h4>${escapeHtml(lesson.title)}</h4>
-                        <p>${escapeHtml(lesson.blurb)} · <em>${escapeHtml(
-                    SKILLS[subject][skillId].gcse
-                  )}</em></p>
-                        ${
-                          done
-                            ? `<p style="color:var(--ok);font-weight:800">Scored ${done.score}%</p>`
-                            : ""
-                        }
-                      </div>
-                      <button class="btn ${
-                        done ? "btn-secondary" : "btn-primary"
-                      }" type="button" data-lesson="${skillId}" data-stage="${activeStage}" ${
-                    canDo ? "" : "disabled"
-                  }>
-                        ${done ? "Revise again" : "Learn & practise"}
-                      </button>
-                    </div>`;
-                })
-                .join("")}
-            </div>
-            <button class="btn btn-ghost mt-2" type="button" id="regenCourse">Rebuild ${
-              stageMeta.name
-            } path from latest test</button>`
-          : ""
-      }
-    </div>
-
-    ${examPacksCardHtml(subject, p, activeStage)}
+    ${nextStepHtml}
+    ${stageChips ? `<div class="mb-2">${stageChips}</div>` : ""}
+    ${lessonsHtml}
+    ${secondaryHtml}
   `;
+
+  // Persist repair if we rebuilt an empty path
+  if (diag?.completed) {
+    save({ quiet: true }).catch(() => {});
+  }
+
   bindShell();
-  const start = document.getElementById("startDiag");
-  const retake = document.getElementById("retakeDiag");
-  if (start) start.onclick = () => go("diagnostic", { subject });
-  if (retake) retake.onclick = () => go("diagnostic", { subject });
+
+  document.getElementById("startDiag")?.addEventListener("click", () =>
+    go("diagnostic", { subject })
+  );
+  document.getElementById("retakeDiag")?.addEventListener("click", () =>
+    go("diagnostic", { subject })
+  );
   document.getElementById("regenCourse")?.addEventListener("click", async () => {
     buildCourse(p, subject, activeStage);
+    ensureCourseReady(p, subject);
     await save();
     go("subject", { subject });
   });
   document.getElementById("startNextStage")?.addEventListener("click", async (e) => {
     const n = Number(e.currentTarget.dataset.nextStage) || activeStage + 1;
     startCourseStage(p, subject, n);
+    ensureCourseReady(p, subject);
     await save();
     go("subject", { subject });
   });
+  document.getElementById("btnDoNext")?.addEventListener("click", (e) => {
+    const btn = e.currentTarget;
+    go("lesson", {
+      subject,
+      skillId: btn.dataset.lesson,
+      stage: Number(btn.dataset.stage) || activeStage,
+    });
+  });
+
   appEl.querySelectorAll("[data-exam-stage]").forEach((btn) => {
     btn.addEventListener("click", () =>
       go("exam", {
@@ -1537,25 +1613,25 @@ function renderSubject({ subject }) {
         if (!diag?.completed) return;
         ensureCourseShape(p, subject);
         p.courses[subject].activeStage = 1;
-        if (!p.courses[subject].stages[1]?.path?.length) {
-          buildCourse(p, subject, 1);
-        }
+        ensureCourseReady(p, subject);
       } else {
         if (!canAccessStage(p, subject, s)) return;
         startCourseStage(p, subject, s);
+        ensureCourseReady(p, subject);
       }
       await save();
       go("subject", { subject });
     });
   });
-  appEl.querySelectorAll("[data-lesson]").forEach((btn) => {
-    btn.addEventListener("click", () =>
+  appEl.querySelectorAll(".lesson-row[data-lesson]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.disabled) return;
       go("lesson", {
         subject,
         skillId: btn.dataset.lesson,
         stage: Number(btn.dataset.stage) || activeStage,
-      })
-    );
+      });
+    });
   });
 }
 
