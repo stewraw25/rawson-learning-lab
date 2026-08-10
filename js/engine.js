@@ -36,6 +36,13 @@ function normalizeProfile(learnerId, raw) {
   const base = defaultProfile(learnerId);
   if (!raw || typeof raw !== "object") return base;
   const p = { ...base, ...raw, id: learnerId };
+  if (!Array.isArray(p.badges)) p.badges = [];
+  if (!Array.isArray(p.lessonHistory)) p.lessonHistory = [];
+  if (!Array.isArray(p.examHistory)) p.examHistory = [];
+  if (typeof p.xp !== "number" || Number.isNaN(p.xp)) p.xp = Number(p.xp) || 0;
+  if (typeof p.level !== "number" || Number.isNaN(p.level) || p.level < 1) {
+    p.level = 1 + Math.floor((p.xp || 0) / 100);
+  }
   if (!p.diagnostics || typeof p.diagnostics !== "object" || Array.isArray(p.diagnostics)) {
     p.diagnostics = {};
   }
@@ -63,13 +70,8 @@ function normalizeProfile(learnerId, raw) {
     }
     p.courses[sk] = migrateCourseEntry(c);
   }
-  if (!Array.isArray(p.badges)) p.badges = [];
-  if (!Array.isArray(p.lessonHistory)) p.lessonHistory = [];
-  if (!Array.isArray(p.examHistory)) p.examHistory = [];
   if (p.daily && typeof p.daily !== "object") p.daily = null;
   if (p.tutorMemory && typeof p.tutorMemory !== "object") p.tutorMemory = null;
-  if (typeof p.xp !== "number" || Number.isNaN(p.xp)) p.xp = Number(p.xp) || 0;
-  if (typeof p.level !== "number" || Number.isNaN(p.level)) p.level = Number(p.level) || 1;
   if (typeof p.streak !== "number" || Number.isNaN(p.streak)) p.streak = Number(p.streak) || 0;
   if (typeof p.updatedAt !== "number") p.updatedAt = Number(p.updatedAt) || 0;
   if (!p.fullName) p.fullName = base.fullName;
@@ -178,6 +180,8 @@ function addXp(profile, amount) {
 }
 
 function unlockBadge(profile, badgeId) {
+  if (!profile || !badgeId) return false;
+  if (!Array.isArray(profile.badges)) profile.badges = [];
   if (!profile.badges.includes(badgeId)) {
     profile.badges.push(badgeId);
     return true;
@@ -627,6 +631,10 @@ function recordDiagnostic(profile, subject, answers, result) {
   ).length;
   if (doneCount >= 3) unlockBadge(profile, "triple_test");
 
+  // Placement tests count toward daily / weekly / monthly goals
+  recordDailyActivity(profile, "exam");
+  if (typeof bumpWeekMonth === "function") bumpWeekMonth(profile);
+
   buildCourse(profile, subject);
 
   // GCSE pathway badge
@@ -848,6 +856,40 @@ function allGoalsProgress(profile) {
   };
 }
 
+/** Prevent double confetti/toast when daily + week award in the same tick */
+let _goalCelebrateTimer = null;
+let _goalCelebrateQueue = [];
+
+function celebrateGoalHits(newly) {
+  if (!newly || !newly.length) return;
+  _goalCelebrateQueue.push(...newly);
+  clearTimeout(_goalCelebrateTimer);
+  _goalCelebrateTimer = setTimeout(() => {
+    const hits = [...new Set(_goalCelebrateQueue)];
+    _goalCelebrateQueue = [];
+    if (!hits.length) return;
+    if (typeof fireConfetti === "function") {
+      try {
+        fireConfetti();
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    if (typeof showSavedToast === "function") {
+      const labels = {
+        daily_goal: "☀️ Daily goal hit!",
+        weekly_goal: "📅 Weekly goal hit!",
+        monthly_goal: "🌙 Monthly goal hit!",
+        goal_triple: "🎯 Triple goal — legend!",
+      };
+      // Prefer the biggest milestone in the toast
+      const order = ["goal_triple", "monthly_goal", "weekly_goal", "daily_goal"];
+      const best = order.find((id) => hits.includes(id)) || hits[hits.length - 1];
+      showSavedToast(labels[best] || "Goal hit! 🏅");
+    }
+  }, 80);
+}
+
 /**
  * Unlock goal badges whenever a goal is newly met.
  * @returns {{ goals: object, newly: string[] }}
@@ -859,23 +901,7 @@ function awardGoalBadges(profile) {
   if (g.week.met && unlockBadge(profile, "weekly_goal")) newly.push("weekly_goal");
   if (g.month.met && unlockBadge(profile, "monthly_goal")) newly.push("monthly_goal");
   if (g.allMet && unlockBadge(profile, "goal_triple")) newly.push("goal_triple");
-  // Celebrate first-time goal hits
-  if (newly.length && typeof fireConfetti === "function") {
-    try {
-      fireConfetti();
-    } catch (_) {
-      /* ignore */
-    }
-  }
-  if (newly.length && typeof showSavedToast === "function") {
-    const labels = {
-      daily_goal: "☀️ Daily goal hit!",
-      weekly_goal: "📅 Weekly goal hit!",
-      monthly_goal: "🌙 Monthly goal hit!",
-      goal_triple: "🎯 Triple goal — legend!",
-    };
-    showSavedToast(labels[newly[newly.length - 1]] || "Goal hit! 🏅");
-  }
+  celebrateGoalHits(newly);
   return { goals: g, newly };
 }
 

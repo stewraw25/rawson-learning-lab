@@ -104,6 +104,17 @@ function progressScore(p) {
   score += diags.length * 1000;
   score += diags.reduce((a, d) => a + (Number(d.score) || 0), 0);
   score += (p.lessonHistory || []).length * 50;
+  score += (p.examHistory || []).length * 35;
+  // Week/month activity so cloud doesn't undervalue recent drills
+  try {
+    const tm = p.tutorMemory;
+    if (tm && typeof tm === "object") {
+      score += (Number(tm.weekDone) || 0) * 5;
+      score += (Number(tm.monthDone) || 0) * 2;
+    }
+  } catch (_) {
+    /* ignore */
+  }
   score += Number(p.xp) || 0;
   score += (p.badges || []).length * 20;
   // completed lesson keys in courses (legacy flat + staged)

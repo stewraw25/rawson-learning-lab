@@ -224,6 +224,21 @@ function buildCoachGreeting(profile, learnerMeta, nextAct) {
   } else {
     parts.push(`Weekly goal smashed (${m.weekDone}/${m.weeklyGoal}) — legend. Keep the streak warm!`);
   }
+  // Mirror the top bar so kids connect the chips to Coach
+  if (typeof allGoalsProgress === "function") {
+    try {
+      const g = allGoalsProgress(profile);
+      const bits = [];
+      if (g.daily.met) bits.push("today ✅");
+      else bits.push(`today ${g.daily.done}/${g.daily.goal}`);
+      if (g.week.met) bits.push("week ✅");
+      if (g.month.met) bits.push("month ✅");
+      if (g.allMet) bits.push("triple goal 🎯");
+      if (bits.length) parts.push(`Top bar: ${bits.join(" · ")}.`);
+    } catch (_) {
+      /* ignore */
+    }
+  }
 
   parts.push(`💡 ${randomCoachFact()}`);
 

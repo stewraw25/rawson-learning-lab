@@ -267,8 +267,28 @@ function hashFor(screen, params = {}) {
   return `#/${screen}`;
 }
 
+function cleanupTransientUi() {
+  // Drop leftover keyboard listeners from quizzes / Power 5
+  if (window.__diagKeyHandler) {
+    try {
+      window.removeEventListener("keydown", window.__diagKeyHandler);
+    } catch (_) {
+      /* ignore */
+    }
+    window.__diagKeyHandler = null;
+  }
+  if (typeof stopSpeaking === "function") {
+    try {
+      stopSpeaking();
+    } catch (_) {
+      /* ignore */
+    }
+  }
+}
+
 function go(screen, params = {}, opts = {}) {
   stopParentPoll();
+  cleanupTransientUi();
   try {
     window.scrollTo(0, 0);
   } catch (_) {
@@ -294,6 +314,23 @@ function go(screen, params = {}, opts = {}) {
         state.profiles[state.activeLearner]
       );
     }
+  }
+  // Guard deep links with missing params
+  if (screen === "lesson" && (!params.subject || !params.skillId)) {
+    screen = params.subject ? "subject" : "dashboard";
+  }
+  if (screen === "subject" && !params.subject) {
+    screen = "dashboard";
+  }
+  if (screen === "diagnostic" && !params.subject) {
+    screen = "dashboard";
+  }
+  if (
+    (screen === "exam" || screen === "power5") &&
+    params.subject &&
+    !SUBJECTS[params.subject]
+  ) {
+    params.subject = "maths";
   }
   currentScreen = screen;
 
@@ -503,6 +540,18 @@ function showFatalError(err) {
  */
 function goalsBarHtml(p) {
   if (!p || typeof allGoalsProgress !== "function") return "";
+  // Quietly grant badges if goals already met (no confetti spam on every paint)
+  try {
+    const g0 = allGoalsProgress(p);
+    let granted = false;
+    if (g0.daily.met && unlockBadge(p, "daily_goal")) granted = true;
+    if (g0.week.met && unlockBadge(p, "weekly_goal")) granted = true;
+    if (g0.month.met && unlockBadge(p, "monthly_goal")) granted = true;
+    if (g0.allMet && unlockBadge(p, "goal_triple")) granted = true;
+    if (granted) save({ quiet: true }).catch(() => {});
+  } catch (_) {
+    /* ignore */
+  }
   const g = allGoalsProgress(p);
   const hasDailyBadge = (p.badges || []).includes("daily_goal");
   const hasWeekBadge = (p.badges || []).includes("weekly_goal");
@@ -532,12 +581,15 @@ function goalsBarHtml(p) {
       ${chip("week", "📅", "Week", g.week, hasWeekBadge && g.week.met)}
       ${chip("month", "🌙", "Month", g.month, hasMonthBadge && g.month.met)}
       ${
-        hasTriple || g.allMet
-          ? `<div class="goal-chip goal-triple is-met" title="Daily + weekly + monthly all hit!">
+        /* Only show Triple chip when all three are currently met (not a past badge alone) */
+        g.allMet
+          ? `<div class="goal-chip goal-triple is-met" title="Daily + weekly + monthly all hit!${
+              hasTriple ? " Badge earned." : ""
+            }">
               <span class="goal-chip-top">
                 <span class="goal-chip-emoji">🎯</span>
                 <span class="goal-chip-name">Triple</span>
-                <span class="goal-chip-badge">🏅</span>
+                ${hasTriple ? `<span class="goal-chip-badge">🏅</span>` : ""}
               </span>
               <span class="goal-chip-nums"><strong>All hit!</strong></span>
             </div>`
@@ -583,7 +635,7 @@ function siteFooter() {
     <footer class="site-powered">
       <span class="powered-label">Powered via</span>
       <span class="powered-brands">
-        <img class="powered-logo powered-grok" src="assets/grok-logo.svg?v=36" alt="Grok" height="28" />
+        <img class="powered-logo powered-grok" src="assets/grok-logo.svg?v=40" alt="Grok" height="28" />
         <span class="powered-amp">&amp;</span>
         <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg" alt="Rawson LABS" height="28" />
       </span>
@@ -595,11 +647,21 @@ function bindShell() {
   if (!appEl || typeof appEl.querySelectorAll !== "function") return;
   appEl.querySelectorAll("[data-go]").forEach((el) => {
     el.addEventListener("click", () => go(el.dataset.go));
+    // Keyboard activation for logo / role=button shells
+    if (el.getAttribute("role") === "button" || el.tabIndex >= 0) {
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          go(el.dataset.go);
+        }
+      });
+    }
   });
   const sw = appEl.querySelector("[data-switch]");
   if (sw) {
     sw.addEventListener("click", () => {
       state.activeLearner = null;
+      applyLearnerTheme(null);
       save({ quiet: true }).catch(function () {});
       go("home");
     });
@@ -1048,10 +1110,29 @@ function renderPower5({ subject }) {
   subject = subject || "maths";
   if (!SUBJECTS[subject]) subject = "maths";
   const p = profile();
-  const qs = buildPower5Questions(p, subject);
-  if (!qs?.length) {
-    alert("No questions ready yet — try a placement test or a lesson first.");
-    return go("subject", { subject });
+  if (!p) return go("home");
+  let qs = [];
+  try {
+    qs = buildPower5Questions(p, subject) || [];
+  } catch (e) {
+    console.warn("Power5 bank", e);
+    qs = [];
+  }
+  if (!qs.length) {
+    // Soft recover — never trap the kid
+    appEl.innerHTML =
+      topbar() +
+      `<div class="card" style="margin-top:1rem">
+        <h2>Power 5 needs a warm-up</h2>
+        <p class="muted">Do a short placement test or one lesson first, then come back for the blitz.</p>
+        <button class="btn btn-primary" type="button" id="p5GoSub">Open ${SUBJECTS[subject].name}</button>
+        <button class="btn btn-secondary" type="button" data-go="dashboard">Hub</button>
+      </div>`;
+    bindShell();
+    document.getElementById("p5GoSub")?.addEventListener("click", () =>
+      go("subject", { subject })
+    );
+    return;
   }
 
   const answers = {};
@@ -1426,6 +1507,7 @@ function examPacksCardHtml(subject, p, activeStage) {
  */
 function renderExam({ subject, packStage, mode, questions, title, minutes }) {
   if (!state.activeLearner) return go("home");
+  if (!subject || !SUBJECTS[subject]) return go("dashboard");
   mode = mode || "practice";
   const isTimed = mode === "timed";
   const isRevision = mode === "revision";
@@ -1450,8 +1532,19 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
   }
 
   if (!qs.length) {
-    alert("No questions ready yet — complete some lessons first.");
-    return go("subject", { subject });
+    appEl.innerHTML =
+      topbar() +
+      `<div class="card" style="margin-top:1rem">
+        <h2>No questions yet</h2>
+        <p class="muted">Complete a few lessons first, then try revision or exam workouts.</p>
+        <button class="btn btn-primary" type="button" data-go-subject="${subject}">Back to ${SUBJECTS[subject].name}</button>
+        <button class="btn btn-secondary" type="button" data-go="dashboard">Hub</button>
+      </div>`;
+    bindShell();
+    appEl.querySelector("[data-go-subject]")?.addEventListener("click", (e) =>
+      go("subject", { subject: e.currentTarget.dataset.goSubject })
+    );
+    return;
   }
 
   const answers = {};
@@ -1479,6 +1572,11 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
     if (!isTimed) return;
     stopTimer();
     timerId = setInterval(() => {
+      // Stop if user left the exam screen
+      if (currentScreen !== "exam" || !document.getElementById("examTimer")) {
+        stopTimer();
+        return;
+      }
       secondsLeft--;
       const el = document.getElementById("examTimer");
       if (el) {
@@ -2139,13 +2237,36 @@ function renderSubject({ subject }) {
 // —— DIAGNOSTIC QUIZ ——
 function renderDiagnostic({ subject }) {
   if (!state.activeLearner) return go("home");
-  const qs = questionsForLearner(subject, state.activeLearner);
+  if (!subject || !SUBJECTS[subject]) return go("dashboard");
+  let qs = [];
+  try {
+    qs = questionsForLearner(subject, state.activeLearner) || [];
+  } catch (e) {
+    console.warn("diagnostic questions", e);
+  }
+  if (!qs.length) {
+    appEl.innerHTML =
+      topbar() +
+      `<div class="card" style="margin-top:1rem">
+        <h2>Placement not ready</h2>
+        <p class="muted">Couldn’t load questions for ${escapeHtml(
+          SUBJECTS[subject].name
+        )}. Try again or open the hub.</p>
+        <button class="btn btn-primary" type="button" data-go="dashboard">Hub</button>
+      </div>`;
+    bindShell();
+    return;
+  }
   const answers = {};
   let index = 0;
   let revealed = false;
 
   function paint() {
     const q = qs[index];
+    if (!q) {
+      finish();
+      return;
+    }
     const S = SUBJECTS[subject];
     const pct = Math.round((index / qs.length) * 100);
     appEl.innerHTML = `
@@ -2317,10 +2438,11 @@ function renderDiagnostic({ subject }) {
 }
 
 function renderDiagnosticResult({ subject, result }) {
+  if (!subject || !SUBJECTS[subject] || !result) return go("dashboard");
   const S = SUBJECTS[subject];
-  const skillHtml = Object.entries(result.skillScores)
+  const skillHtml = Object.entries(result.skillScores || {})
     .map(([id, score]) => {
-      const name = SKILLS[subject][id].name;
+      const name = SKILLS[subject]?.[id]?.name || id;
       return `
         <div class="skill-row">
           <label><span>${escapeHtml(name)}</span><span>${score}%</span></label>
@@ -2354,15 +2476,21 @@ function renderDiagnosticResult({ subject, result }) {
 // —— ADAPTIVE LESSON (Teach → Example → Practice → branch if stuck) ——
 function renderLesson({ subject, skillId, stage }) {
   if (!state.activeLearner) return go("home");
+  if (!subject || !SUBJECTS[subject] || !skillId) {
+    return go(subject && SUBJECTS[subject] ? "subject" : "dashboard", { subject });
+  }
   const p = profile();
+  if (!p) return go("home");
   const stageNum =
     Number(stage) ||
     (p.courses?.[subject] ? getActiveStage(p, subject) : 1) ||
     1;
   const stageMeta = COURSE_STAGES[stageNum] || COURSE_STAGES[1];
+  if (!SKILLS[subject]?.[skillId]) {
+    return go("subject", { subject });
+  }
   const mod = getTeachModule(subject, skillId, stageNum, state.activeLearner);
   if (!mod) {
-    alert("Lesson module missing — try another skill.");
     return go("subject", { subject });
   }
 
@@ -2386,7 +2514,7 @@ function renderLesson({ subject, skillId, stage }) {
 
   function paint() {
     const prog = sessionProgress(session);
-    const skillName = SKILLS[subject][skillId].name;
+    const skillName = SKILLS[subject]?.[skillId]?.name || skillId;
     let bodyHtml = "";
 
     if (session.phase === "teach") {
