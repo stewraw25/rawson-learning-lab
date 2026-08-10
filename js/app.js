@@ -635,9 +635,9 @@ function siteFooter() {
     <footer class="site-powered">
       <span class="powered-label">Powered via</span>
       <span class="powered-brands">
-        <img class="powered-logo powered-grok" src="assets/grok-logo.svg?v=43" alt="Grok" height="28" />
+        <img class="powered-logo powered-grok" src="assets/grok-logo.svg?v=44" alt="Grok by xAI" height="28" width="96" />
         <span class="powered-amp">&amp;</span>
-        <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg" alt="Rawson LABS" height="28" />
+        <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg?v=44" alt="Rawson Labs" height="36" width="188" />
       </span>
     </footer>`;
 }
