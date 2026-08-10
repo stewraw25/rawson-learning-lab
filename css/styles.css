@@ -1745,6 +1745,7 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
   font-size: 0.82rem;
   font-weight: 800;
   color: var(--text);
+  text-align: center;
 }
 .home-score-art {
   width: 100%;
