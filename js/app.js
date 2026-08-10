@@ -574,6 +574,9 @@ function renderHome() {
     </section>
 
     <section class="home-section">
+      <img class="home-pick-art" src="${ILLUST.pick.src}?v=23" alt="${escapeHtml(
+      ILLUST.pick.alt
+    )}" />
       <h2 class="section-title">Recent scores</h2>
       <p class="lead">How each student is doing right now (updates automatically).</p>
       <div class="grid-2">
@@ -586,19 +589,19 @@ function renderHome() {
       <h2 class="section-title">How it works</h2>
       <div class="home-features">
         <article class="card home-feature">
-          <img src="assets/feature-books.jpg" alt="Classic school books" />
+          <img src="${ILLUST.teach.src}?v=23" alt="${escapeHtml(ILLUST.teach.alt)}" />
           <h3>Placement &amp; practice</h3>
           <p class="muted">Tests find gaps, then lessons teach step by step — not just quizzes.</p>
         </article>
         <article class="card home-feature">
-          <img src="assets/feature-ai.jpg" alt="AI tutoring concept" />
+          <img src="${ILLUST.mascot.src}?v=23" alt="${escapeHtml(ILLUST.mascot.alt)}" />
           <h3>AI tutors on demand</h3>
           <p class="muted">“Learn about this subject” opens a full walkthrough when they’re stuck.</p>
         </article>
         <article class="card home-feature">
-          <img src="assets/logo-icon.jpg" alt="Garden learning brand" />
-          <h3>Fits real life</h3>
-          <p class="muted">Short sessions, auto-save, parent view of progress.</p>
+          <img src="${ILLUST.pathway.src}?v=23" alt="${escapeHtml(ILLUST.pathway.alt)}" />
+          <h3>Path to GCSE A*</h3>
+          <p class="muted">Six stages from Foundation to A* Mastery — climb the garden path.</p>
         </article>
       </div>
     </section>
@@ -688,10 +691,13 @@ function renderDashboard() {
 
   appEl.innerHTML = `
     ${topbar()}
-    <div class="welcome-banner ${L.theme}">
-      <div>
+    <div class="welcome-banner ${L.theme} welcome-with-art">
+      <img class="welcome-mascot" src="${ILLUST.mascot.src}?v=23" alt="${escapeHtml(
+    ILLUST.mascot.alt
+  )}" width="120" height="120" />
+      <div class="welcome-copy">
         <h2>Hey ${escapeHtml(L.name)}! ${L.emoji}</h2>
-        <p class="muted" style="margin:0.35rem 0 0">Your homeschool path — English, Maths &amp; Science toward GCSE</p>
+        <p class="muted" style="margin:0.35rem 0 0">Your homeschool path — English, Maths &amp; Science all the way to GCSE A*</p>
       </div>
       <div class="xp-ring">
         <div class="lvl">Level ${p.level}</div>
@@ -708,9 +714,14 @@ function renderDashboard() {
       ${subjectDashCard("science")}
     </div>
 
-    <div class="card mb-2">
-      <h3 style="margin-top:0;font-family:var(--display)">GCSE pathway map</h3>
-      <p class="muted" style="margin-top:0">Finish each stage to unlock the next. Same path for every subject.</p>
+    <div class="card mb-2 pathway-card-art">
+      <div class="pathway-art-wrap">
+        <img src="${ILLUST.pathway.src}?v=23" alt="${escapeHtml(
+    ILLUST.pathway.alt
+  )}" class="pathway-art" />
+      </div>
+      <h3 style="margin-top:0.85rem;font-family:var(--display)">GCSE pathway map</h3>
+      <p class="muted" style="margin-top:0">Finish each stage to unlock the next. Climb the garden path to the A* star!</p>
       ${pathwayMapHtml(p)}
     </div>
 
@@ -785,15 +796,20 @@ function subjectDashCard(subject) {
   }
 
   return `
-    <article class="card subject-card ${S.colour}" data-subject="${subject}" style="cursor:pointer">
-      <div class="icon">${S.emoji}</div>
-      <h3>${S.name}</h3>
-      <p class="muted" style="margin:0;font-size:0.85rem;min-height:2.4em">${status}</p>
-      <div class="skill-meter">
-        <div class="skill-fill" style="width:${overall ?? 5}%"></div>
+    <article class="card subject-card subject-card-art ${S.colour}" data-subject="${subject}" style="cursor:pointer">
+      <div class="subject-art-wrap">
+        <img src="${S.illust}?v=23" alt="${escapeHtml(S.illustAlt || S.name)}" class="subject-art" loading="lazy" />
       </div>
-      <div class="muted" style="font-size:0.78rem;font-weight:800">
-        ${overall == null ? "Not assessed yet" : `Skill level ~${overall}%`}
+      <div class="subject-card-body">
+        <div class="icon">${S.emoji}</div>
+        <h3>${S.name}</h3>
+        <p class="muted" style="margin:0;font-size:0.85rem;min-height:2.4em">${status}</p>
+        <div class="skill-meter">
+          <div class="skill-fill" style="width:${overall ?? 5}%"></div>
+        </div>
+        <div class="muted" style="font-size:0.78rem;font-weight:800">
+          ${overall == null ? "Not assessed yet" : `Skill level ~${overall}%`}
+        </div>
       </div>
     </article>`;
 }
@@ -835,9 +851,14 @@ function examPacksCardHtml(subject, p, activeStage) {
       </div>`;
     })
     .join("");
-  return `<div class="card mt-2">
-    <h3 style="margin-top:0">3. Exam-style workouts</h3>
-    <p class="muted">Mixed questions like a mini paper — unlock as you climb GCSE Core → Higher → A*.</p>
+  return `<div class="card mt-2 exam-card-art">
+    <div class="exam-art-row">
+      <img src="${ILLUST.exam.src}?v=23" alt="${escapeHtml(ILLUST.exam.alt)}" class="exam-art" />
+      <div>
+        <h3 style="margin-top:0">3. Exam-style workouts</h3>
+        <p class="muted" style="margin:0">Mixed questions like a mini paper — unlock as you climb GCSE Core → Higher → A*.</p>
+      </div>
+    </div>
     <div class="course-list mt-1">${rows}</div>
   </div>`;
 }
@@ -977,7 +998,10 @@ function renderExamResult({ subject, packStage, scorePct, correct, total }) {
     typeof EXAM_PACKS !== "undefined" ? EXAM_PACKS[subject]?.[packStage] : null;
   appEl.innerHTML = `
     ${topbar()}
-    <div class="card score-hero celebrate mb-2">
+    <div class="card score-hero celebrate mb-2 score-hero-art">
+      <img class="score-illust" src="${ILLUST.exam.src}?v=23" alt="${escapeHtml(
+    ILLUST.exam.alt
+  )}" />
       <div class="q-meta">📝 Exam workout complete</div>
       <h2 style="font-family:var(--display);margin:0.5rem 0">${escapeHtml(
         pack?.title || "Workout"
@@ -1102,7 +1126,11 @@ function renderSubject({ subject }) {
   if (canStartNext && nextStageNum) {
     const nextMeta = COURSE_STAGES[nextStageNum];
     unlockBanner = `
-      <div class="card mb-2 celebrate" style="border-color:rgba(61,220,151,0.55);background:rgba(61,220,151,0.08)">
+      <div class="card mb-2 celebrate unlock-banner-art" style="border-color:rgba(61,220,151,0.55);background:rgba(61,220,151,0.08)">
+        <img class="banner-illust" src="${ILLUST.unlock.src}?v=23" alt="${escapeHtml(
+      ILLUST.unlock.alt
+    )}" />
+        <div>
         <h3 style="margin-top:0;font-family:var(--display)">${stageMeta.emoji} ${escapeHtml(
       stageMeta.name
     )} complete!</h3>
@@ -1112,22 +1140,33 @@ function renderSubject({ subject }) {
         <button class="btn btn-primary btn-lg" type="button" id="startNextStage" data-next-stage="${nextStageNum}">
           ${nextMeta.emoji} Start ${escapeHtml(nextMeta.name)} ${S.name} →
         </button>
+        </div>
       </div>`;
   } else if (stageComplete && activeStage >= MAX_COURSE_STAGE) {
     unlockBanner = `
-      <div class="card mb-2" style="border-color:rgba(255,200,80,0.55)">
+      <div class="card mb-2 unlock-banner-art" style="border-color:rgba(255,200,80,0.55)">
+        <img class="banner-illust" src="${ILLUST.celebrate.src}?v=23" alt="${escapeHtml(
+      ILLUST.celebrate.alt
+    )}" />
+        <div>
         <h3 style="margin-top:0;font-family:var(--display)">⭐ A* Mastery complete in ${S.name}!</h3>
         <p class="muted" style="margin:0">You've climbed the full pathway for this subject. Revise any stage below to stay sharp for exams.</p>
+        </div>
       </div>`;
   }
 
   appEl.innerHTML = `
     ${topbar()}
     <button class="btn btn-ghost mb-1" type="button" data-go="dashboard">← Back to hub</button>
-    <h2 class="section-title">${S.emoji} ${S.name}</h2>
-    <p class="lead">Full GCSE → A* pathway (${
-      learner().yearGroup
-    }) · ${stageMeta.emoji} <strong>${escapeHtml(stageMeta.name)}</strong></p>
+    <div class="subject-hero-art card mb-2">
+      <img src="${S.illust}?v=23" alt="${escapeHtml(S.illustAlt || S.name)}" />
+      <div class="subject-hero-copy">
+        <h2 class="section-title" style="margin:0">${S.emoji} ${S.name}</h2>
+        <p class="lead" style="margin:0.35rem 0 0">Full GCSE → A* pathway (${
+          learner().yearGroup
+        }) · ${stageMeta.emoji} <strong>${escapeHtml(stageMeta.name)}</strong></p>
+      </div>
+    </div>
 
     <div class="card mb-2">
       <h3 style="margin-top:0">1. Placement test</h3>
@@ -1462,6 +1501,9 @@ function renderLesson({ subject, skillId, stage }) {
     if (session.phase === "teach") {
       bodyHtml = `
         <div class="phase-pill">📖 Teach · ${escapeHtml(stageMeta.name)}</div>
+        <img class="lesson-illust" src="${ILLUST.teach.src}?v=23" alt="${escapeHtml(
+        ILLUST.teach.alt
+      )}" />
         <h3 class="teach-heading">${escapeHtml(mod.title)}</h3>
         <p class="muted">${escapeHtml(mod.blurb)}</p>
         ${mod.teach.visual ? `<div class="visual-wrap">${mod.teach.visual}</div>` : ""}
@@ -1800,7 +1842,12 @@ function renderLessonResult({
 
   appEl.innerHTML = `
     ${topbar()}
-    <div class="card score-hero celebrate mb-2">
+    <div class="card score-hero celebrate mb-2 score-hero-art">
+      <img class="score-illust" src="${
+        canGoNext || (stageJustDone && stageNum >= MAX_COURSE_STAGE)
+          ? ILLUST.celebrate.src
+          : ILLUST.mascot.src
+      }?v=23" alt="" />
       <div class="q-meta">${escapeHtml(stageMeta.emoji + " " + stageMeta.name)} lesson complete</div>
       <h2 style="font-family:var(--display);margin:0.5rem 0">${escapeHtml(
         mod?.title || skillId
@@ -1817,7 +1864,11 @@ function renderLessonResult({
     </div>
     ${
       canGoNext && nextMeta
-        ? `<div class="card mb-2" style="border-color:rgba(61,220,151,0.5)">
+        ? `<div class="card mb-2 unlock-banner-art" style="border-color:rgba(61,220,151,0.5)">
+        <img class="banner-illust" src="${ILLUST.unlock.src}?v=23" alt="${escapeHtml(
+            ILLUST.unlock.alt
+          )}" />
+        <div>
         <h3 style="margin-top:0;font-family:var(--display)">${stageMeta.emoji} ${escapeHtml(
             stageMeta.name
           )} complete!</h3>
@@ -1826,11 +1877,17 @@ function renderLessonResult({
         <button class="btn btn-primary btn-lg" type="button" id="unlockNext">${nextMeta.emoji} Start ${escapeHtml(
             nextMeta.name
           )} →</button>
+        </div>
       </div>`
         : stageJustDone && stageNum >= MAX_COURSE_STAGE
-          ? `<div class="card mb-2" style="border-color:rgba(255,200,80,0.5)">
+          ? `<div class="card mb-2 unlock-banner-art" style="border-color:rgba(255,200,80,0.5)">
+        <img class="banner-illust" src="${ILLUST.celebrate.src}?v=23" alt="${escapeHtml(
+              ILLUST.celebrate.alt
+            )}" />
+        <div>
         <h3 style="margin-top:0;font-family:var(--display)">⭐ A* Mastery complete!</h3>
         <p class="muted">Full pathway finished for ${SUBJECTS[subject].name}. Keep revising to stay exam-sharp.</p>
+        </div>
       </div>`
           : ""
     }

@@ -30,9 +30,62 @@ const LEARNERS = {
 };
 
 const SUBJECTS = {
-  maths: { id: "maths", name: "Maths", emoji: "🔢", colour: "maths" },
-  english: { id: "english", name: "English", emoji: "📚", colour: "english" },
-  science: { id: "science", name: "Science", emoji: "🔬", colour: "science" },
+  maths: {
+    id: "maths",
+    name: "Maths",
+    emoji: "🔢",
+    colour: "maths",
+    illust: "assets/illust/subject-maths.jpg",
+    illustAlt: "Friendly fox teaching maths with numbers and pizza fractions",
+  },
+  english: {
+    id: "english",
+    name: "English",
+    emoji: "📚",
+    colour: "english",
+    illust: "assets/illust/subject-english.jpg",
+    illustAlt: "Friendly rabbit reading a magical book in the garden",
+  },
+  science: {
+    id: "science",
+    name: "Science",
+    emoji: "🔬",
+    colour: "science",
+    illust: "assets/illust/subject-science.jpg",
+    illustAlt: "Hedgehog scientist in a garden greenhouse lab",
+  },
+};
+
+/** Fun Grok Imagine storybook art used across the site */
+const ILLUST = {
+  mascot: {
+    src: "assets/illust/mascot-owl.jpg",
+    alt: "Owl tutor in a garden classroom shed",
+  },
+  pathway: {
+    src: "assets/illust/pathway-climb.jpg",
+    alt: "Garden path climbing to a golden star trophy",
+  },
+  celebrate: {
+    src: "assets/illust/celebrate.jpg",
+    alt: "Garden friends celebrating with confetti and stars",
+  },
+  exam: {
+    src: "assets/illust/exam-workout.jpg",
+    alt: "Brave owl ready for an exam workout",
+  },
+  teach: {
+    src: "assets/illust/teach-lesson.jpg",
+    alt: "Owl tutor teaching a fox student in the garden",
+  },
+  unlock: {
+    src: "assets/illust/unlock-stage.jpg",
+    alt: "Magical garden door unlocking the next stage",
+  },
+  pick: {
+    src: "assets/illust/pick-learners.jpg",
+    alt: "Garden friends ready for a day of learning",
+  },
 };
 
 /** Skill definitions used for diagnostics + adaptive courses */
