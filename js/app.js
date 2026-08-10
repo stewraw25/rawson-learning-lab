@@ -635,7 +635,7 @@ function siteFooter() {
     <footer class="site-powered">
       <span class="powered-label">Powered via</span>
       <span class="powered-brands">
-        <img class="powered-logo powered-grok" src="assets/grok-logo.svg?v=42" alt="Grok" height="28" />
+        <img class="powered-logo powered-grok" src="assets/grok-logo.svg?v=43" alt="Grok" height="28" />
         <span class="powered-amp">&amp;</span>
         <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg" alt="Rawson LABS" height="28" />
       </span>
@@ -807,7 +807,7 @@ function renderHome() {
         <div class="home-hero-overlay"></div>
       </div>
       <div class="home-hero-copy">
-        <img class="hero-logo" src="assets/logo.svg" width="72" height="72" alt="Rawson Learning Lab" />
+        <img class="hero-logo" src="assets/logo.svg" width="96" height="96" alt="Rawson Learning Lab" />
         <p class="home-kicker">Rawson Learning Lab</p>
         <h2>Homeschooling with <span class="sparkle">AI tutors</span> — so learning fits around life</h2>
         <p class="lead">Personal paths for <strong>Bella-Rose</strong> &amp; <strong>George</strong> · English, Maths &amp; Science · GCSE → A*</p>
