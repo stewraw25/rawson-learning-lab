@@ -205,23 +205,91 @@ function checkAnswer(question, userAnswer) {
   return normaliseAnswer(question.answer) === user;
 }
 
-/** Course tiers: Foundation (1) → Intermediate (2) → more later */
+/**
+ * Full Rawson pathway: current level → GCSE A* (grades 8–9).
+ * Each stage unlocks when the previous stage is 100% complete for that subject.
+ */
 const COURSE_STAGES = {
   1: {
     id: 1,
     name: "Foundation",
     emoji: "🌱",
+    short: "F",
+    gradeBand: "Entry · secure the basics",
     blurb: "Placement-based first course — close the gaps.",
   },
   2: {
     id: 2,
     name: "Intermediate",
     emoji: "🚀",
-    blurb: "Harder practice for both KS2 and KS3 — next step after Foundation.",
+    short: "I",
+    gradeBand: "Grades 2–3 · building fluency",
+    blurb: "Harder practice — next step after Foundation.",
+  },
+  3: {
+    id: 3,
+    name: "Secure",
+    emoji: "🔷",
+    short: "S",
+    gradeBand: "Grades 3–4 · KS3 secure",
+    blurb: "Secondary-ready depth — ready for GCSE Core.",
+  },
+  4: {
+    id: 4,
+    name: "GCSE Core",
+    emoji: "📘",
+    short: "C",
+    gradeBand: "Grades 4–5 · Foundation tier",
+    blurb: "GCSE Foundation tier skills across the full specification map.",
+  },
+  5: {
+    id: 5,
+    name: "GCSE Higher",
+    emoji: "🎯",
+    short: "H",
+    gradeBand: "Grades 5–7 · Higher tier",
+    blurb: "Higher-tier methods, multi-step problems and exam technique.",
+  },
+  6: {
+    id: 6,
+    name: "A* Mastery",
+    emoji: "⭐",
+    short: "A*",
+    gradeBand: "Grades 8–9 · A* stretch",
+    blurb: "Grade 8–9 stretch, synthesis and top-band exam craft.",
   },
 };
 
-const MAX_COURSE_STAGE = 2;
+const MAX_COURSE_STAGE = 6;
+
+/** XP base per lesson by stage (higher stages reward more) */
+function stageXpBase(stageNum) {
+  const s = Number(stageNum) || 1;
+  return 20 + s * 10; // 30 … 80
+}
+
+/** Lookup teach bank for a stage number */
+function getStageTeachBank(stageNum) {
+  const stage = Number(stageNum) || 1;
+  if (stage <= 1) {
+    return typeof TEACH_MODULES !== "undefined" ? TEACH_MODULES : null;
+  }
+  const name = `TEACH_MODULES_STAGE${stage}`;
+  try {
+    // eslint-disable-next-line no-eval
+    const bank = typeof globalThis !== "undefined" ? globalThis[name] : undefined;
+    if (bank) return bank;
+  } catch (_) {
+    /* ignore */
+  }
+  // Browser globals (no modules)
+  if (stage === 2 && typeof TEACH_MODULES_STAGE2 !== "undefined") return TEACH_MODULES_STAGE2;
+  if (stage === 3 && typeof TEACH_MODULES_STAGE3 !== "undefined") return TEACH_MODULES_STAGE3;
+  if (stage === 4 && typeof TEACH_MODULES_STAGE4 !== "undefined") return TEACH_MODULES_STAGE4;
+  if (stage === 5 && typeof TEACH_MODULES_STAGE5 !== "undefined") return TEACH_MODULES_STAGE5;
+  if (stage === 6 && typeof TEACH_MODULES_STAGE6 !== "undefined") return TEACH_MODULES_STAGE6;
+  return null;
+}
 
 /** Normalise one subject course: flat legacy → { activeStage, stages } */
 function migrateCourseEntry(c) {
@@ -313,11 +381,13 @@ function canAccessStage(profile, subject, stageNum) {
 
 function lessonExistsForStage(subject, skillId, stageNum) {
   const stage = Number(stageNum) || 1;
-  if (stage >= 2 && typeof TEACH_MODULES_STAGE2 !== "undefined") {
-    return !!(TEACH_MODULES_STAGE2[subject] && TEACH_MODULES_STAGE2[subject][skillId]);
+  const bank = getStageTeachBank(stage);
+  if (bank && bank[subject] && bank[subject][skillId]) return true;
+  if (stage <= 1) {
+    if (typeof TEACH_MODULES !== "undefined" && TEACH_MODULES[subject]?.[skillId]) return true;
+    return !!(LESSONS[subject] && LESSONS[subject][skillId]);
   }
-  if (typeof TEACH_MODULES !== "undefined" && TEACH_MODULES[subject]?.[skillId]) return true;
-  return !!(LESSONS[subject] && LESSONS[subject][skillId]);
+  return false;
 }
 
 function getLessonMeta(subject, skillId, stageNum) {
@@ -364,9 +434,9 @@ function buildCourse(profile, subject, stageNum) {
   const prevCompleted = existing.stages[stage]?.completed || {};
 
   const focus =
-    stage >= 2
-      ? makeStage2FocusMessage(subject, ranked, diag)
-      : makeFocusMessage(subject, ranked, diag);
+    stage <= 1
+      ? makeFocusMessage(subject, ranked, diag)
+      : makeStageFocusMessage(subject, ranked, diag, stage);
 
   existing.stages[stage] = {
     path: filtered,
@@ -378,19 +448,19 @@ function buildCourse(profile, subject, stageNum) {
   return existing.stages[stage];
 }
 
-function makeStage2FocusMessage(subject, ranked, diag) {
+function makeStageFocusMessage(subject, ranked, diag, stageNum) {
   const subName = SUBJECTS[subject].name;
-  const stageMeta = COURSE_STAGES[2];
+  const stageMeta = COURSE_STAGES[stageNum] || COURSE_STAGES[2];
   if (!diag) {
-    return `${stageMeta.emoji} ${stageMeta.name} ${subName}: take the placement test if you haven't — then tackle harder skill challenges.`;
+    return `${stageMeta.emoji} ${stageMeta.name} ${subName}: take the placement test first, then climb the GCSE pathway.`;
   }
   const weak = ranked.slice(0, 2).map((s) => SKILLS[subject][s.id].name);
-  return `${stageMeta.emoji} Intermediate ${subName}: deeper practice, still prioritising ${weak.join(
+  return `${stageMeta.emoji} ${stageMeta.name} ${subName} (${stageMeta.gradeBand}): prioritising ${weak.join(
     " and "
-  )}. You've finished Foundation — this is the next step on the GCSE pathway.`;
+  )}. Finish this stage to unlock the next step toward A*.`;
 }
 
-/** Start Intermediate (or later) after previous stage is complete */
+/** Start any unlocked stage (2–6) after the previous is complete */
 function startCourseStage(profile, subject, stageNum) {
   const stage = Number(stageNum) || 2;
   if (!canAccessStage(profile, subject, stage)) return null;
@@ -404,9 +474,41 @@ function startCourseStage(profile, subject, stageNum) {
   if (!profile.courses[subject].stages[stage]?.path?.length) {
     buildCourse(profile, subject, stage);
   }
-  unlockBadge(profile, "stage2_ready");
+  unlockBadge(profile, "pathway_climber");
+  unlockBadge(profile, `stage_${stage}_start`);
   if (stage === 2) unlockBadge(profile, `intermediate_${subject}`);
+  if (stage === 4) unlockBadge(profile, `gcse_core_${subject}`);
+  if (stage === 5) unlockBadge(profile, `gcse_higher_${subject}`);
+  if (stage === 6) unlockBadge(profile, `astar_${subject}`);
   return profile.courses[subject].stages[stage];
+}
+
+/** Count completed stages across subjects (for parent / hub) */
+function countCompletedStages(profile, subject) {
+  let n = 0;
+  for (let s = 1; s <= MAX_COURSE_STAGE; s++) {
+    if (isStageComplete(profile, subject, s)) n++;
+  }
+  return n;
+}
+
+function pathwayProgressPct(profile, subject) {
+  // Weight: each stage equal; partial credit for lessons on active incomplete stage
+  let score = 0;
+  const per = 100 / MAX_COURSE_STAGE;
+  for (let s = 1; s <= MAX_COURSE_STAGE; s++) {
+    if (isStageComplete(profile, subject, s)) {
+      score += per;
+    } else {
+      const st = getCourseStageData(profile, subject, s);
+      if (st && st.path && st.path.length) {
+        const done = st.path.filter((id) => st.completed && st.completed[id]).length;
+        score += per * (done / st.path.length);
+      }
+      break; // only credit into the first incomplete stage
+    }
+  }
+  return Math.min(100, Math.round(score));
 }
 
 function makeFocusMessage(subject, ranked, diag) {
@@ -503,12 +605,12 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
     stage,
   });
   updateStreak(profile);
-  // Intermediate lessons worth a bit more XP
-  const xpBase = stage >= 2 ? 35 : 25;
-  addXp(profile, xpBase + Math.round(scorePct / 10));
+  addXp(profile, stageXpBase(stage) + Math.round(scorePct / 10));
   unlockBadge(profile, "lesson_1");
   const lessonCount = profile.lessonHistory.length;
   if (lessonCount >= 5) unlockBadge(profile, "lesson_5");
+  if (lessonCount >= 25) unlockBadge(profile, "lesson_25");
+  if (lessonCount >= 50) unlockBadge(profile, "lesson_50");
 
   const ranked = Object.keys(SKILLS[subject])
     .map((id) => ({
@@ -517,17 +619,28 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
     }))
     .sort((a, b) => a.score - b.score);
   st.focusMessage =
-    stage >= 2
-      ? makeStage2FocusMessage(subject, ranked, profile.diagnostics[subject])
-      : makeFocusMessage(subject, ranked, profile.diagnostics[subject]);
+    stage <= 1
+      ? makeFocusMessage(subject, ranked, profile.diagnostics[subject])
+      : makeStageFocusMessage(subject, ranked, profile.diagnostics[subject], stage);
 
-  // Foundation complete → badge + ready for Intermediate
-  if (stage === 1 && isStageComplete(profile, subject, 1)) {
-    unlockBadge(profile, "foundation_done");
-    unlockBadge(profile, `foundation_${subject}`);
-  }
-  if (stage === 2 && isStageComplete(profile, subject, 2)) {
-    unlockBadge(profile, "intermediate_done");
+  if (isStageComplete(profile, subject, stage)) {
+    unlockBadge(profile, `stage_${stage}_done`);
+    if (stage === 1) {
+      unlockBadge(profile, "foundation_done");
+      unlockBadge(profile, `foundation_${subject}`);
+    }
+    if (stage === 2) unlockBadge(profile, "intermediate_done");
+    if (stage === 4) unlockBadge(profile, "gcse_core_done");
+    if (stage === 5) unlockBadge(profile, "gcse_higher_done");
+    if (stage === 6) {
+      unlockBadge(profile, "astar_done");
+      unlockBadge(profile, `astar_complete_${subject}`);
+    }
+    // All 3 subjects at stage 6
+    const allAstar = ["maths", "english", "science"].every((sub) =>
+      isStageComplete(profile, sub, 6)
+    );
+    if (allAstar) unlockBadge(profile, "triple_astar");
   }
 }
 

@@ -846,7 +846,71 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
   font-weight: 800;
 }
 
+/* GCSE → A* pathway map */
+.pathway-map {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.path-row {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr 3rem;
+  gap: 0.5rem;
+  align-items: center;
+}
+.path-sub {
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+.path-cells {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+.path-cell {
+  min-width: 2rem;
+  height: 1.75rem;
+  padding: 0 0.35rem;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--muted);
+}
+.path-cell.path-done {
+  background: rgba(129, 199, 132, 0.35);
+  color: var(--ok);
+  border-color: rgba(129, 199, 132, 0.5);
+}
+.path-cell.path-active {
+  background: rgba(232, 197, 71, 0.3);
+  color: var(--gold);
+  border-color: rgba(232, 197, 71, 0.55);
+  box-shadow: 0 0 0 1px rgba(232, 197, 71, 0.25);
+}
+.path-cell.path-open {
+  background: rgba(107, 159, 212, 0.2);
+  color: var(--text);
+}
+.path-cell.path-locked {
+  opacity: 0.45;
+}
+.path-pct {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: right;
+}
+
 @media (max-width: 720px) {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   #app { padding: 1rem 0.9rem 2.5rem; }
+  .path-row {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+  .path-pct { text-align: left; }
 }

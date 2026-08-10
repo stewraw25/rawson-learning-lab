@@ -699,11 +699,17 @@ function renderDashboard() {
     </div>
 
     <h2 class="section-title">Your subjects</h2>
-    <p class="lead">Take a placement test first — then we tailor lessons to what <em>you</em> need.</p>
+    <p class="lead">Placement test → personal path all the way to <strong>GCSE A*</strong> (grades 8–9).</p>
     <div class="grid-3 mb-2">
       ${subjectDashCard("maths")}
       ${subjectDashCard("english")}
       ${subjectDashCard("science")}
+    </div>
+
+    <div class="card mb-2">
+      <h3 style="margin-top:0;font-family:var(--display)">GCSE pathway map</h3>
+      <p class="muted" style="margin-top:0">Finish each stage to unlock the next. Same path for every subject.</p>
+      ${pathwayMapHtml(p)}
     </div>
 
     <div class="card mb-2">
@@ -722,10 +728,10 @@ function renderDashboard() {
       <h3 style="margin-top:0;font-family:var(--display)">How it works</h3>
       <ol class="muted" style="line-height:1.6;margin:0;padding-left:1.2rem">
         <li><strong style="color:var(--text)">Placement test</strong> — see where you are in each subject</li>
-        <li><strong style="color:var(--text)">Foundation course</strong> — weaker skills first (GCSE-linked)</li>
-        <li><strong style="color:var(--text)">Intermediate course</strong> — unlocks when Foundation is finished — harder practice!</li>
-        <li><strong style="color:var(--text)">Adaptive lessons</strong> — teach → example → practice; if you struggle it slows down &amp; helps</li>
-        <li><strong style="color:var(--text)">XP &amp; badges</strong> — level up as you learn</li>
+        <li><strong style="color:var(--text)">Six stages</strong> — Foundation → Intermediate → Secure → GCSE Core → Higher → A* Mastery</li>
+        <li><strong style="color:var(--text)">Unlock the next stage</strong> when you finish every lesson in the current one</li>
+        <li><strong style="color:var(--text)">Adaptive lessons</strong> — teach → example → practice; support path if you struggle</li>
+        <li><strong style="color:var(--text)">XP &amp; badges</strong> — level up all the way to Triple A*</li>
       </ol>
     </div>
     ${siteFooter()}
@@ -759,11 +765,14 @@ function subjectDashCard(subject) {
         status = `${stageMeta.emoji} ${stageMeta.name}: ${meta.title || next}`;
       } else if (active < MAX_COURSE_STAGE && isStageComplete(p, subject, active)) {
         const nextMeta = COURSE_STAGES[active + 1];
-        status = `Foundation done — unlock ${nextMeta.name}!`;
+        status = `${stageMeta.name} done — unlock ${nextMeta.name}!`;
       } else if (isStageComplete(p, subject, active)) {
-        status = `${stageMeta.name} complete — revise anytime`;
+        status = active >= MAX_COURSE_STAGE
+          ? "⭐ A* pathway complete — revise anytime"
+          : `${stageMeta.name} complete — revise anytime`;
       } else {
-        status = `${stageMeta.name} course ready`;
+        const pct = pathwayProgressPct(p, subject);
+        status = `${stageMeta.name} · pathway ${pct}% to A*`;
       }
     } else {
       status = "Placement test ready";
@@ -787,6 +796,52 @@ function subjectDashCard(subject) {
     </article>`;
 }
 
+/** Visual map of the 6-stage GCSE → A* pathway */
+function pathwayMapHtml(p) {
+  const stages = [];
+  for (let s = 1; s <= MAX_COURSE_STAGE; s++) stages.push(COURSE_STAGES[s]);
+  const subjectRows = Object.keys(SUBJECTS)
+    .map((sub) => {
+      const pct = pathwayProgressPct(p, sub);
+      const cells = stages
+        .map((meta) => {
+          const done = isStageComplete(p, sub, meta.id);
+          const unlocked =
+            meta.id === 1
+              ? !!(p.diagnostics?.[sub]?.completed)
+              : canAccessStage(p, sub, meta.id);
+          const active =
+            p.courses?.[sub] && getActiveStage(p, sub) === meta.id;
+          let cls = "path-cell";
+          if (done) cls += " path-done";
+          else if (active) cls += " path-active";
+          else if (unlocked) cls += " path-open";
+          else cls += " path-locked";
+          return `<span class="${cls}" title="${escapeHtml(
+            SUBJECTS[sub].name + " · " + meta.name + " · " + meta.gradeBand
+          )}">${done ? "✓" : meta.short}</span>`;
+        })
+        .join("");
+      return `<div class="path-row">
+        <span class="path-sub">${SUBJECTS[sub].emoji} ${SUBJECTS[sub].name}</span>
+        <div class="path-cells">${cells}</div>
+        <span class="path-pct muted">${pct}%</span>
+      </div>`;
+    })
+    .join("");
+  const legend = stages
+    .map(
+      (m) =>
+        `<span class="muted" style="font-size:0.75rem;margin-right:0.65rem">${m.emoji} ${escapeHtml(
+          m.name
+        )}</span>`
+    )
+    .join("");
+  return `<div class="pathway-map">${subjectRows}</div>
+    <div class="mt-1" style="line-height:1.8">${legend}</div>
+    <p class="muted" style="font-size:0.78rem;margin:0.5rem 0 0">✓ done · highlighted = current · locked stages open when you finish the one before</p>`;
+}
+
 // —— SUBJECT HUB ——
 function renderSubject({ subject }) {
   if (!state.activeLearner) return go("home");
@@ -801,51 +856,63 @@ function renderSubject({ subject }) {
   const activeStage = courseRoot?.activeStage || 1;
   const stageMeta = COURSE_STAGES[activeStage] || COURSE_STAGES[1];
   const stageData = courseRoot?.stages?.[activeStage] || null;
-  const foundationDone = diag?.completed && isStageComplete(p, subject, 1);
-  const canStartIntermediate =
-    foundationDone && activeStage < 2 && canAccessStage(p, subject, 2);
-  const intermediateDone = isStageComplete(p, subject, 2);
+  const stageComplete = stageData && isStageComplete(p, subject, activeStage);
+  const nextStageNum =
+    stageComplete && activeStage < MAX_COURSE_STAGE ? activeStage + 1 : null;
+  const canStartNext =
+    nextStageNum &&
+    canAccessStage(p, subject, nextStageNum) &&
+    activeStage < nextStageNum;
+  const pathPct = pathwayProgressPct(p, subject);
   const nextId = stageData ? nextLesson(p, subject, activeStage) : null;
 
-  // Stage tabs (when Intermediate unlocked or active)
-  const showStageTabs = foundationDone || activeStage >= 2;
+  // Full pathway stage tabs once diagnostic done
   let stageTabsHtml = "";
-  if (showStageTabs) {
-    stageTabsHtml = `<div class="stage-tabs mt-1" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem">
-      ${[1, 2]
+  if (diag?.completed) {
+    stageTabsHtml = `<div class="stage-tabs mt-1" style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.75rem">
+      ${Array.from({ length: MAX_COURSE_STAGE }, (_, i) => i + 1)
         .map((s) => {
           const meta = COURSE_STAGES[s];
-          const unlocked = s === 1 ? !!diag?.completed : canAccessStage(p, subject, s);
+          const unlocked = s === 1 ? true : canAccessStage(p, subject, s);
           const isActive = activeStage === s;
           const done = isStageComplete(p, subject, s);
           return `<button type="button" class="btn ${
             isActive ? "btn-primary" : "btn-secondary"
-          }" data-switch-stage="${s}" ${unlocked ? "" : "disabled"} title="${
-            unlocked ? meta.blurb : "Finish the previous course to unlock"
-          }">${meta.emoji} ${meta.name}${done ? " ✓" : ""}${
+          }" style="font-size:0.8rem;padding:0.4rem 0.65rem" data-switch-stage="${s}" ${
+            unlocked ? "" : "disabled"
+          } title="${escapeHtml(
+            unlocked ? meta.gradeBand + " — " + meta.blurb : "Finish the previous stage to unlock"
+          )}">${meta.emoji} ${escapeHtml(meta.short)}${done ? " ✓" : ""}${
             !unlocked ? " 🔒" : ""
           }</button>`;
         })
         .join("")}
-    </div>`;
+    </div>
+    <p class="muted" style="font-size:0.8rem;margin:0 0 0.75rem">${escapeHtml(
+      stageMeta.name
+    )} · ${escapeHtml(stageMeta.gradeBand)} · pathway to A* <strong style="color:var(--gold)">${pathPct}%</strong></p>`;
   }
 
   let unlockBanner = "";
-  if (canStartIntermediate) {
+  if (canStartNext && nextStageNum) {
+    const nextMeta = COURSE_STAGES[nextStageNum];
     unlockBanner = `
       <div class="card mb-2 celebrate" style="border-color:rgba(61,220,151,0.55);background:rgba(61,220,151,0.08)">
-        <h3 style="margin-top:0;font-family:var(--display)">${COURSE_STAGES[1].emoji} Foundation complete!</h3>
-        <p style="margin:0 0 0.75rem">Brilliant work — you've finished the first ${S.name} course.
-        Ready for harder Intermediate lessons made for ${escapeHtml(learner().name)} (${learner().yearGroup})?</p>
-        <button class="btn btn-primary btn-lg" type="button" id="startStage2">
-          ${COURSE_STAGES[2].emoji} Start Intermediate ${S.name} →
+        <h3 style="margin-top:0;font-family:var(--display)">${stageMeta.emoji} ${escapeHtml(
+      stageMeta.name
+    )} complete!</h3>
+        <p style="margin:0 0 0.75rem">Fantastic — ${escapeHtml(learner().name)} finished
+        <strong>${escapeHtml(stageMeta.name)} ${S.name}</strong>.
+        Next: <strong>${escapeHtml(nextMeta.name)}</strong> (${escapeHtml(nextMeta.gradeBand)}).</p>
+        <button class="btn btn-primary btn-lg" type="button" id="startNextStage" data-next-stage="${nextStageNum}">
+          ${nextMeta.emoji} Start ${escapeHtml(nextMeta.name)} ${S.name} →
         </button>
       </div>`;
-  } else if (intermediateDone && activeStage >= 2) {
+  } else if (stageComplete && activeStage >= MAX_COURSE_STAGE) {
     unlockBanner = `
-      <div class="card mb-2" style="border-color:rgba(255,200,80,0.45)">
-        <h3 style="margin-top:0;font-family:var(--display)">🏆 Intermediate complete!</h3>
-        <p class="muted" style="margin:0">You can revise any lesson below. More advanced stages can be added later — you're flying!</p>
+      <div class="card mb-2" style="border-color:rgba(255,200,80,0.55)">
+        <h3 style="margin-top:0;font-family:var(--display)">⭐ A* Mastery complete in ${S.name}!</h3>
+        <p class="muted" style="margin:0">You've climbed the full pathway for this subject. Revise any stage below to stay sharp for exams.</p>
       </div>`;
   }
 
@@ -853,9 +920,9 @@ function renderSubject({ subject }) {
     ${topbar()}
     <button class="btn btn-ghost mb-1" type="button" data-go="dashboard">← Back to hub</button>
     <h2 class="section-title">${S.emoji} ${S.name}</h2>
-    <p class="lead">UK National Curriculum on the GCSE pathway (${
+    <p class="lead">Full GCSE → A* pathway (${
       learner().yearGroup
-    }) · ${stageMeta.emoji} <strong>${stageMeta.name}</strong> course</p>
+    }) · ${stageMeta.emoji} <strong>${escapeHtml(stageMeta.name)}</strong></p>
 
     <div class="card mb-2">
       <h3 style="margin-top:0">1. Placement test</h3>
@@ -934,8 +1001,9 @@ function renderSubject({ subject }) {
     await save();
     go("subject", { subject });
   });
-  document.getElementById("startStage2")?.addEventListener("click", async () => {
-    startCourseStage(p, subject, 2);
+  document.getElementById("startNextStage")?.addEventListener("click", async (e) => {
+    const n = Number(e.currentTarget.dataset.nextStage) || activeStage + 1;
+    startCourseStage(p, subject, n);
     await save();
     go("subject", { subject });
   });
@@ -1512,10 +1580,11 @@ function renderLessonResult({
   const stageMeta = COURSE_STAGES[stageNum] || COURSE_STAGES[1];
   const mod = getTeachModule(subject, skillId, stageNum, state.activeLearner);
   const p = profile();
-  const foundationJustDone =
-    stageNum === 1 && isStageComplete(p, subject, 1);
-  const canGoIntermediate =
-    foundationJustDone && canAccessStage(p, subject, 2);
+  const stageJustDone = isStageComplete(p, subject, stageNum);
+  const nextStage = stageJustDone && stageNum < MAX_COURSE_STAGE ? stageNum + 1 : null;
+  const canGoNext = nextStage && canAccessStage(p, subject, nextStage);
+  const nextMeta = nextStage ? COURSE_STAGES[nextStage] : null;
+  const pathPct = pathwayProgressPct(p, subject);
 
   appEl.innerHTML = `
     ${topbar()}
@@ -1526,6 +1595,7 @@ function renderLessonResult({
       )}</h2>
       <div class="score-big">${scorePct}%</div>
       <p>${correctCount}/${total || "?"} correct on practice · +XP earned!</p>
+      <p class="muted" style="font-size:0.85rem">${SUBJECTS[subject].name} pathway to A*: <strong style="color:var(--gold)">${pathPct}%</strong></p>
       ${
         struggle
           ? `<p class="muted">You used the support path — that's smart learning, not failure.</p>`
@@ -1534,13 +1604,23 @@ function renderLessonResult({
       <p class="muted">${escapeHtml(randomEncouragement())}</p>
     </div>
     ${
-      canGoIntermediate
+      canGoNext && nextMeta
         ? `<div class="card mb-2" style="border-color:rgba(61,220,151,0.5)">
-        <h3 style="margin-top:0;font-family:var(--display)">🌱 Foundation course complete!</h3>
-        <p class="muted">You've finished every Foundation lesson in ${SUBJECTS[subject].name}. Unlock Intermediate for harder challenges.</p>
-        <button class="btn btn-primary btn-lg" type="button" id="unlockInter">🚀 Start Intermediate →</button>
+        <h3 style="margin-top:0;font-family:var(--display)">${stageMeta.emoji} ${escapeHtml(
+            stageMeta.name
+          )} complete!</h3>
+        <p class="muted">Every lesson in this stage is done for ${SUBJECTS[subject].name}.
+        Unlock <strong>${escapeHtml(nextMeta.name)}</strong> (${escapeHtml(nextMeta.gradeBand)}).</p>
+        <button class="btn btn-primary btn-lg" type="button" id="unlockNext">${nextMeta.emoji} Start ${escapeHtml(
+            nextMeta.name
+          )} →</button>
       </div>`
-        : ""
+        : stageJustDone && stageNum >= MAX_COURSE_STAGE
+          ? `<div class="card mb-2" style="border-color:rgba(255,200,80,0.5)">
+        <h3 style="margin-top:0;font-family:var(--display)">⭐ A* Mastery complete!</h3>
+        <p class="muted">Full pathway finished for ${SUBJECTS[subject].name}. Keep revising to stay exam-sharp.</p>
+      </div>`
+          : ""
     }
     <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
       <button class="btn btn-primary" type="button" id="more">Continue course →</button>
@@ -1549,8 +1629,8 @@ function renderLessonResult({
   `;
   bindShell();
   document.getElementById("more").onclick = () => go("subject", { subject });
-  document.getElementById("unlockInter")?.addEventListener("click", async () => {
-    startCourseStage(p, subject, 2);
+  document.getElementById("unlockNext")?.addEventListener("click", async () => {
+    startCourseStage(p, subject, nextStage);
     await save();
     go("subject", { subject });
   });
@@ -1621,8 +1701,10 @@ function renderParent() {
     <div class="card mt-2">
       <h3 style="margin-top:0">Curriculum note</h3>
       <p class="muted" style="margin:0;line-height:1.55">
-        English National Curriculum (KS2 George · KS3 Bella-Rose) mapped toward
-        GCSE Maths, English Language &amp; Science foundations. Complements school.
+        Full pathway: Foundation → Intermediate → Secure → GCSE Core → Higher → A* Mastery
+        in Maths, English Language and Science (KS2 George · KS3 Bella-Rose entry points).
+        Complements school / home education — not a substitute for past papers under timed exam conditions,
+        but designed to take them from current level to A* potential (grades 8–9).
       </p>
     </div>
     ${siteFooter()}
@@ -1747,9 +1829,8 @@ function parentKid(id) {
             totalLessons = Array.isArray(st.path) ? st.path.length : "—";
           }
           // Show foundation complete hint
-          if (isStageComplete(p, sub, 1) && active < 2) {
-            stageLabel = "Foundation ✓";
-          }
+          const pathPct = pathwayProgressPct(p, sub);
+          stageLabel = `${stageLabel} · ${pathPct}%→A*`;
         }
       } catch (_) {
         /* ignore */

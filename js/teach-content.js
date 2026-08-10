@@ -1063,14 +1063,27 @@ const TEACH_MODULES = {
 /**
  * @param {string} subject
  * @param {string} skillId
- * @param {number} [stageNum=1] Foundation=1 Intermediate=2
+ * @param {number} [stageNum=1] 1=Foundation … 6=A* Mastery
  * @param {string|null} [learnerId] filter practice by ks2/ks3 when set
  */
 function getTeachModule(subject, skillId, stageNum, learnerId) {
   const stage = Number(stageNum) || 1;
   let raw = null;
-  if (stage >= 2 && typeof TEACH_MODULES_STAGE2 !== "undefined") {
-    raw = TEACH_MODULES_STAGE2[subject]?.[skillId] || null;
+  if (typeof getStageTeachBank === "function") {
+    const bank = getStageTeachBank(stage);
+    raw = bank?.[subject]?.[skillId] || null;
+  }
+  if (!raw && stage >= 2) {
+    const banks = [
+      null,
+      null,
+      typeof TEACH_MODULES_STAGE2 !== "undefined" ? TEACH_MODULES_STAGE2 : null,
+      typeof TEACH_MODULES_STAGE3 !== "undefined" ? TEACH_MODULES_STAGE3 : null,
+      typeof TEACH_MODULES_STAGE4 !== "undefined" ? TEACH_MODULES_STAGE4 : null,
+      typeof TEACH_MODULES_STAGE5 !== "undefined" ? TEACH_MODULES_STAGE5 : null,
+      typeof TEACH_MODULES_STAGE6 !== "undefined" ? TEACH_MODULES_STAGE6 : null,
+    ];
+    raw = banks[stage]?.[subject]?.[skillId] || null;
   }
   if (!raw) raw = TEACH_MODULES[subject]?.[skillId] || null;
   if (!raw) return null;
