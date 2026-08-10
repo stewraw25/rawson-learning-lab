@@ -63,9 +63,13 @@ const SUBJECTS = {
  * George = F1 & go-karting only (no dogs).
  * Use illustFor(key, learnerId) so each child's hub is personal.
  */
-const ILLUST_V = "29";
+const ILLUST_V = "34";
 
 const ILLUST_SHARED = {
+  coach: {
+    src: "assets/illust/shared/coach-avatar.jpg",
+    alt: "Coach — friendly AI teacher",
+  },
   mascot: {
     src: "assets/illust/shared/mascot.jpg",
     alt: "Golden miniature poodle tutor in the garden classroom",
@@ -114,6 +118,10 @@ const ILLUST_SHARED = {
 
 const ILLUST_LEARNER = {
   bella: {
+    coach: {
+      src: "assets/illust/bella/coach-avatar.jpg",
+      alt: "Coach — Bella’s AI teacher",
+    },
     mascot: {
       src: "assets/illust/bella/mascot.jpg",
       alt: "Golden mini poodle with a horse in the garden paddock",
@@ -136,6 +144,10 @@ const ILLUST_LEARNER = {
     },
   },
   george: {
+    coach: {
+      src: "assets/illust/george/coach-avatar.jpg",
+      alt: "Coach — George’s AI racing mentor",
+    },
     mascot: {
       src: "assets/illust/george/mascot.jpg",
       alt: "Formula-style race car on track",

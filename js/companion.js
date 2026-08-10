@@ -307,38 +307,41 @@ function coachPanelHtml(profile, learnerMeta, nextAct, opts) {
   const m = ensureTutorMemory(profile);
   const speech =
     opts.speech || buildCoachGreeting(profile, learnerMeta, nextAct);
-  const img = illustFor(
-    learnerMeta.id === "george" ? "welcome" : "mascot",
-    learnerMeta.id
-  );
+  // Cool teacher avatar (learner-themed), not racing cars / animals in the chat row
+  const img = illustFor("coach", learnerMeta.id);
   const struggles = topStruggles(profile, 2);
   const struggleLine = struggles.length
     ? `<p class="coach-struggle">🎯 Focus zone: <strong>${escapeHtmlCoach(
         struggles.map((s) => s.title).join(", ")
       )}</strong></p>`
     : "";
+  const voiceOn =
+    typeof getVoicePrefs === "function" && getVoicePrefs().enabled === true;
 
   return `
     <div class="card coach-panel mb-2" id="coachPanel">
       <div class="coach-row">
-        <img class="coach-avatar" src="${img.src}" alt="" width="88" height="88" />
+        <div class="coach-avatar-wrap">
+          <img class="coach-avatar" src="${img.src}" alt="${escapeHtmlCoach(img.alt)}" width="112" height="112" />
+          <span class="coach-online">Online</span>
+        </div>
         <div class="coach-main">
-          <div class="coach-name">${TEACHER_NAME} · your AI teacher
-            <button type="button" class="btn btn-secondary coach-speak-btn" id="coachSpeak"
-              data-speak data-speak-src="#coachSpeech" data-voice-label="🔊 Hear Coach">🔊 Hear Coach</button>
+          <div class="coach-name">
+            <span>${TEACHER_NAME} · chat with your AI teacher</span>
           </div>
           <div class="speech-bubble" id="coachSpeech">${escapeHtmlCoach(speech)}</div>
           ${struggleLine}
           <div class="coach-goals muted">
             Week ${m.weekDone}/${m.weeklyGoal} · Month ${m.monthDone}/${m.monthlyGoal}
+            ${voiceOn ? "" : " · Chat only (voice off until Grok Voice is ready)"}
           </div>
-          <div class="voice-status-slot" id="voiceStatusBanner"></div>
+          ${voiceOn ? `<div class="voice-status-slot" id="voiceStatusBanner"></div>` : ""}
         </div>
       </div>
       <div class="coach-ask">
         <input type="text" class="coach-input" id="coachInput" maxlength="280"
-          placeholder="Ask Coach anything… e.g. What should I do next?" />
-        <button type="button" class="btn btn-primary" id="coachSend">Ask</button>
+          placeholder="Type a message to Coach… e.g. What should I do next?" autocomplete="off" />
+        <button type="button" class="btn btn-primary" id="coachSend">Send</button>
       </div>
       <div class="coach-chips">
         <button type="button" class="coach-chip" data-coach-q="What should I do next?">What next?</button>
@@ -356,16 +359,17 @@ function bindCoachPanel(profile, learnerMeta, nextAct) {
   const send = document.getElementById("coachSend");
   const log = document.getElementById("coachChatLog");
 
-  // Voice buttons + status
-  if (typeof bindSpeakButtons === "function") bindSpeakButtons(document.getElementById("coachPanel"));
-  if (typeof updateVoiceStatusBanners === "function") updateVoiceStatusBanners();
-
-  // Auto-speak greeting once per paint (if enabled)
-  if (speechEl && typeof maybeAutoSpeak === "function") {
-    const greets = speechEl.textContent || "";
-    if (greets && !window.__coachGreetSpoken) {
-      window.__coachGreetSpoken = true;
-      maybeAutoSpeak(greets);
+  // Voice optional — only if parent explicitly enabled Grok Voice
+  if (typeof getVoicePrefs === "function" && getVoicePrefs().enabled) {
+    if (typeof bindSpeakButtons === "function")
+      bindSpeakButtons(document.getElementById("coachPanel"));
+    if (typeof updateVoiceStatusBanners === "function") updateVoiceStatusBanners();
+    if (speechEl && typeof maybeAutoSpeak === "function") {
+      const greets = speechEl.textContent || "";
+      if (greets && !window.__coachGreetSpoken) {
+        window.__coachGreetSpoken = true;
+        maybeAutoSpeak(greets);
+      }
     }
   }
 
@@ -381,7 +385,13 @@ function bindCoachPanel(profile, learnerMeta, nextAct) {
       pushChat(profile, "coach", reply);
       const clean = reply.replace(/\*\*/g, "");
       if (speechEl) speechEl.textContent = clean;
-      if (typeof maybeAutoSpeak === "function") maybeAutoSpeak(clean);
+      if (
+        typeof getVoicePrefs === "function" &&
+        getVoicePrefs().enabled &&
+        typeof maybeAutoSpeak === "function"
+      ) {
+        maybeAutoSpeak(clean);
+      }
       if (log) {
         log.hidden = false;
         log.innerHTML = ensureTutorMemory(profile)

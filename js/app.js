@@ -1882,12 +1882,16 @@ function renderLesson({ subject, skillId, stage }) {
         <ul class="teach-points" id="teachPointsList">
           ${mod.teach.points.map((p) => `<li>${escapeHtml(p)}</li>`).join("")}
         </ul>
-        <div class="mt-1" style="display:flex;gap:0.5rem;flex-wrap:wrap">
+        ${
+          typeof getVoicePrefs === "function" && getVoicePrefs().enabled
+            ? `<div class="mt-1" style="display:flex;gap:0.5rem;flex-wrap:wrap">
           <button type="button" class="btn btn-secondary" data-speak
             data-speak-src="#teachPointsList" data-voice-label="🔊 Hear this lesson">
             🔊 Hear this lesson
           </button>
-        </div>
+        </div>`
+            : ""
+        }
         <button class="btn btn-primary btn-lg mt-2" type="button" id="btnAdvance">Got it — show example →</button>`;
     } else if (session.phase === "example") {
       bodyHtml = `
@@ -2643,33 +2647,34 @@ function renderAiSettings() {
     <p class="lead">Text lessons work without AI. Grok chat + <strong>Grok Voice</strong> make Coach speak and explain out loud.</p>
 
     <div class="card mb-2">
-      <h3 style="margin-top:0">🔊 Grok Voice (text-to-speech)</h3>
+      <h3 style="margin-top:0">💬 Coach chat (recommended)</h3>
+      <p class="muted" style="font-size:0.9rem;margin:0">
+        Kids chat with <strong style="color:var(--text)">Coach</strong> on their hub — greets them, remembers progress, guides next steps.
+        Paste your xAI key below so Coach answers with Grok. <strong style="color:var(--text)">Voice is optional and off by default</strong> (Apple robot voice is disabled for kids).
+      </p>
+    </div>
+
+    <div class="card mb-2">
+      <h3 style="margin-top:0">🔊 Grok Voice (optional — later)</h3>
       <p class="muted" style="font-size:0.9rem;margin-top:0">
-        Coach can <strong style="color:var(--text)">speak</strong> greetings, answers and lesson intros.
-        Uses Grok TTS when your API key/proxy is set; otherwise the Mac’s built-in British voice.
+        Leave voice <strong style="color:var(--text)">off</strong> until we wire real Grok Voice properly.
+        Do not use Apple’s built-in voice for the kids.
       </p>
       <label class="muted" style="display:flex;align-items:center;gap:0.5rem;font-weight:700;margin:0.5rem 0">
-        <input type="checkbox" id="voiceEnabled" ${vp.enabled !== false ? "checked" : ""} />
-        Enable voice on this Mac
+        <input type="checkbox" id="voiceEnabled" ${vp.enabled === true ? "checked" : ""} />
+        Enable Grok Voice on this Mac (advanced)
       </label>
       <label class="muted" style="display:flex;align-items:center;gap:0.5rem;font-weight:700;margin:0.5rem 0">
-        <input type="checkbox" id="voiceAuto" ${vp.autoSpeak !== false ? "checked" : ""} />
-        Auto-speak Coach greetings &amp; answers
+        <input type="checkbox" id="voiceAuto" ${vp.autoSpeak === true ? "checked" : ""} />
+        Auto-speak Coach messages (only if Grok Voice works)
       </label>
-      <div class="card" style="margin:0.75rem 0;background:rgba(232,197,71,0.08);border-color:rgba(232,197,71,0.35)">
-        <p style="margin:0;font-weight:800;color:var(--gold)">To hear real Grok Voice (not Apple)</p>
-        <p class="muted" style="margin:0.4rem 0 0;font-size:0.85rem;line-height:1.5">
-          Browsers block Grok’s servers directly. On this Mac, open Terminal and run:
-        </p>
+      <details class="muted" style="margin:0.75rem 0;font-size:0.85rem">
+        <summary style="cursor:pointer;font-weight:800;color:var(--gold)">Setup notes for later (proxy)</summary>
         <pre class="proxy-cmd" style="margin:0.5rem 0;padding:0.65rem;border-radius:10px;background:rgba(0,0,0,0.35);font-size:0.78rem;overflow:auto;color:var(--text)">cd ~/rawson-learning-lab
-export XAI_API_KEY="paste-your-key-here"
-node worker/local-voice-proxy.mjs</pre>
-        <p class="muted" style="margin:0;font-size:0.85rem">
-          Then set <strong style="color:var(--text)">Proxy URL</strong> below to
-          <code style="color:var(--gold)">http://127.0.0.1:8787</code>
-          and press <strong style="color:var(--text)">Test voice</strong>. Keep the Terminal window open while kids learn.
-        </p>
-      </div>
+export XAI_API_KEY="xai-your-key"
+node worker/local-voice-proxy.mjs
+# Proxy URL = http://127.0.0.1:8787</pre>
+      </details>
       <label class="sync-label mt-1" style="display:flex;flex-direction:column;gap:0.35rem;font-size:0.8rem;font-weight:800;color:var(--muted)">
         Voice engine
         <select id="voiceProvider" class="input-answer">

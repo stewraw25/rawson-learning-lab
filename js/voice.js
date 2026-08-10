@@ -26,9 +26,9 @@ function getLastVoiceStatus() {
 
 function defaultVoicePrefs() {
   return {
-    enabled: true,
-    autoSpeak: true,
-    // Default to grok so we don't silently use Apple when user expects Grok
+    // Off by default — Apple robot voice is scary for kids; enable when Grok Voice is proven
+    enabled: false,
+    autoSpeak: false,
     provider: "grok",
     voiceId: "eve",
     rate: 1,
@@ -366,15 +366,15 @@ function bindSpeakButtons(root) {
 }
 
 async function maybeAutoSpeak(text) {
+  // Voice disabled by default for kids — chat-only Coach until Grok Voice is set up
   const prefs = getVoicePrefs();
   if (!prefs.enabled || !prefs.autoSpeak) return;
+  // Never auto-use Apple robot voice
+  if (prefs.provider === "browser") return;
   try {
-    // Auto: allow browser fallback only if provider is auto
-    await speakText(text, {
-      allowBrowserFallback: prefs.provider === "auto",
-    });
+    await speakText(text, { allowBrowserFallback: false });
   } catch (e) {
-    console.warn("Auto-speak Grok failed", e.message || e);
+    console.warn("Auto-speak Grok failed (silent — chat still works)", e.message || e);
     updateVoiceStatusBanners();
   }
 }
