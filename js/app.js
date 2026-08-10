@@ -722,7 +722,8 @@ function renderDashboard() {
       <h3 style="margin-top:0;font-family:var(--display)">How it works</h3>
       <ol class="muted" style="line-height:1.6;margin:0;padding-left:1.2rem">
         <li><strong style="color:var(--text)">Placement test</strong> — see where you are in each subject</li>
-        <li><strong style="color:var(--text)">Personal course</strong> — weaker skills first (GCSE-linked)</li>
+        <li><strong style="color:var(--text)">Foundation course</strong> — weaker skills first (GCSE-linked)</li>
+        <li><strong style="color:var(--text)">Intermediate course</strong> — unlocks when Foundation is finished — harder practice!</li>
         <li><strong style="color:var(--text)">Adaptive lessons</strong> — teach → example → practice; if you struggle it slows down &amp; helps</li>
         <li><strong style="color:var(--text)">XP &amp; badges</strong> — level up as you learn</li>
       </ol>
@@ -748,14 +749,21 @@ function subjectDashCard(subject) {
   try {
     overall = subjectOverall(p, subject);
     diag = p.diagnostics && p.diagnostics[subject];
-    next = nextLesson(p, subject);
     if (diag && diag.completed) {
-      if (next && LESSONS[subject] && LESSONS[subject][next]) {
-        status = `Next: ${LESSONS[subject][next].title || next}`;
-      } else if (next) {
-        status = `Next lesson ready`;
+      ensureCourseShape(p, subject);
+      const active = getActiveStage(p, subject);
+      const stageMeta = COURSE_STAGES[active] || COURSE_STAGES[1];
+      next = nextLesson(p, subject, active);
+      if (next) {
+        const meta = getLessonMeta(subject, next, active);
+        status = `${stageMeta.emoji} ${stageMeta.name}: ${meta.title || next}`;
+      } else if (active < MAX_COURSE_STAGE && isStageComplete(p, subject, active)) {
+        const nextMeta = COURSE_STAGES[active + 1];
+        status = `Foundation done — unlock ${nextMeta.name}!`;
+      } else if (isStageComplete(p, subject, active)) {
+        status = `${stageMeta.name} complete — revise anytime`;
       } else {
-        status = "Course complete — retake lessons anytime";
+        status = `${stageMeta.name} course ready`;
       }
     } else {
       status = "Placement test ready";
@@ -785,16 +793,69 @@ function renderSubject({ subject }) {
   const S = SUBJECTS[subject];
   const p = profile();
   const diag = p.diagnostics[subject];
-  if (!p.courses[subject] && diag?.completed) buildCourse(p, subject);
-  const course = p.courses[subject];
+  if (diag?.completed && !p.courses[subject]) buildCourse(p, subject, 1);
+  if (diag?.completed) ensureCourseShape(p, subject);
+
+  const courseRoot = p.courses[subject] ? migrateCourseEntry(p.courses[subject]) : null;
+  if (courseRoot) p.courses[subject] = courseRoot;
+  const activeStage = courseRoot?.activeStage || 1;
+  const stageMeta = COURSE_STAGES[activeStage] || COURSE_STAGES[1];
+  const stageData = courseRoot?.stages?.[activeStage] || null;
+  const foundationDone = diag?.completed && isStageComplete(p, subject, 1);
+  const canStartIntermediate =
+    foundationDone && activeStage < 2 && canAccessStage(p, subject, 2);
+  const intermediateDone = isStageComplete(p, subject, 2);
+  const nextId = stageData ? nextLesson(p, subject, activeStage) : null;
+
+  // Stage tabs (when Intermediate unlocked or active)
+  const showStageTabs = foundationDone || activeStage >= 2;
+  let stageTabsHtml = "";
+  if (showStageTabs) {
+    stageTabsHtml = `<div class="stage-tabs mt-1" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem">
+      ${[1, 2]
+        .map((s) => {
+          const meta = COURSE_STAGES[s];
+          const unlocked = s === 1 ? !!diag?.completed : canAccessStage(p, subject, s);
+          const isActive = activeStage === s;
+          const done = isStageComplete(p, subject, s);
+          return `<button type="button" class="btn ${
+            isActive ? "btn-primary" : "btn-secondary"
+          }" data-switch-stage="${s}" ${unlocked ? "" : "disabled"} title="${
+            unlocked ? meta.blurb : "Finish the previous course to unlock"
+          }">${meta.emoji} ${meta.name}${done ? " ✓" : ""}${
+            !unlocked ? " 🔒" : ""
+          }</button>`;
+        })
+        .join("")}
+    </div>`;
+  }
+
+  let unlockBanner = "";
+  if (canStartIntermediate) {
+    unlockBanner = `
+      <div class="card mb-2 celebrate" style="border-color:rgba(61,220,151,0.55);background:rgba(61,220,151,0.08)">
+        <h3 style="margin-top:0;font-family:var(--display)">${COURSE_STAGES[1].emoji} Foundation complete!</h3>
+        <p style="margin:0 0 0.75rem">Brilliant work — you've finished the first ${S.name} course.
+        Ready for harder Intermediate lessons made for ${escapeHtml(learner().name)} (${learner().yearGroup})?</p>
+        <button class="btn btn-primary btn-lg" type="button" id="startStage2">
+          ${COURSE_STAGES[2].emoji} Start Intermediate ${S.name} →
+        </button>
+      </div>`;
+  } else if (intermediateDone && activeStage >= 2) {
+    unlockBanner = `
+      <div class="card mb-2" style="border-color:rgba(255,200,80,0.45)">
+        <h3 style="margin-top:0;font-family:var(--display)">🏆 Intermediate complete!</h3>
+        <p class="muted" style="margin:0">You can revise any lesson below. More advanced stages can be added later — you're flying!</p>
+      </div>`;
+  }
 
   appEl.innerHTML = `
     ${topbar()}
     <button class="btn btn-ghost mb-1" type="button" data-go="dashboard">← Back to hub</button>
     <h2 class="section-title">${S.emoji} ${S.name}</h2>
-    <p class="lead">UK National Curriculum foundations on the GCSE pathway (${
+    <p class="lead">UK National Curriculum on the GCSE pathway (${
       learner().yearGroup
-    })</p>
+    }) · ${stageMeta.emoji} <strong>${stageMeta.name}</strong> course</p>
 
     <div class="card mb-2">
       <h3 style="margin-top:0">1. Placement test</h3>
@@ -807,27 +868,28 @@ function renderSubject({ subject }) {
       }
     </div>
 
+    ${unlockBanner}
+
     <div class="card">
       <h3 style="margin-top:0">2. Your personalised course</h3>
+      ${stageTabsHtml}
       <p class="muted">${
-        course
-          ? escapeHtml(course.focusMessage)
+        stageData
+          ? escapeHtml(stageData.focusMessage || stageMeta.blurb)
           : "Complete the placement test and we'll build a course aimed at your gaps."
       }</p>
       ${
-        course
+        stageData
           ? `<div class="course-list mt-1">
-              ${course.path
+              ${stageData.path
                 .map((skillId, i) => {
-                  const lesson = LESSONS[subject][skillId];
-                  const done = course.completed[skillId];
+                  const lesson = getLessonMeta(subject, skillId, activeStage);
+                  const done = stageData.completed[skillId];
                   const prevDone =
-                    i === 0 || course.completed[course.path[i - 1]];
-                  const locked = !diag?.completed || (!done && !prevDone && i > 0);
-                  // unlock sequential but allow any done; first available next is unlocked
-                  const nextId = nextLesson(p, subject);
+                    i === 0 || stageData.completed[stageData.path[i - 1]];
                   const isNext = skillId === nextId;
-                  const canDo = diag?.completed && (done || isNext || i === 0 || prevDone);
+                  const canDo =
+                    diag?.completed && (done || isNext || i === 0 || prevDone);
                   return `
                     <div class="course-item ${done ? "done" : ""} ${
                       !canDo ? "locked" : ""
@@ -846,7 +908,7 @@ function renderSubject({ subject }) {
                       </div>
                       <button class="btn ${
                         done ? "btn-secondary" : "btn-primary"
-                      }" type="button" data-lesson="${skillId}" ${
+                      }" type="button" data-lesson="${skillId}" data-stage="${activeStage}" ${
                     canDo ? "" : "disabled"
                   }>
                         ${done ? "Revise again" : "Learn & practise"}
@@ -855,7 +917,9 @@ function renderSubject({ subject }) {
                 })
                 .join("")}
             </div>
-            <button class="btn btn-ghost mt-2" type="button" id="regenCourse">Rebuild course from latest test</button>`
+            <button class="btn btn-ghost mt-2" type="button" id="regenCourse">Rebuild ${
+              stageMeta.name
+            } path from latest test</button>`
           : ""
       }
     </div>
@@ -866,13 +930,40 @@ function renderSubject({ subject }) {
   if (start) start.onclick = () => go("diagnostic", { subject });
   if (retake) retake.onclick = () => go("diagnostic", { subject });
   document.getElementById("regenCourse")?.addEventListener("click", async () => {
-    buildCourse(p, subject);
+    buildCourse(p, subject, activeStage);
     await save();
     go("subject", { subject });
   });
+  document.getElementById("startStage2")?.addEventListener("click", async () => {
+    startCourseStage(p, subject, 2);
+    await save();
+    go("subject", { subject });
+  });
+  appEl.querySelectorAll("[data-switch-stage]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const s = Number(btn.dataset.switchStage);
+      if (s === 1) {
+        if (!diag?.completed) return;
+        ensureCourseShape(p, subject);
+        p.courses[subject].activeStage = 1;
+        if (!p.courses[subject].stages[1]?.path?.length) {
+          buildCourse(p, subject, 1);
+        }
+      } else {
+        if (!canAccessStage(p, subject, s)) return;
+        startCourseStage(p, subject, s);
+      }
+      await save();
+      go("subject", { subject });
+    });
+  });
   appEl.querySelectorAll("[data-lesson]").forEach((btn) => {
     btn.addEventListener("click", () =>
-      go("lesson", { subject, skillId: btn.dataset.lesson })
+      go("lesson", {
+        subject,
+        skillId: btn.dataset.lesson,
+        stage: Number(btn.dataset.stage) || activeStage,
+      })
     );
   });
 }
@@ -1060,16 +1151,26 @@ function renderDiagnosticResult({ subject, result }) {
 }
 
 // —— ADAPTIVE LESSON (Teach → Example → Practice → branch if stuck) ——
-function renderLesson({ subject, skillId }) {
+function renderLesson({ subject, skillId, stage }) {
   if (!state.activeLearner) return go("home");
-  const mod = getTeachModule(subject, skillId);
+  const p = profile();
+  const stageNum =
+    Number(stage) ||
+    (p.courses?.[subject] ? getActiveStage(p, subject) : 1) ||
+    1;
+  const stageMeta = COURSE_STAGES[stageNum] || COURSE_STAGES[1];
+  const mod = getTeachModule(subject, skillId, stageNum, state.activeLearner);
   if (!mod) {
-    // Fallback to old item list if no teach module
     alert("Lesson module missing — try another skill.");
     return go("subject", { subject });
   }
 
-  const session = createTutorSession(subject, skillId, state.activeLearner);
+  const session = createTutorSession(
+    subject,
+    skillId,
+    state.activeLearner,
+    stageNum
+  );
   let answerVal = null;
   let revealed = false;
 
@@ -1080,7 +1181,7 @@ function renderLesson({ subject, skillId }) {
 
     if (session.phase === "teach") {
       bodyHtml = `
-        <div class="phase-pill">📖 Teach</div>
+        <div class="phase-pill">📖 Teach · ${escapeHtml(stageMeta.name)}</div>
         <h3 class="teach-heading">${escapeHtml(mod.title)}</h3>
         <p class="muted">${escapeHtml(mod.blurb)}</p>
         ${mod.teach.visual ? `<div class="visual-wrap">${mod.teach.visual}</div>` : ""}
@@ -1163,9 +1264,9 @@ function renderLesson({ subject, skillId }) {
       ${topbar()}
       <div class="quiz-header">
         <div>
-          <div class="q-meta">${SUBJECTS[subject].emoji} Adaptive lesson · ${escapeHtml(
-      skillName
-    )}</div>
+          <div class="q-meta">${SUBJECTS[subject].emoji} ${escapeHtml(
+      stageMeta.emoji + " " + stageMeta.name
+    )} · ${escapeHtml(skillName)}</div>
           <strong>${escapeHtml(mod.title)}</strong>
         </div>
         <div style="min-width:140px">
@@ -1363,14 +1464,15 @@ function renderLesson({ subject, skillId }) {
 
   async function finishSession() {
     const scorePct = scoreSession(session);
-    recordLesson(profile(), subject, skillId, scorePct);
+    recordLesson(profile(), subject, skillId, scorePct, stageNum);
     // Store adaptive stats
     if (!profile().tutorStats) profile().tutorStats = {};
-    profile().tutorStats[`${subject}:${skillId}`] = {
+    profile().tutorStats[`${subject}:${skillId}:s${stageNum}`] = {
       wrong: session.totalWrong,
       struggle: session.struggleUsed,
       video: session.videoShown,
       at: todayKey(),
+      stage: stageNum,
     };
     try {
       await save({ quiet: false });
@@ -1390,6 +1492,7 @@ function renderLesson({ subject, skillId }) {
       correctCount: session.practiceCorrect,
       total: session.practiceTotal,
       struggle: session.struggleUsed,
+      stage: stageNum,
     });
   }
 
@@ -1403,12 +1506,21 @@ function renderLessonResult({
   correctCount,
   total,
   struggle,
+  stage,
 }) {
-  const mod = getTeachModule(subject, skillId);
+  const stageNum = Number(stage) || 1;
+  const stageMeta = COURSE_STAGES[stageNum] || COURSE_STAGES[1];
+  const mod = getTeachModule(subject, skillId, stageNum, state.activeLearner);
+  const p = profile();
+  const foundationJustDone =
+    stageNum === 1 && isStageComplete(p, subject, 1);
+  const canGoIntermediate =
+    foundationJustDone && canAccessStage(p, subject, 2);
+
   appEl.innerHTML = `
     ${topbar()}
     <div class="card score-hero celebrate mb-2">
-      <div class="q-meta">Adaptive lesson complete</div>
+      <div class="q-meta">${escapeHtml(stageMeta.emoji + " " + stageMeta.name)} lesson complete</div>
       <h2 style="font-family:var(--display);margin:0.5rem 0">${escapeHtml(
         mod?.title || skillId
       )}</h2>
@@ -1421,6 +1533,15 @@ function renderLessonResult({
       }
       <p class="muted">${escapeHtml(randomEncouragement())}</p>
     </div>
+    ${
+      canGoIntermediate
+        ? `<div class="card mb-2" style="border-color:rgba(61,220,151,0.5)">
+        <h3 style="margin-top:0;font-family:var(--display)">🌱 Foundation course complete!</h3>
+        <p class="muted">You've finished every Foundation lesson in ${SUBJECTS[subject].name}. Unlock Intermediate for harder challenges.</p>
+        <button class="btn btn-primary btn-lg" type="button" id="unlockInter">🚀 Start Intermediate →</button>
+      </div>`
+        : ""
+    }
     <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
       <button class="btn btn-primary" type="button" id="more">Continue course →</button>
       <button class="btn btn-secondary" type="button" data-go="dashboard">Back to hub</button>
@@ -1428,6 +1549,11 @@ function renderLessonResult({
   `;
   bindShell();
   document.getElementById("more").onclick = () => go("subject", { subject });
+  document.getElementById("unlockInter")?.addEventListener("click", async () => {
+    startCourseStage(p, subject, 2);
+    await save();
+    go("subject", { subject });
+  });
 }
 
 // —— PARENT ZONE ——
@@ -1588,7 +1714,7 @@ function activityFeedHtml() {
         t: h.date || "",
         ts: p.updatedAt || 0,
         text: `${name} completed ${SUBJECTS[h.subject].name}: ${
-          LESSONS[h.subject][h.skillId]?.title || h.skillId
+          getLessonMeta(h.subject, h.skillId, h.stage || 1).title || h.skillId
         } (${h.score}%)`,
       });
     }
@@ -1607,14 +1733,31 @@ function parentKid(id) {
   const rows = Object.keys(SUBJECTS)
     .map((sub) => {
       const d = p.diagnostics[sub];
-      const lessonsDone = p.courses[sub]
-        ? Object.keys(p.courses[sub].completed || {}).length
-        : 0;
-      const totalLessons = p.courses[sub]?.path?.length || "—";
+      let lessonsDone = 0;
+      let totalLessons = "—";
+      let stageLabel = "—";
+      try {
+        if (p.courses?.[sub]) {
+          const c = migrateCourseEntry(p.courses[sub]);
+          const active = c.activeStage || 1;
+          stageLabel = (COURSE_STAGES[active] || COURSE_STAGES[1]).name;
+          const st = c.stages?.[active];
+          if (st) {
+            lessonsDone = Object.keys(st.completed || {}).length;
+            totalLessons = Array.isArray(st.path) ? st.path.length : "—";
+          }
+          // Show foundation complete hint
+          if (isStageComplete(p, sub, 1) && active < 2) {
+            stageLabel = "Foundation ✓";
+          }
+        }
+      } catch (_) {
+        /* ignore */
+      }
       return `<tr>
         <td>${SUBJECTS[sub].emoji} ${SUBJECTS[sub].name}</td>
         <td>${d?.completed ? d.score + "%" : "—"}</td>
-        <td>${d?.date || "—"}</td>
+        <td>${escapeHtml(stageLabel)}</td>
         <td>${lessonsDone}/${totalLessons}</td>
         <td>${subjectOverall(p, sub) ?? "—"}%</td>
       </tr>`;
@@ -1632,7 +1775,7 @@ function parentKid(id) {
       · Updated ${formatTime(p.updatedAt)}</p>
       <div class="table-wrap">
         <table class="progress-table">
-          <thead><tr><th>Subject</th><th>Test</th><th>Date</th><th>Lessons</th><th>Level</th></tr></thead>
+          <thead><tr><th>Subject</th><th>Test</th><th>Course</th><th>Lessons</th><th>Level</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>

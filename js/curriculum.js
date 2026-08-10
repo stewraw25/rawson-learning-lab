@@ -937,6 +937,15 @@ const BADGES = [
   { id: "science_star", name: "Lab Legend", emoji: "🧪", desc: "Score 70%+ on Science diagnostic" },
   { id: "streak_3", name: "3-Day Streak", emoji: "⚡", desc: "Learn 3 days in a row" },
   { id: "gcse_ready", name: "GCSE Pathway", emoji: "🎓", desc: "Average skill score 80%+ in a subject" },
+  { id: "foundation_done", name: "Foundation Finisher", emoji: "🌱", desc: "Complete a Foundation course" },
+  { id: "foundation_maths", name: "Maths Foundation", emoji: "🔢", desc: "Finish Foundation Maths" },
+  { id: "foundation_english", name: "English Foundation", emoji: "📚", desc: "Finish Foundation English" },
+  { id: "foundation_science", name: "Science Foundation", emoji: "🔬", desc: "Finish Foundation Science" },
+  { id: "stage2_ready", name: "Level Up", emoji: "🚀", desc: "Unlock Intermediate course" },
+  { id: "intermediate_maths", name: "Maths Intermediate", emoji: "🚀", desc: "Start Intermediate Maths" },
+  { id: "intermediate_english", name: "English Intermediate", emoji: "🚀", desc: "Start Intermediate English" },
+  { id: "intermediate_science", name: "Science Intermediate", emoji: "🚀", desc: "Start Intermediate Science" },
+  { id: "intermediate_done", name: "Intermediate Hero", emoji: "🏆", desc: "Complete an Intermediate course" },
 ];
 
 const ENCOURAGEMENT = [

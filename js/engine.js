@@ -52,16 +52,13 @@ function normalizeProfile(learnerId, raw) {
   if (!p.courses || typeof p.courses !== "object" || Array.isArray(p.courses)) {
     p.courses = {};
   }
-  // Fix course shapes from Firebase (completed must be object, path must be array)
+  // Fix course shapes from Firebase + migrate flat → staged courses
   for (const [sk, c] of Object.entries(p.courses)) {
     if (!c || typeof c !== "object") {
       delete p.courses[sk];
       continue;
     }
-    if (!Array.isArray(c.path)) c.path = [];
-    if (!c.completed || typeof c.completed !== "object" || Array.isArray(c.completed)) {
-      c.completed = {};
-    }
+    p.courses[sk] = migrateCourseEntry(c);
   }
   if (!Array.isArray(p.badges)) p.badges = [];
   if (!Array.isArray(p.lessonHistory)) p.lessonHistory = [];
@@ -208,11 +205,144 @@ function checkAnswer(question, userAnswer) {
   return normaliseAnswer(question.answer) === user;
 }
 
+/** Course tiers: Foundation (1) → Intermediate (2) → more later */
+const COURSE_STAGES = {
+  1: {
+    id: 1,
+    name: "Foundation",
+    emoji: "🌱",
+    blurb: "Placement-based first course — close the gaps.",
+  },
+  2: {
+    id: 2,
+    name: "Intermediate",
+    emoji: "🚀",
+    blurb: "Harder practice for both KS2 and KS3 — next step after Foundation.",
+  },
+};
+
+const MAX_COURSE_STAGE = 2;
+
+/** Normalise one subject course: flat legacy → { activeStage, stages } */
+function migrateCourseEntry(c) {
+  if (!c || typeof c !== "object") return null;
+  // Already staged
+  if (c.stages && typeof c.stages === "object" && !Array.isArray(c.stages)) {
+    const out = {
+      activeStage: Number(c.activeStage) || 1,
+      stages: {},
+    };
+    for (const [k, st] of Object.entries(c.stages)) {
+      if (!st || typeof st !== "object") continue;
+      out.stages[k] = {
+        path: Array.isArray(st.path) ? st.path : [],
+        completed:
+          st.completed && typeof st.completed === "object" && !Array.isArray(st.completed)
+            ? st.completed
+            : {},
+        generatedAt: st.generatedAt || 0,
+        focusMessage: st.focusMessage || "",
+      };
+    }
+    if (!out.stages[1] && (c.path || c.completed)) {
+      // partial hybrid
+      out.stages[1] = {
+        path: Array.isArray(c.path) ? c.path : [],
+        completed:
+          c.completed && typeof c.completed === "object" && !Array.isArray(c.completed)
+            ? c.completed
+            : {},
+        generatedAt: c.generatedAt || 0,
+        focusMessage: c.focusMessage || "",
+      };
+    }
+    return out;
+  }
+  // Legacy flat shape
+  return {
+    activeStage: 1,
+    stages: {
+      1: {
+        path: Array.isArray(c.path) ? c.path : [],
+        completed:
+          c.completed && typeof c.completed === "object" && !Array.isArray(c.completed)
+            ? c.completed
+            : {},
+        generatedAt: c.generatedAt || 0,
+        focusMessage: c.focusMessage || "",
+      },
+    },
+  };
+}
+
+function ensureCourseShape(profile, subject) {
+  if (!profile.courses || typeof profile.courses !== "object") profile.courses = {};
+  const c = profile.courses[subject];
+  if (!c) return null;
+  profile.courses[subject] = migrateCourseEntry(c);
+  return profile.courses[subject];
+}
+
+function getCourseStageData(profile, subject, stageNum) {
+  const c = ensureCourseShape(profile, subject);
+  if (!c) return null;
+  const stage = stageNum || c.activeStage || 1;
+  return c.stages[stage] || null;
+}
+
+function getActiveStage(profile, subject) {
+  const c = ensureCourseShape(profile, subject);
+  return c?.activeStage || 1;
+}
+
+/** True if every lesson on this stage path is completed */
+function isStageComplete(profile, subject, stageNum) {
+  const st = getCourseStageData(profile, subject, stageNum);
+  if (!st || !Array.isArray(st.path) || !st.path.length) return false;
+  if (!st.completed || typeof st.completed !== "object") return false;
+  return st.path.every((id) => !!st.completed[id]);
+}
+
+/** Stage N unlocks when N-1 is complete (stage 1 needs diagnostic) */
+function canAccessStage(profile, subject, stageNum) {
+  const stage = Number(stageNum) || 1;
+  if (stage < 1 || stage > MAX_COURSE_STAGE) return false;
+  if (stage === 1) return !!(profile.diagnostics?.[subject]?.completed);
+  return isStageComplete(profile, subject, stage - 1);
+}
+
+function lessonExistsForStage(subject, skillId, stageNum) {
+  const stage = Number(stageNum) || 1;
+  if (stage >= 2 && typeof TEACH_MODULES_STAGE2 !== "undefined") {
+    return !!(TEACH_MODULES_STAGE2[subject] && TEACH_MODULES_STAGE2[subject][skillId]);
+  }
+  if (typeof TEACH_MODULES !== "undefined" && TEACH_MODULES[subject]?.[skillId]) return true;
+  return !!(LESSONS[subject] && LESSONS[subject][skillId]);
+}
+
+function getLessonMeta(subject, skillId, stageNum) {
+  const stage = Number(stageNum) || 1;
+  if (typeof getTeachModule === "function") {
+    const mod = getTeachModule(subject, skillId, stage);
+    if (mod) return { title: mod.title, blurb: mod.blurb || "" };
+  }
+  const L = LESSONS[subject]?.[skillId];
+  if (L) return { title: L.title, blurb: L.blurb || "" };
+  return { title: skillId, blurb: "" };
+}
+
 /**
- * Adaptive "AI" course builder:
+ * Adaptive course builder for a stage:
  * ranks skills by diagnostic score (weak first), builds ordered lesson path
  */
-function buildCourse(profile, subject) {
+function buildCourse(profile, subject, stageNum) {
+  if (!profile.courses) profile.courses = {};
+  const existing = profile.courses[subject]
+    ? migrateCourseEntry(profile.courses[subject])
+    : { activeStage: 1, stages: {} };
+  profile.courses[subject] = existing;
+
+  const stage = Number(stageNum) || existing.activeStage || 1;
   const diag = profile.diagnostics[subject];
   const skillDefs = SKILLS[subject];
   const skillIds = Object.keys(skillDefs);
@@ -226,22 +356,57 @@ function buildCourse(profile, subject) {
       }))
       .sort((a, b) => a.score - b.score);
   } else {
-    // Default starter path if no diagnostic yet
     ranked = skillIds.map((id, i) => ({ id, score: 50 - i }));
   }
 
-  // Path: weakest skills first, then a mixed recap of stronger ones
   const path = ranked.map((s) => s.id);
-  // Ensure we have lesson content
-  const filtered = path.filter((id) => LESSONS[subject][id]);
+  const filtered = path.filter((id) => lessonExistsForStage(subject, id, stage));
+  const prevCompleted = existing.stages[stage]?.completed || {};
 
-  profile.courses[subject] = {
+  const focus =
+    stage >= 2
+      ? makeStage2FocusMessage(subject, ranked, diag)
+      : makeFocusMessage(subject, ranked, diag);
+
+  existing.stages[stage] = {
     path: filtered,
-    completed: profile.courses[subject]?.completed || {},
+    completed: prevCompleted,
     generatedAt: Date.now(),
-    focusMessage: makeFocusMessage(subject, ranked, diag),
+    focusMessage: focus,
   };
-  return profile.courses[subject];
+  if (!existing.activeStage) existing.activeStage = stage;
+  return existing.stages[stage];
+}
+
+function makeStage2FocusMessage(subject, ranked, diag) {
+  const subName = SUBJECTS[subject].name;
+  const stageMeta = COURSE_STAGES[2];
+  if (!diag) {
+    return `${stageMeta.emoji} ${stageMeta.name} ${subName}: take the placement test if you haven't — then tackle harder skill challenges.`;
+  }
+  const weak = ranked.slice(0, 2).map((s) => SKILLS[subject][s.id].name);
+  return `${stageMeta.emoji} Intermediate ${subName}: deeper practice, still prioritising ${weak.join(
+    " and "
+  )}. You've finished Foundation — this is the next step on the GCSE pathway.`;
+}
+
+/** Start Intermediate (or later) after previous stage is complete */
+function startCourseStage(profile, subject, stageNum) {
+  const stage = Number(stageNum) || 2;
+  if (!canAccessStage(profile, subject, stage)) return null;
+  if (!profile.courses) profile.courses = {};
+  if (!profile.courses[subject]) {
+    profile.courses[subject] = { activeStage: 1, stages: {} };
+  } else {
+    profile.courses[subject] = migrateCourseEntry(profile.courses[subject]);
+  }
+  profile.courses[subject].activeStage = stage;
+  if (!profile.courses[subject].stages[stage]?.path?.length) {
+    buildCourse(profile, subject, stage);
+  }
+  unlockBadge(profile, "stage2_ready");
+  if (stage === 2) unlockBadge(profile, `intermediate_${subject}`);
+  return profile.courses[subject].stages[stage];
 }
 
 function makeFocusMessage(subject, ranked, diag) {
@@ -318,36 +483,52 @@ function recordDiagnostic(profile, subject, answers, result) {
   if (avg >= 80) unlockBadge(profile, "gcse_ready");
 }
 
-function recordLesson(profile, subject, skillId, scorePct) {
-  if (!profile.courses[subject]) buildCourse(profile, subject);
-  profile.courses[subject].completed[skillId] = {
+function recordLesson(profile, subject, skillId, scorePct, stageNum) {
+  if (!profile.courses[subject]) buildCourse(profile, subject, 1);
+  const course = migrateCourseEntry(profile.courses[subject]);
+  profile.courses[subject] = course;
+  const stage = Number(stageNum) || course.activeStage || 1;
+  if (!course.stages[stage]) buildCourse(profile, subject, stage);
+  const st = course.stages[stage];
+  st.completed[skillId] = {
     score: scorePct,
     date: todayKey(),
+    stage,
   };
   profile.lessonHistory.push({
     subject,
     skillId,
     score: scorePct,
     date: todayKey(),
+    stage,
   });
   updateStreak(profile);
-  addXp(profile, 25 + Math.round(scorePct / 10));
+  // Intermediate lessons worth a bit more XP
+  const xpBase = stage >= 2 ? 35 : 25;
+  addXp(profile, xpBase + Math.round(scorePct / 10));
   unlockBadge(profile, "lesson_1");
   const lessonCount = profile.lessonHistory.length;
   if (lessonCount >= 5) unlockBadge(profile, "lesson_5");
 
-  // Refresh course message but keep path order stable unless parent regenerates
   const ranked = Object.keys(SKILLS[subject])
     .map((id) => ({
       id,
       score: profile.diagnostics[subject]?.skillScores?.[id] ?? 50,
     }))
     .sort((a, b) => a.score - b.score);
-  profile.courses[subject].focusMessage = makeFocusMessage(
-    subject,
-    ranked,
-    profile.diagnostics[subject]
-  );
+  st.focusMessage =
+    stage >= 2
+      ? makeStage2FocusMessage(subject, ranked, profile.diagnostics[subject])
+      : makeFocusMessage(subject, ranked, profile.diagnostics[subject]);
+
+  // Foundation complete → badge + ready for Intermediate
+  if (stage === 1 && isStageComplete(profile, subject, 1)) {
+    unlockBadge(profile, "foundation_done");
+    unlockBadge(profile, `foundation_${subject}`);
+  }
+  if (stage === 2 && isStageComplete(profile, subject, 2)) {
+    unlockBadge(profile, "intermediate_done");
+  }
 }
 
 function subjectOverall(profile, subject) {
@@ -358,10 +539,16 @@ function subjectOverall(profile, subject) {
   if (diag && diag.skillScores && typeof diag.skillScores === "object") {
     const vals = Object.values(diag.skillScores).filter((v) => typeof v === "number");
     if (!vals.length) return diag.score != null ? Number(diag.score) : null;
-    const course = profile.courses && profile.courses[subject];
     let boost = 0;
-    if (course && course.completed && typeof course.completed === "object") {
-      boost = Math.min(15, Object.keys(course.completed).length * 3);
+    const c = profile.courses && profile.courses[subject];
+    if (c) {
+      const migrated = migrateCourseEntry(c);
+      for (const st of Object.values(migrated.stages || {})) {
+        if (st && st.completed && typeof st.completed === "object") {
+          boost += Object.keys(st.completed).length * 3;
+        }
+      }
+      boost = Math.min(20, boost);
     }
     const base = vals.reduce((a, b) => a + b, 0) / vals.length;
     return Math.min(100, Math.round(base + boost * 0.3));
@@ -370,19 +557,44 @@ function subjectOverall(profile, subject) {
   return null;
 }
 
-function nextLesson(profile, subject) {
-  if (!profile.courses || !profile.courses[subject] || !Array.isArray(profile.courses[subject].path)) {
-    buildCourse(profile, subject);
+/** Next incomplete skill on the active stage (null if stage path finished) */
+function nextLesson(profile, subject, stageNum) {
+  if (!profile.courses || !profile.courses[subject]) {
+    buildCourse(profile, subject, 1);
   }
-  const course = profile.courses[subject];
-  if (!course || !Array.isArray(course.path)) return null;
-  if (!course.completed || typeof course.completed !== "object" || Array.isArray(course.completed)) {
-    course.completed = {};
+  const course = migrateCourseEntry(profile.courses[subject]);
+  profile.courses[subject] = course;
+  const stage = Number(stageNum) || course.activeStage || 1;
+  let st = course.stages[stage];
+  if (!st || !Array.isArray(st.path) || !st.path.length) {
+    buildCourse(profile, subject, stage);
+    st = course.stages[stage];
   }
-  for (const skillId of course.path) {
-    if (!course.completed[skillId]) return skillId;
+  if (!st || !Array.isArray(st.path)) return null;
+  if (!st.completed || typeof st.completed !== "object" || Array.isArray(st.completed)) {
+    st.completed = {};
   }
-  return null; // all done — can retake
+  for (const skillId of st.path) {
+    if (!st.completed[skillId]) return skillId;
+  }
+  return null; // this stage complete
+}
+
+/** Highest stage the learner can open (1 or 2 for now) */
+function maxUnlockedStage(profile, subject) {
+  let max = 0;
+  for (let s = 1; s <= MAX_COURSE_STAGE; s++) {
+    if (canAccessStage(profile, subject, s) || (s === 1 && profile.diagnostics?.[subject]?.completed)) {
+      // Stage 1 accessible after diagnostic; stage 2 after foundation complete
+      if (s === 1 && profile.diagnostics?.[subject]?.completed) max = 1;
+      if (s > 1 && isStageComplete(profile, subject, s - 1)) max = s;
+    }
+  }
+  if (profile.diagnostics?.[subject]?.completed && max < 1) max = 1;
+  // If they're mid-stage-2
+  const active = getActiveStage(profile, subject);
+  if (active > max && canAccessStage(profile, subject, active)) max = active;
+  return max || (profile.diagnostics?.[subject]?.completed ? 1 : 0);
 }
 
 function randomEncouragement() {

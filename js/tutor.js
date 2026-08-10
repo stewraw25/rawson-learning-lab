@@ -197,14 +197,17 @@ The student got this wrong. Explain gently why, teach the idea in 3 short steps,
 
 /**
  * Create an adaptive session state for a skill module
+ * @param {number} [stageNum=1] Foundation=1 Intermediate=2
  */
-function createTutorSession(subject, skillId, learnerId) {
-  const mod = getTeachModule(subject, skillId);
+function createTutorSession(subject, skillId, learnerId, stageNum) {
+  const stage = Number(stageNum) || 1;
+  const mod = getTeachModule(subject, skillId, stage, learnerId);
   if (!mod) return null;
   return {
     subject,
     skillId,
     learnerId,
+    stage,
     phase: "teach", // teach | example | practice | struggle_teach | struggle_practice | video | complete
     practiceIndex: 0,
     practiceCorrect: 0,
@@ -220,11 +223,17 @@ function createTutorSession(subject, skillId, learnerId) {
 }
 
 function currentPracticeList(session) {
-  const mod = getTeachModule(session.subject, session.skillId);
+  const mod = getTeachModule(
+    session.subject,
+    session.skillId,
+    session.stage || 1,
+    session.learnerId
+  );
+  if (!mod) return [];
   if (session.phase === "struggle_practice") {
-    return mod.struggle?.practice || mod.practice;
+    return mod.struggle?.practice || mod.practice || [];
   }
-  return mod.practice;
+  return mod.practice || [];
 }
 
 function sessionProgress(session) {

@@ -1060,8 +1060,43 @@ const TEACH_MODULES = {
   },
 };
 
-function getTeachModule(subject, skillId) {
-  return TEACH_MODULES[subject]?.[skillId] || null;
+/**
+ * @param {string} subject
+ * @param {string} skillId
+ * @param {number} [stageNum=1] Foundation=1 Intermediate=2
+ * @param {string|null} [learnerId] filter practice by ks2/ks3 when set
+ */
+function getTeachModule(subject, skillId, stageNum, learnerId) {
+  const stage = Number(stageNum) || 1;
+  let raw = null;
+  if (stage >= 2 && typeof TEACH_MODULES_STAGE2 !== "undefined") {
+    raw = TEACH_MODULES_STAGE2[subject]?.[skillId] || null;
+  }
+  if (!raw) raw = TEACH_MODULES[subject]?.[skillId] || null;
+  if (!raw) return null;
+
+  if (!learnerId || typeof LEARNERS === "undefined" || !LEARNERS[learnerId]) {
+    return raw;
+  }
+  const learnerStage = LEARNERS[learnerId].stage;
+  const filterItems = (items) => {
+    if (!Array.isArray(items)) return items || [];
+    const filtered = items.filter(
+      (q) => !q.stage || q.stage === "both" || q.stage === learnerStage
+    );
+    // If filtering removed everything, fall back to full bank
+    return filtered.length ? filtered : items;
+  };
+  return {
+    ...raw,
+    practice: filterItems(raw.practice),
+    struggle: raw.struggle
+      ? {
+          ...raw.struggle,
+          practice: filterItems(raw.struggle.practice),
+        }
+      : raw.struggle,
+  };
 }
 
 function getVideoForModule(mod) {

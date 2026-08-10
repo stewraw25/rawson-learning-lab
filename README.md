@@ -5,7 +5,9 @@ Fun UK curriculum practice hub for **Bella-Rose Rawson** (12) and **George Rawso
 ## Features
 
 - Placement tests in **English**, **Maths** and **Science**
-- Personalised courses that prioritise weaker skills (GCSE pathway mapping)
+- **Foundation → Intermediate** course stages (unlock Intermediate when Foundation is finished)
+- Personalised paths that prioritise weaker skills (GCSE pathway mapping)
+- Stage-appropriate practice for **George (KS2)** and **Bella-Rose (KS3)**
 - **Adaptive lessons**: teach → worked example → practice; struggle path + diagrams + BBC Bitesize / Oak links
 - Optional **Grok (xAI) AI tutor** for personalised explanations (see Parent zone → AI settings)
 - XP, levels, streaks and badges

@@ -106,9 +106,21 @@ function progressScore(p) {
   score += (p.lessonHistory || []).length * 50;
   score += Number(p.xp) || 0;
   score += (p.badges || []).length * 20;
-  // completed lesson keys in courses
+  // completed lesson keys in courses (legacy flat + staged)
   for (const c of Object.values(p.courses || {})) {
-    if (c && c.completed) score += Object.keys(c.completed).length * 40;
+    if (!c || typeof c !== "object") continue;
+    if (c.completed && typeof c.completed === "object") {
+      score += Object.keys(c.completed).length * 40;
+    }
+    if (c.stages && typeof c.stages === "object") {
+      for (const st of Object.values(c.stages)) {
+        if (st && st.completed && typeof st.completed === "object") {
+          score += Object.keys(st.completed).length * 40;
+        }
+      }
+      // Reward intermediate progress so it never loses a merge
+      if ((c.activeStage || 1) >= 2) score += 80;
+    }
   }
   return score;
 }

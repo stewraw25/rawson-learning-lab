@@ -1,0 +1,1423 @@
+/**
+ * Intermediate (Stage 2) teach modules — harder than Foundation.
+ * Items may set stage: "ks2" | "ks3" | "both" (default both).
+ * George (KS2) and Bella-Rose (KS3) each get an appropriate mix.
+ */
+
+const TEACH_MODULES_STAGE2 = {
+  maths: {
+    number: {
+      title: "Number deep-dive",
+      blurb: "Powers, roots and place value under pressure — Intermediate.",
+      videoKey: "placevalue",
+      teach: {
+        points: [
+          "Powers: 10⁴ = 10,000. Roots undo powers: √81 = 9.",
+          "Standard form (KS3): 3,400 = 3.4 × 10³.",
+          "Negative numbers: −3 − 5 = −8; subtracting a negative adds.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "What is 2⁵?",
+          "2 × 2 × 2 × 2 × 2 = 32.",
+          "Check: 2⁴ = 16, so 2⁵ = 32.",
+        ],
+      },
+      practice: [
+        {
+          q: "What is 2⁵?",
+          type: "typed",
+          answer: "32",
+          explain: "2×2×2×2×2 = 32.",
+          stage: "both",
+        },
+        {
+          q: "√64 = ?",
+          type: "typed",
+          answer: "8",
+          explain: "8 × 8 = 64.",
+          stage: "both",
+        },
+        {
+          q: "Round 47,852 to the nearest thousand.",
+          type: "typed",
+          answer: "48000",
+          accept: ["48000", "48,000"],
+          explain: "Hundreds digit is 8 ≥ 5 → round up to 48,000.",
+          stage: "both",
+        },
+        {
+          q: "Calculate −7 + 12.",
+          type: "typed",
+          answer: "5",
+          explain: "From −7, add 12 → land on 5.",
+          stage: "both",
+        },
+        {
+          q: "Write 5,600 in standard form.",
+          type: "multi",
+          options: ["5.6 × 10²", "5.6 × 10³", "56 × 10²", "5.6 × 10⁴"],
+          answer: 1,
+          explain: "5,600 = 5.6 × 1,000 = 5.6 × 10³.",
+          stage: "ks3",
+        },
+        {
+          q: "What is 10⁴?",
+          type: "typed",
+          answer: "10000",
+          accept: ["10000", "10,000"],
+          explain: "10×10×10×10 = 10,000.",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "Powers: count how many times you multiply the base by itself.",
+          "Number line helps with negatives — left is smaller.",
+        ],
+        practice: [
+          {
+            q: "2³ = ?",
+            type: "typed",
+            answer: "8",
+            explain: "2×2×2 = 8.",
+          },
+        ],
+      },
+    },
+    operations: {
+      title: "Multi-step operations",
+      blurb: "Order of operations and real multi-step problems.",
+      videoKey: "multiply",
+      teach: {
+        points: [
+          "BIDMAS/BODMAS: Brackets, Indices, Division/Multiplication, Addition/Subtraction.",
+          "Work left to right for × and ÷ at the same level.",
+          "Estimate first: is your answer roughly the right size?",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: ["3 + 4 × 5", "Multiply first: 4 × 5 = 20", "Then 3 + 20 = 23"],
+      },
+      practice: [
+        {
+          q: "Calculate 3 + 4 × 5.",
+          type: "typed",
+          answer: "23",
+          explain: "× before +: 4×5=20, then 3+20=23.",
+          stage: "both",
+        },
+        {
+          q: "What is (12 + 8) ÷ 4?",
+          type: "typed",
+          answer: "5",
+          explain: "Brackets first: 20 ÷ 4 = 5.",
+          stage: "both",
+        },
+        {
+          q: "A bus holds 52 seats. 3 full buses leave. How many seats in total?",
+          type: "typed",
+          answer: "156",
+          explain: "3 × 52 = 156.",
+          stage: "both",
+        },
+        {
+          q: "Calculate 7² − 5 × 3.",
+          type: "typed",
+          answer: "34",
+          explain: "7²=49, 5×3=15, 49−15=34.",
+          stage: "both",
+        },
+        {
+          q: "Simplify: 18 ÷ 3 × 2",
+          type: "typed",
+          answer: "12",
+          explain: "Left to right: 18÷3=6, 6×2=12.",
+          stage: "ks3",
+        },
+        {
+          q: "What is 25 × 4?",
+          type: "typed",
+          answer: "100",
+          explain: "25×4 = 100.",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "Circle the × and ÷ first — do those before + and −.",
+          "Brackets always win — do inside ( ) first.",
+        ],
+        practice: [
+          {
+            q: "2 + 3 × 4 = ?",
+            type: "typed",
+            answer: "14",
+            explain: "3×4=12, then 2+12=14.",
+          },
+        ],
+      },
+    },
+    fractions: {
+      title: "Fractions & percentages pro",
+      blurb: "Multiply fractions, reverse percentages, multi-step ratio.",
+      videoKey: "fractions",
+      teach: {
+        points: [
+          "Multiply fractions: multiply tops, multiply bottoms (then simplify).",
+          "Percentage of amount: 15% of 80 = 0.15 × 80, or 10% + 5%.",
+          "Increase by 20%: multiply by 1.2 (KS3) or add 20% of the amount.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Find 15% of 80.",
+          "10% of 80 = 8.",
+          "5% of 80 = 4.",
+          "15% = 8 + 4 = 12.",
+        ],
+      },
+      practice: [
+        {
+          q: "What is 15% of 80?",
+          type: "typed",
+          answer: "12",
+          explain: "10%=8, 5%=4 → 15%=12.",
+          stage: "both",
+        },
+        {
+          q: "Calculate ⅔ × ¾ (as a simplified fraction).",
+          type: "multi",
+          options: ["6/12", "1/2", "5/7", "2/3"],
+          answer: 1,
+          explain: "2/3 × 3/4 = 6/12 = 1/2.",
+          stage: "both",
+        },
+        {
+          q: "A jacket costs £40. It is reduced by 25%. New price?",
+          type: "typed",
+          answer: "30",
+          accept: ["30", "£30", "30.00"],
+          explain: "25% of 40 = 10; 40 − 10 = £30.",
+          stage: "both",
+        },
+        {
+          q: "Which is larger: 3/5 or 0.55?",
+          type: "multi",
+          options: ["3/5", "0.55", "They are equal"],
+          answer: 0,
+          explain: "3/5 = 0.6 > 0.55.",
+          stage: "both",
+        },
+        {
+          q: "Increase 50 by 20%.",
+          type: "typed",
+          answer: "60",
+          explain: "20% of 50 = 10; 50 + 10 = 60 (or ×1.2).",
+          stage: "ks3",
+        },
+        {
+          q: "What is 1/4 of 96?",
+          type: "typed",
+          answer: "24",
+          explain: "96 ÷ 4 = 24.",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "10% = divide by 10. 5% = half of 10%. 1% = divide by 100.",
+          "When multiplying fractions, tops×tops and bottoms×bottoms.",
+        ],
+        practice: [
+          {
+            q: "10% of 90 = ?",
+            type: "typed",
+            answer: "9",
+            explain: "90 ÷ 10 = 9.",
+          },
+        ],
+      },
+    },
+    algebra: {
+      title: "Algebra level-up",
+      blurb: "Two-step equations, substitution and simple expansion.",
+      videoKey: "algebra",
+      teach: {
+        points: [
+          "Balance equations: do the same to both sides.",
+          "Two-step: undo +/− first, then ×/÷ (or reverse order carefully).",
+          "Substitute: replace the letter with the number, then calculate.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Solve 2x + 5 = 17",
+          "Subtract 5: 2x = 12",
+          "Divide by 2: x = 6",
+        ],
+      },
+      practice: [
+        {
+          q: "Solve: 2x + 5 = 17",
+          type: "typed",
+          answer: "6",
+          explain: "2x = 12 → x = 6.",
+          stage: "both",
+        },
+        {
+          q: "If a = 4 and b = 3, what is 2a + b?",
+          type: "typed",
+          answer: "11",
+          explain: "2×4 + 3 = 11.",
+          stage: "both",
+        },
+        {
+          q: "Expand: 3(x − 2)",
+          type: "multi",
+          options: ["3x − 2", "3x − 6", "x − 6", "3x + 6"],
+          answer: 1,
+          explain: "3×x − 3×2 = 3x − 6.",
+          stage: "both",
+        },
+        {
+          q: "Solve: x/3 = 9",
+          type: "typed",
+          answer: "27",
+          explain: "x = 9 × 3 = 27.",
+          stage: "both",
+        },
+        {
+          q: "Solve: 5x − 4 = 21",
+          type: "typed",
+          answer: "5",
+          explain: "5x = 25 → x = 5.",
+          stage: "ks3",
+        },
+        {
+          q: "If n = 10, what is n − 3?",
+          type: "typed",
+          answer: "7",
+          explain: "10 − 3 = 7.",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "Think of the equation as a balance scale — keep both sides equal.",
+          "To undo +5, subtract 5. To undo ×2, divide by 2.",
+        ],
+        practice: [
+          {
+            q: "Solve: x + 4 = 10",
+            type: "typed",
+            answer: "6",
+            explain: "x = 10 − 4 = 6.",
+          },
+        ],
+      },
+    },
+    geometry: {
+      title: "Shape & measure challenge",
+      blurb: "Area, perimeter, angles and compound shapes.",
+      videoKey: "angles",
+      teach: {
+        points: [
+          "Triangle area = ½ × base × height.",
+          "Angles in a triangle sum to 180°; on a straight line 180°; full turn 360°.",
+          "Perimeter = distance around the outside.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Triangle base 10 cm, height 6 cm.",
+          "Area = ½ × 10 × 6 = 30 cm².",
+        ],
+      },
+      practice: [
+        {
+          q: "Area of a triangle with base 10 cm and height 6 cm?",
+          type: "typed",
+          answer: "30",
+          accept: ["30", "30cm2", "30 cm2", "30cm²"],
+          explain: "½ × 10 × 6 = 30 cm².",
+          stage: "both",
+        },
+        {
+          q: "A triangle has angles 50° and 60°. The third angle is…",
+          type: "typed",
+          answer: "70",
+          accept: ["70", "70°"],
+          explain: "180 − 50 − 60 = 70°.",
+          stage: "both",
+        },
+        {
+          q: "Perimeter of a square with side 9 cm?",
+          type: "typed",
+          answer: "36",
+          accept: ["36", "36cm", "36 cm"],
+          explain: "4 × 9 = 36 cm.",
+          stage: "both",
+        },
+        {
+          q: "Area of a rectangle 12 m by 5 m?",
+          type: "typed",
+          answer: "60",
+          accept: ["60", "60m2", "60 m2", "60m²"],
+          explain: "12 × 5 = 60 m².",
+          stage: "both",
+        },
+        {
+          q: "Angles around a point sum to…",
+          type: "typed",
+          answer: "360",
+          accept: ["360", "360°"],
+          explain: "Full turn = 360°.",
+          stage: "ks3",
+        },
+        {
+          q: "How many right angles in a rectangle?",
+          type: "typed",
+          answer: "4",
+          explain: "A rectangle has 4 right angles (90° each).",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "Triangle: half a rectangle with the same base and height.",
+          "Add the known angles, subtract from 180° for a triangle.",
+        ],
+        practice: [
+          {
+            q: "½ × 8 × 4 = ?",
+            type: "typed",
+            answer: "16",
+            explain: "Half of 32 is 16.",
+          },
+        ],
+      },
+    },
+    data: {
+      title: "Data & chance advanced",
+      blurb: "Mean, range, probability and reading tables.",
+      videoKey: "averages",
+      teach: {
+        points: [
+          "Mean = total ÷ how many values.",
+          "Range = largest − smallest.",
+          "Probability of equally likely outcomes: favourable ÷ total.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Scores: 4, 6, 8, 10",
+          "Mean = (4+6+8+10)÷4 = 28÷4 = 7",
+          "Range = 10 − 4 = 6",
+        ],
+      },
+      practice: [
+        {
+          q: "Mean of 4, 6, 8, 10?",
+          type: "typed",
+          answer: "7",
+          explain: "28 ÷ 4 = 7.",
+          stage: "both",
+        },
+        {
+          q: "Range of 3, 9, 12, 5?",
+          type: "typed",
+          answer: "9",
+          explain: "12 − 3 = 9.",
+          stage: "both",
+        },
+        {
+          q: "A fair spinner has 5 equal sections, one is red. P(red)?",
+          type: "multi",
+          options: ["1/5", "1/4", "5/1", "2/5"],
+          answer: 0,
+          explain: "1 favourable out of 5 equally likely.",
+          stage: "both",
+        },
+        {
+          q: "Mode of 2, 5, 5, 7, 9?",
+          type: "typed",
+          answer: "5",
+          explain: "Mode = most frequent value = 5.",
+          stage: "both",
+        },
+        {
+          q: "P(not rolling a 6) on a fair die?",
+          type: "multi",
+          options: ["1/6", "5/6", "1/2", "6/5"],
+          answer: 1,
+          explain: "5 outcomes that are not 6 → 5/6.",
+          stage: "ks3",
+        },
+        {
+          q: "Median of 1, 3, 5, 7, 9?",
+          type: "typed",
+          answer: "5",
+          explain: "Middle value when ordered = 5.",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "Mean: add everything up, then divide by the count.",
+          "Probability is a fraction between 0 (impossible) and 1 (certain).",
+        ],
+        practice: [
+          {
+            q: "Mean of 2, 4, 6?",
+            type: "typed",
+            answer: "4",
+            explain: "12 ÷ 3 = 4.",
+          },
+        ],
+      },
+    },
+  },
+
+  english: {
+    grammar: {
+      title: "Grammar workshop+",
+      blurb: "Clauses, voice and precise sentence control.",
+      videoKey: "grammar",
+      teach: {
+        points: [
+          "A main clause can stand alone; a subordinate clause cannot.",
+          "Active: The cat chased the mouse. Passive: The mouse was chased by the cat.",
+          "Subject–verb agreement: He runs (not run).",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Sentence: When the rain stopped, we went outside.",
+          "'When the rain stopped' = subordinate (needs the main idea).",
+          "'we went outside' = main clause.",
+        ],
+      },
+      practice: [
+        {
+          q: "Which is a subordinate clause?",
+          type: "multi",
+          options: [
+            "The dog barked.",
+            "because it was hungry",
+            "She smiled.",
+            "Go home.",
+          ],
+          answer: 1,
+          explain: "'because…' cannot stand alone as a full sentence.",
+          stage: "both",
+        },
+        {
+          q: "Which sentence is passive?",
+          type: "multi",
+          options: [
+            "Mia painted the fence.",
+            "The fence was painted by Mia.",
+            "Mia is painting.",
+            "Paint the fence!",
+          ],
+          answer: 1,
+          explain: "Object becomes subject + was/were + past participle.",
+          stage: "both",
+        },
+        {
+          q: "Correct: The team ___ winning.",
+          type: "multi",
+          options: ["are", "is", "be", "were is"],
+          answer: 1,
+          explain: "Collective noun 'team' often takes singular 'is' in formal UK English.",
+          stage: "both",
+        },
+        {
+          q: "Identify the verb: 'The ancient bridge creaked loudly.'",
+          type: "multi",
+          options: ["ancient", "bridge", "creaked", "loudly"],
+          answer: 2,
+          explain: "Creaked is the doing/being word.",
+          stage: "both",
+        },
+        {
+          q: "A relative clause often starts with…",
+          type: "multi",
+          options: ["and/but only", "who/which/that", "very", "the"],
+          answer: 1,
+          explain: "who/which/that introduce relative clauses.",
+          stage: "ks3",
+        },
+        {
+          q: "Which is a complete sentence?",
+          type: "multi",
+          options: [
+            "Running down the hill.",
+            "The fox ran.",
+            "Because it rained.",
+            "After lunch.",
+          ],
+          answer: 1,
+          explain: "Needs a subject and a finite verb that can stand alone.",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "If you can say it alone and it makes sense, it's probably a main clause.",
+          "Passive often uses was/were + verb ending in -ed (or irregular past participle).",
+        ],
+        practice: [
+          {
+            q: "Main clause? 'She laughed.'",
+            type: "multi",
+            options: ["Yes", "No"],
+            answer: 0,
+            explain: "Subject + verb, complete idea.",
+          },
+        ],
+      },
+    },
+    punctuation: {
+      title: "Punctuation precision",
+      blurb: "Colons, semi-colons, dashes and speech — Intermediate.",
+      videoKey: "punctuation",
+      teach: {
+        points: [
+          "Colon (:) introduces a list, explanation or quote.",
+          "Semi-colon (;) joins two closely related complete sentences.",
+          "Speech: new speaker, new line; commas and end marks inside the inverted commas (UK style varies — be consistent).",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "I packed three things: a map, a torch and a snack.",
+          "The colon introduces the list.",
+        ],
+      },
+      practice: [
+        {
+          q: "Best mark to introduce a list?",
+          type: "multi",
+          options: [",", ":", "...", "?"],
+          answer: 1,
+          explain: "A colon introduces a list after a complete clause.",
+          stage: "both",
+        },
+        {
+          q: "Which correctly joins two related sentences?",
+          type: "multi",
+          options: [
+            "It rained; we stayed in.",
+            "It rained, we stayed in.",
+            "It rained: we.",
+            "It rained we stayed in.",
+          ],
+          answer: 0,
+          explain: "Semi-colon links two full sentences that are closely related.",
+          stage: "both",
+        },
+        {
+          q: "Where does the question mark go? She asked ___ Where is the hall ___",
+          type: "multi",
+          options: [
+            'She asked, "Where is the hall?"',
+            'She asked "Where is the hall"?',
+            'She asked, "Where is the hall"?',
+            'She asked? "Where is the hall."',
+          ],
+          answer: 0,
+          explain: "Question mark stays with the spoken question inside the speech marks.",
+          stage: "both",
+        },
+        {
+          q: "Apostrophe for possession: the bag of the girls (plural).",
+          type: "multi",
+          options: ["girl's bag", "girls' bag", "girls bag", "girl's' bag"],
+          answer: 1,
+          explain: "Plural girls → girls' bag.",
+          stage: "both",
+        },
+        {
+          q: "A dash can…",
+          type: "multi",
+          options: [
+            "only end a sentence forever",
+            "add an emphasis or aside",
+            "replace every full stop",
+            "mean the same as a hyphen always",
+          ],
+          answer: 1,
+          explain: "Dashes can insert an emphatic extra thought.",
+          stage: "ks3",
+        },
+        {
+          q: "Its or it's? ___ raining outside.",
+          type: "multi",
+          options: ["Its", "It's", "Its'", "I'ts"],
+          answer: 1,
+          explain: "It's = it is.",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "Colon = 'here comes more detail'.",
+          "Semi-colon ≈ a soft full stop between two complete ideas.",
+        ],
+        practice: [
+          {
+            q: "List after: I need…",
+            type: "multi",
+            options: [":", "?", "!"],
+            answer: 0,
+            explain: "Colon introduces the list.",
+          },
+        ],
+      },
+    },
+    vocabulary: {
+      title: "Word power+",
+      blurb: "Nuance, roots and choosing the precise word.",
+      videoKey: "reading",
+      teach: {
+        points: [
+          "Synonyms are close, not identical — pick the best fit for tone.",
+          "Prefixes/suffixes change meaning: un-, re-, -less, -ful.",
+          "Formal vs informal: 'request' vs 'ask for'.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Word: reluctant",
+          "Means unwilling / hesitant — not the same as angry.",
+          "Sentence: She was reluctant to jump into the cold pool.",
+        ],
+      },
+      practice: [
+        {
+          q: "Best synonym for reluctant?",
+          type: "multi",
+          options: ["eager", "unwilling", "enormous", "invisible"],
+          answer: 1,
+          explain: "Reluctant = unwilling or hesitant.",
+          stage: "both",
+        },
+        {
+          q: "The prefix re- in rewrite means…",
+          type: "multi",
+          options: ["not", "again", "before", "against"],
+          answer: 1,
+          explain: "re- often means again.",
+          stage: "both",
+        },
+        {
+          q: "Most formal: Please ___ the form.",
+          type: "multi",
+          options: ["chuck", "complete", "do", "bash out"],
+          answer: 1,
+          explain: "'Complete' is formal and precise.",
+          stage: "both",
+        },
+        {
+          q: "Antonym of scarce?",
+          type: "multi",
+          options: ["rare", "plentiful", "tiny", "hidden"],
+          answer: 1,
+          explain: "Scarce = in short supply; opposite plentiful.",
+          stage: "both",
+        },
+        {
+          q: "What does benevolent most nearly mean?",
+          type: "multi",
+          options: ["cruel", "kind / well-meaning", "noisy", "ancient"],
+          answer: 1,
+          explain: "Benevolent = kind, wanting good for others.",
+          stage: "ks3",
+        },
+        {
+          q: "A word that means very tired:",
+          type: "multi",
+          options: ["exhausted", "excited", "empty only", "early"],
+          answer: 0,
+          explain: "Exhausted = extremely tired.",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "Try the word in a sentence — does the tone still work?",
+          "Break long words into root + prefix/suffix.",
+        ],
+        practice: [
+          {
+            q: "Synonym of happy?",
+            type: "multi",
+            options: ["joyful", "angry", "silent"],
+            answer: 0,
+            explain: "Joyful is close in meaning.",
+          },
+        ],
+      },
+    },
+    reading: {
+      title: "Reading detective+",
+      blurb: "Inference, evidence and writer’s methods — Intermediate.",
+      videoKey: "reading",
+      teach: {
+        points: [
+          "Inference = reading between the lines using clues + knowledge.",
+          "Always back ideas with a short quote or clear reference.",
+          "Think about why the writer chose a word or image (effect on reader).",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Text: 'He slammed the door and the cups rattled on the shelf.'",
+          "Inference: he is angry or upset (slammed = forceful).",
+          "Evidence: 'slammed' + cups rattling show force.",
+        ],
+      },
+      practice: [
+        {
+          passage:
+            "Maya hovered in the doorway. Her fingers twisted the strap of her bag. The headteacher’s office felt colder than the corridor.",
+          q: "How does Maya feel?",
+          type: "multi",
+          options: ["Relaxed", "Nervous / anxious", "Bored only", "Triumphant"],
+          answer: 1,
+          explain: "Hovering, twisting strap, cold office → nervous.",
+          stage: "both",
+        },
+        {
+          passage:
+            "Smoke curled from the distant ridge. Birds had gone silent. Someone shouted for water.",
+          q: "What is most likely happening?",
+          type: "multi",
+          options: [
+            "A quiet picnic",
+            "A fire emergency",
+            "A swimming lesson",
+            "A birthday party",
+          ],
+          answer: 1,
+          explain: "Smoke, silence, shout for water → fire.",
+          stage: "both",
+        },
+        {
+          q: "Why do writers use short sentences in action scenes?",
+          type: "multi",
+          options: [
+            "To slow everything down always",
+            "To create pace / tension",
+            "Because long words are banned",
+            "Only to waste ink",
+          ],
+          answer: 1,
+          explain: "Short sentences speed the rhythm and raise tension.",
+          stage: "both",
+        },
+        {
+          q: "What is the main idea of a paragraph usually found?",
+          type: "multi",
+          options: [
+            "Only in the last word",
+            "Often in a topic sentence (start or clear statement)",
+            "Never stated",
+            "Only in the title of the book",
+          ],
+          answer: 1,
+          explain: "Topic sentences often carry the main idea.",
+          stage: "both",
+        },
+        {
+          q: "Pathetic fallacy is when…",
+          type: "multi",
+          options: [
+            "weather/setting mirrors mood",
+            "a character lies",
+            "a rhyme scheme",
+            "a type of full stop",
+          ],
+          answer: 0,
+          explain: "e.g. stormy weather when a character is angry.",
+          stage: "ks3",
+        },
+        {
+          q: "A fact is…",
+          type: "multi",
+          options: [
+            "someone’s feeling only",
+            "something that can be proved true",
+            "always an opinion",
+            "a made-up story only",
+          ],
+          answer: 1,
+          explain: "Facts can be checked; opinions are judgements.",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "Ask: what clues does the writer give about feelings?",
+          "Point to a word, then say what it suggests.",
+        ],
+        practice: [
+          {
+            passage: "He grinned and punched the air.",
+            q: "Feeling?",
+            type: "multi",
+            options: ["Sad", "Pleased / excited", "Sleepy"],
+            answer: 1,
+            explain: "Grin + punch air = celebration.",
+          },
+        ],
+      },
+    },
+    writing: {
+      title: "Writing craft+",
+      blurb: "Structure, techniques and controlling tone.",
+      videoKey: "writing",
+      teach: {
+        points: [
+          "Purpose + audience first: persuade, inform, entertain?",
+          "Techniques: metaphor, simile, alliteration, rhetorical questions.",
+          "Paragraphs for new time, place, person or idea.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Task: persuade classmates to join a litter pick.",
+          "Open with a bold fact or question.",
+          "Use 'we' and a clear call to action at the end.",
+        ],
+      },
+      practice: [
+        {
+          q: "Which is a rhetorical question?",
+          type: "multi",
+          options: [
+            "What time is lunch?",
+            "Do we really want plastic in our rivers?",
+            "Where is the gym?",
+            "How old are you?",
+          ],
+          answer: 1,
+          explain: "Asked for effect, not a real answer-seeking question.",
+          stage: "both",
+        },
+        {
+          q: "Best for a formal letter?",
+          type: "multi",
+          options: [
+            "Hey mate,",
+            "Dear Sir or Madam,",
+            "Yo,",
+            "Sup,",
+          ],
+          answer: 1,
+          explain: "Formal letters use a polite greeting.",
+          stage: "both",
+        },
+        {
+          q: "A topic sentence should…",
+          type: "multi",
+          options: [
+            "introduce the paragraph’s main idea",
+            "always be a joke",
+            "list random words",
+            "end the whole essay only",
+          ],
+          answer: 0,
+          explain: "It signals what the paragraph is about.",
+          stage: "both",
+        },
+        {
+          q: "Which is a simile?",
+          type: "multi",
+          options: [
+            "The classroom was a zoo.",
+            "The classroom was like a zoo.",
+            "The classroom.",
+            "Zoo classroom was.",
+          ],
+          answer: 1,
+          explain: "Simile uses like or as.",
+          stage: "both",
+        },
+        {
+          q: "Discourse markers like 'However' and 'Furthermore' help…",
+          type: "multi",
+          options: [
+            "link and organise ideas",
+            "replace all verbs",
+            "end sentences only",
+            "confuse the reader always",
+          ],
+          answer: 0,
+          explain: "They guide the reader through the argument.",
+          stage: "ks3",
+        },
+        {
+          q: "Start a new paragraph when…",
+          type: "multi",
+          options: [
+            "you feel like drawing",
+            "time, place, person or idea changes",
+            "every three words",
+            "never",
+          ],
+          answer: 1,
+          explain: "New idea/time/place/person → new paragraph.",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "Simile = like/as. Metaphor = is (says one thing is another).",
+          "Match your language to the audience.",
+        ],
+        practice: [
+          {
+            q: "Simile uses…",
+            type: "multi",
+            options: ["like or as", "only full stops"],
+            answer: 0,
+            explain: "like/as compares.",
+          },
+        ],
+      },
+    },
+  },
+
+  science: {
+    biology: {
+      title: "Biology intermediate lab",
+      blurb: "Cells, systems and ecology — next level.",
+      videoKey: "biology",
+      teach: {
+        points: [
+          "Animal cells: nucleus, cytoplasm, membrane, mitochondria.",
+          "Plant cells also: cell wall, chloroplasts, permanent vacuole.",
+          "Food chains: arrows show energy flow (who is eaten → eater).",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Grass → rabbit → fox",
+          "Arrow means 'is eaten by' / energy to the next level.",
+          "Fox is a predator (consumer); grass is a producer.",
+        ],
+      },
+      practice: [
+        {
+          q: "Which organelle controls the cell?",
+          type: "multi",
+          options: ["mitochondrion", "nucleus", "cell wall", "chloroplast"],
+          answer: 1,
+          explain: "Nucleus contains genetic material and controls activities.",
+          stage: "both",
+        },
+        {
+          q: "Photosynthesis mainly happens in…",
+          type: "multi",
+          options: ["roots only", "chloroplasts", "bones", "the brain"],
+          answer: 1,
+          explain: "Chloroplasts contain chlorophyll for photosynthesis.",
+          stage: "both",
+        },
+        {
+          q: "In grass → rabbit → fox, the rabbit is a…",
+          type: "multi",
+          options: ["producer", "primary consumer", "decomposer only", "mineral"],
+          answer: 1,
+          explain: "Rabbit eats producer → primary consumer.",
+          stage: "both",
+        },
+        {
+          q: "The heart’s job is to…",
+          type: "multi",
+          options: [
+            "digest food",
+            "pump blood around the body",
+            "make bones",
+            "filter only air forever",
+          ],
+          answer: 1,
+          explain: "Heart pumps blood.",
+          stage: "both",
+        },
+        {
+          q: "Specialised cells are…",
+          type: "multi",
+          options: [
+            "identical to stem cells always",
+            "adapted for a particular job",
+            "only found in plants",
+            "not real",
+          ],
+          answer: 1,
+          explain: "e.g. root hair cells, nerve cells — adapted for function.",
+          stage: "ks3",
+        },
+        {
+          q: "Humans need oxygen mainly for…",
+          type: "multi",
+          options: [
+            "photosynthesis",
+            "respiration (releasing energy)",
+            "making chlorophyll",
+            "rusting iron",
+          ],
+          answer: 1,
+          explain: "Respiration uses oxygen to release energy from food.",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "Producer = plant (makes food). Consumer = animal that eats.",
+          "Nucleus = control centre of the cell.",
+        ],
+        practice: [
+          {
+            q: "Plant cell part for photosynthesis?",
+            type: "multi",
+            options: ["chloroplast", "bone"],
+            answer: 0,
+            explain: "Chloroplasts.",
+          },
+        ],
+      },
+    },
+    chemistry: {
+      title: "Chemistry intermediate lab",
+      blurb: "Particles, reactions and separation — Intermediate.",
+      videoKey: "chemistry",
+      teach: {
+        points: [
+          "Solids: particles close, vibrate. Liquids: close, move. Gases: far apart, fast.",
+          "Chemical change: new substance (hard to reverse). Physical: often reversible.",
+          "Separating: filtration (insoluble solid), evaporation (soluble solid from solution).",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Salt dissolved in water.",
+          "Cannot filter salt out (particles too small / dissolved).",
+          "Evaporate water → salt crystals remain.",
+        ],
+      },
+      practice: [
+        {
+          q: "In a gas, particles are…",
+          type: "multi",
+          options: [
+            "tightly packed and fixed",
+            "far apart and moving quickly",
+            "not moving at all",
+            "only in a line",
+          ],
+          answer: 1,
+          explain: "Gas particles are far apart and move quickly.",
+          stage: "both",
+        },
+        {
+          q: "Burning wood is mainly a…",
+          type: "multi",
+          options: ["physical change", "chemical change", "change of name only", "temperature scale"],
+          answer: 1,
+          explain: "New substances (ash, gases) form — chemical.",
+          stage: "both",
+        },
+        {
+          q: "Best way to separate sand from water?",
+          type: "multi",
+          options: ["Magnetism", "Filtration", "Hearing", "Freezing only always"],
+          answer: 1,
+          explain: "Sand is insoluble — filter it.",
+          stage: "both",
+        },
+        {
+          q: "When water boils, it becomes…",
+          type: "multi",
+          options: ["ice", "water vapour / steam", "salt", "metal"],
+          answer: 1,
+          explain: "Boiling: liquid → gas.",
+          stage: "both",
+        },
+        {
+          q: "An element…",
+          type: "multi",
+          options: [
+            "contains only one type of atom",
+            "is always a mixture",
+            "cannot form solids",
+            "is a type of electricity",
+          ],
+          answer: 0,
+          explain: "Element = one type of atom (periodic table).",
+          stage: "ks3",
+        },
+        {
+          q: "Melting is…",
+          type: "multi",
+          options: [
+            "solid → liquid",
+            "liquid → solid",
+            "gas → solid",
+            "liquid → gas only always",
+          ],
+          answer: 0,
+          explain: "Melting: solid to liquid.",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "If you can get the original substance back easily, it may be physical.",
+          "Filter catches undissolved bits; dissolved salt needs evaporation.",
+        ],
+        practice: [
+          {
+            q: "Ice → water is…",
+            type: "multi",
+            options: ["melting", "burning"],
+            answer: 0,
+            explain: "Melting.",
+          },
+        ],
+      },
+    },
+    physics: {
+      title: "Physics intermediate lab",
+      blurb: "Forces, energy stores and electricity foundations.",
+      videoKey: "physics",
+      teach: {
+        points: [
+          "Forces can change speed, direction or shape.",
+          "Energy is conserved: transferred between stores, not created/destroyed.",
+          "Series circuit: one loop. Parallel: branches — if one bulb fails, others may stay on.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Ball thrown upward.",
+          "At the top, kinetic energy is lowest; gravitational potential is highest.",
+          "Coming down, GPE transfers back to kinetic.",
+        ],
+      },
+      practice: [
+        {
+          q: "A force is measured in…",
+          type: "multi",
+          options: ["metres", "newtons", "seconds", "litres"],
+          answer: 1,
+          explain: "Force unit is the newton (N).",
+          stage: "both",
+        },
+        {
+          q: "Which energy store is in a battery?",
+          type: "multi",
+          options: ["Chemical", "Elastic only", "Sound only", "Nuclear always only"],
+          answer: 0,
+          explain: "Batteries store chemical energy.",
+          stage: "both",
+        },
+        {
+          q: "In a parallel circuit, if one bulb blows…",
+          type: "multi",
+          options: [
+            "all bulbs always go out",
+            "other branches can stay on",
+            "voltage disappears forever",
+            "wires turn to gold",
+          ],
+          answer: 1,
+          explain: "Other branches still complete a loop.",
+          stage: "both",
+        },
+        {
+          q: "Gravity on Earth pulls…",
+          type: "multi",
+          options: ["upwards only", "towards the Earth’s centre", "sideways only", "nowhere"],
+          answer: 1,
+          explain: "Weight acts toward Earth’s centre.",
+          stage: "both",
+        },
+        {
+          q: "Speed = distance ÷ …",
+          type: "multi",
+          options: ["time", "mass", "force", "temperature"],
+          answer: 0,
+          explain: "speed = distance / time.",
+          stage: "ks3",
+        },
+        {
+          q: "Magnets attract…",
+          type: "multi",
+          options: [
+            "all materials equally",
+            "some metals (e.g. iron)",
+            "only wood",
+            "only water",
+          ],
+          answer: 1,
+          explain: "Magnetic materials include iron, nickel, cobalt.",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "Series = one path. Parallel = more than one path for current.",
+          "Forces push or pull — measured in newtons.",
+        ],
+        practice: [
+          {
+            q: "Force unit?",
+            type: "multi",
+            options: ["newton", "kilogram"],
+            answer: 0,
+            explain: "Newtons.",
+          },
+        ],
+      },
+    },
+    method: {
+      title: "Working scientifically+",
+      blurb: "Variables, reliability, graphs — Intermediate.",
+      videoKey: "method",
+      teach: {
+        points: [
+          "Independent = what you change. Dependent = what you measure. Control = what you keep the same.",
+          "Repeats improve reliability; anomalies may be discarded carefully.",
+          "Line graphs for continuous data; bar charts for categories.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Investigation: effect of temperature on dissolving sugar.",
+          "Independent: temperature. Dependent: time to dissolve.",
+          "Controls: volume of water, mass of sugar, stirring.",
+        ],
+      },
+      practice: [
+        {
+          q: "You change the temperature of water. Temperature is the…",
+          type: "multi",
+          options: ["dependent variable", "independent variable", "control variable", "result only"],
+          answer: 1,
+          explain: "Independent = deliberately changed.",
+          stage: "both",
+        },
+        {
+          q: "Why repeat measurements?",
+          type: "multi",
+          options: [
+            "To waste time",
+            "To check reliability / spot anomalies",
+            "To change the independent variable",
+            "To avoid tables",
+          ],
+          answer: 1,
+          explain: "Repeats help reliability.",
+          stage: "both",
+        },
+        {
+          q: "Best graph for temperature over time?",
+          type: "multi",
+          options: ["bar chart only always", "line graph", "pie chart only", "no graph"],
+          answer: 1,
+          explain: "Continuous data over time → line graph.",
+          stage: "both",
+        },
+        {
+          q: "A prediction is…",
+          type: "multi",
+          options: [
+            "what you think will happen (and often why)",
+            "the equipment list only",
+            "the final graph title only",
+            "a random colour",
+          ],
+          answer: 0,
+          explain: "Prediction = expected outcome before testing.",
+          stage: "both",
+        },
+        {
+          q: "An anomaly is…",
+          type: "multi",
+          options: [
+            "a result that doesn’t fit the pattern",
+            "always the mean",
+            "the independent variable",
+            "a type of beaker",
+          ],
+          answer: 0,
+          explain: "Odd result that may need checking or excluding carefully.",
+          stage: "ks3",
+        },
+        {
+          q: "A fair test means…",
+          type: "multi",
+          options: [
+            "change only one thing at a time (and control others)",
+            "change everything",
+            "never measure",
+            "only guess",
+          ],
+          answer: 0,
+          explain: "One independent variable; control the rest.",
+          stage: "ks2",
+        },
+      ],
+      struggle: {
+        points: [
+          "I change → independent. I measure → dependent. I keep the same → control.",
+          "Fair test = only one thing deliberately different.",
+        ],
+        practice: [
+          {
+            q: "What you measure is the…",
+            type: "multi",
+            options: ["dependent", "independent"],
+            answer: 0,
+            explain: "Dependent variable.",
+          },
+        ],
+      },
+    },
+  },
+};
