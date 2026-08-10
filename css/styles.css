@@ -1734,8 +1734,10 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
 }
 .home-theme-card img {
   width: 100%;
-  height: 160px;
+  height: 200px;
   object-fit: cover;
+  /* Keep both animals in view on wide paddock art */
+  object-position: center 55%;
   display: block;
 }
 .home-theme-card figcaption {
@@ -1746,8 +1748,9 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
 }
 .home-score-art {
   width: 100%;
-  height: 130px;
+  height: 168px;
   object-fit: cover;
+  object-position: center 52%;
   display: block;
   border-radius: 14px 14px 0 0;
   margin: -0.15rem -0.15rem 0.75rem;

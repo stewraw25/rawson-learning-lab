@@ -635,7 +635,7 @@ function siteFooter() {
     <footer class="site-powered">
       <span class="powered-label">Powered via</span>
       <span class="powered-brands">
-        <img class="powered-logo powered-grok" src="assets/grok-logo.svg?v=40" alt="Grok" height="28" />
+        <img class="powered-logo powered-grok" src="assets/grok-logo.svg?v=41" alt="Grok" height="28" />
         <span class="powered-amp">&amp;</span>
         <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg" alt="Rawson LABS" height="28" />
       </span>

@@ -124,23 +124,23 @@ const ILLUST_LEARNER = {
     },
     mascot: {
       src: "assets/illust/bella/mascot.jpg",
-      alt: "Golden mini poodle with a horse in the garden paddock",
+      alt: "Golden mini poodle with Bella’s glossy black horse",
     },
     welcome: {
       src: "assets/illust/bella/welcome.jpg",
-      alt: "Golden mini poodle with flower crown beside a horse",
+      alt: "Golden mini poodle and jet-black horse in the paddock at sunset",
     },
     hero: {
       src: "assets/illust/bella/hero.jpg",
-      alt: "Golden mini poodle and horses in the paddock garden",
+      alt: "Full view of golden mini poodle and black riding horse in the English countryside",
     },
     celebrate: {
       src: "assets/illust/bella/celebrate.jpg",
-      alt: "Poodle and horse celebrating in the rose garden",
+      alt: "Poodle and black horse celebrating with rose petals",
     },
     pick: {
       src: "assets/illust/bella/pick.jpg",
-      alt: "Bella-Rose theme — garden, poodles and horses",
+      alt: "Bella-Rose theme — golden poodle and black horse in the garden paddock",
     },
   },
   george: {
