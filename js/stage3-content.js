@@ -1,6 +1,5 @@
 /**
- * TEACH_MODULES_STAGE3 — Rawson Learning Lab pathway content
- * Auto-built curriculum bank (UK GCSE pathway)
+ * Stage 3 Secure
  */
 
 const TEACH_MODULES_STAGE3 = {
@@ -92,6 +91,29 @@ const TEACH_MODULES_STAGE3 = {
           "answer": 1,
           "explain": "4.5×10⁴.",
           "stage": "ks3"
+        },
+        {
+          "q": "Prime factorisation of 36 as 2^a × 3^b. What is a?",
+          "type": "typed",
+          "answer": "2",
+          "explain": "36=2²×3².",
+          "accept": [
+            "2"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "LCM of 8 and 12?",
+          "type": "multi",
+          "options": [
+            "24",
+            "4",
+            "16",
+            "96"
+          ],
+          "answer": 0,
+          "explain": "2³×3=24.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -197,6 +219,29 @@ const TEACH_MODULES_STAGE3 = {
           "accept": [
             "15"
           ],
+          "stage": "both"
+        },
+        {
+          "q": "Calculate 2³ × 3 − 4.",
+          "type": "typed",
+          "answer": "20",
+          "explain": "8×3−4=20.",
+          "accept": [
+            "20"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "Which is correct BIDMAS?",
+          "type": "multi",
+          "options": [
+            "6÷2×3=9",
+            "6÷2×3=1",
+            "6÷2×3=4",
+            "6÷2×3=12"
+          ],
+          "answer": 0,
+          "explain": "L→R: 3×3=9.",
           "stage": "both"
         }
       ],
@@ -312,6 +357,29 @@ const TEACH_MODULES_STAGE3 = {
           "answer": 1,
           "explain": "0.45 > 0.4 > ~0.429 > 0.4.",
           "stage": "ks3"
+        },
+        {
+          "q": "⅝ − ¼ = ?",
+          "type": "multi",
+          "options": [
+            "⅜",
+            "½",
+            "¼",
+            "1"
+          ],
+          "answer": 0,
+          "explain": "⅝−2/8=⅜.",
+          "stage": "both"
+        },
+        {
+          "q": "Find 35% of 200.",
+          "type": "typed",
+          "answer": "70",
+          "explain": "0.35×200=70.",
+          "accept": [
+            "70"
+          ],
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -423,6 +491,29 @@ const TEACH_MODULES_STAGE3 = {
             "20"
           ],
           "stage": "ks3"
+        },
+        {
+          "q": "Solve 2x − 3 = 11.",
+          "type": "typed",
+          "answer": "7",
+          "explain": "2x=14 → x=7.",
+          "accept": [
+            "7"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "Expand −2(x−5)",
+          "type": "multi",
+          "options": [
+            "−2x+10",
+            "−2x−10",
+            "2x−10",
+            "2x+10"
+          ],
+          "answer": 0,
+          "explain": "−2x+10.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -529,6 +620,29 @@ const TEACH_MODULES_STAGE3 = {
           "answer": 0,
           "explain": "Corresponding angles equal.",
           "stage": "ks3"
+        },
+        {
+          "q": "Exterior angle of regular hexagon?",
+          "type": "typed",
+          "answer": "60",
+          "explain": "360/6=60.",
+          "accept": [
+            "60"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "Area of trapezium formula uses…",
+          "type": "multi",
+          "options": [
+            "average of parallel sides × height",
+            "only base×height",
+            "πr²",
+            "½bh only always"
+          ],
+          "answer": 0,
+          "explain": "½(a+b)h.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -637,6 +751,29 @@ const TEACH_MODULES_STAGE3 = {
           "answer": 2,
           "explain": "HH among HH,HT,TH,TT.",
           "stage": "ks3"
+        },
+        {
+          "q": "Mean of 10, 20, 30?",
+          "type": "typed",
+          "answer": "20",
+          "explain": "60/3=20.",
+          "accept": [
+            "20"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "P(not 6) on fair die?",
+          "type": "multi",
+          "options": [
+            "5/6",
+            "1/6",
+            "1/2",
+            "6/5"
+          ],
+          "answer": 0,
+          "explain": "1−1/6.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -756,6 +893,32 @@ const TEACH_MODULES_STAGE3 = {
           ],
           "answer": 1,
           "explain": "must = strong obligation.",
+          "stage": "both"
+        },
+        {
+          "q": "Correct past perfect:",
+          "type": "multi",
+          "options": [
+            "She had left before we arrived.",
+            "She have left before we arrived.",
+            "She leaved before.",
+            "She did left."
+          ],
+          "answer": 0,
+          "explain": "had + past participle.",
+          "stage": "both"
+        },
+        {
+          "q": "Active voice:",
+          "type": "multi",
+          "options": [
+            "The team won the cup.",
+            "The cup was won by the team.",
+            "The cup is being.",
+            "Won the cup team."
+          ],
+          "answer": 0,
+          "explain": "subject does action.",
           "stage": "both"
         }
       ],
@@ -877,6 +1040,32 @@ const TEACH_MODULES_STAGE3 = {
           "answer": 0,
           "explain": "Pause or unfinished thought.",
           "stage": "both"
+        },
+        {
+          "q": "Need apostrophe?",
+          "type": "multi",
+          "options": [
+            "The cats whiskers (one cat)",
+            "The cat's whiskers",
+            "The cats' (one cat) whiskers wrong",
+            "The cat whiskers"
+          ],
+          "answer": 1,
+          "explain": "cat's.",
+          "stage": "both"
+        },
+        {
+          "q": "Best for two related full sentences:",
+          "type": "multi",
+          "options": [
+            ";",
+            ",",
+            "... only",
+            "! only"
+          ],
+          "answer": 0,
+          "explain": "semi-colon.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -997,6 +1186,32 @@ const TEACH_MODULES_STAGE3 = {
           "answer": 0,
           "explain": "well-meaning, kind.",
           "stage": "ks3"
+        },
+        {
+          "q": "Antonym of scarce?",
+          "type": "multi",
+          "options": [
+            "plentiful",
+            "rare",
+            "tiny",
+            "hidden"
+          ],
+          "answer": 0,
+          "explain": "plentiful.",
+          "stage": "both"
+        },
+        {
+          "q": "'Meticulous' means…",
+          "type": "multi",
+          "options": [
+            "very careful/precise",
+            "messy",
+            "loud",
+            "late"
+          ],
+          "answer": 0,
+          "explain": "careful.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1117,6 +1332,32 @@ const TEACH_MODULES_STAGE3 = {
           "answer": 0,
           "explain": "critical judgement.",
           "stage": "ks3"
+        },
+        {
+          "q": "Bias in a text means…",
+          "type": "multi",
+          "options": [
+            "one-sided viewpoint",
+            "perfect neutrality only",
+            "no adjectives",
+            "only facts always"
+          ],
+          "answer": 0,
+          "explain": "slant.",
+          "stage": "both"
+        },
+        {
+          "q": "A cliffhanger…",
+          "type": "multi",
+          "options": [
+            "leaves tension unresolved at a break",
+            "ends with a moral only",
+            "lists facts",
+            "is a simile"
+          ],
+          "answer": 0,
+          "explain": "tension.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1236,6 +1477,32 @@ const TEACH_MODULES_STAGE3 = {
           ],
           "answer": 0,
           "explain": "tell reader what to do.",
+          "stage": "both"
+        },
+        {
+          "q": "Formal letter close:",
+          "type": "multi",
+          "options": [
+            "Yours faithfully (unknown name)",
+            "See ya",
+            "Love always only",
+            "Thx"
+          ],
+          "answer": 0,
+          "explain": "faithfully if unknown.",
+          "stage": "both"
+        },
+        {
+          "q": "Discourse marker to add idea:",
+          "type": "multi",
+          "options": [
+            "Furthermore",
+            "However",
+            "In contrast",
+            "Although"
+          ],
+          "answer": 0,
+          "explain": "Furthermore adds.",
           "stage": "both"
         }
       ],
@@ -1359,6 +1626,32 @@ const TEACH_MODULES_STAGE3 = {
           "answer": 0,
           "explain": "speed up reactions.",
           "stage": "ks3"
+        },
+        {
+          "q": "Diffusion is…",
+          "type": "multi",
+          "options": [
+            "net movement high→low concentration",
+            "only in solids",
+            "needs ATP always",
+            "only in plants"
+          ],
+          "answer": 0,
+          "explain": "passive high to low.",
+          "stage": "both"
+        },
+        {
+          "q": "Red blood cells carry…",
+          "type": "multi",
+          "options": [
+            "oxygen",
+            "only food",
+            "bones",
+            "urine"
+          ],
+          "answer": 0,
+          "explain": "oxygen via haemoglobin.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1479,6 +1772,32 @@ const TEACH_MODULES_STAGE3 = {
           "answer": 1,
           "explain": "boiling points.",
           "stage": "ks3"
+        },
+        {
+          "q": "Group 0/18 are…",
+          "type": "multi",
+          "options": [
+            "noble gases",
+            "halogens",
+            "alkali metals",
+            "transition only"
+          ],
+          "answer": 0,
+          "explain": "noble gases.",
+          "stage": "both"
+        },
+        {
+          "q": "Thermal decomposition…",
+          "type": "multi",
+          "options": [
+            "breaks compound with heat",
+            "joins metals only",
+            "is melting ice",
+            "is dissolving"
+          ],
+          "answer": 0,
+          "explain": "heat split.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1598,6 +1917,32 @@ const TEACH_MODULES_STAGE3 = {
           "answer": 0,
           "explain": "v = fλ.",
           "stage": "ks3"
+        },
+        {
+          "q": "Moment = force × …",
+          "type": "multi",
+          "options": [
+            "perpendicular distance",
+            "mass only",
+            "time",
+            "temperature"
+          ],
+          "answer": 0,
+          "explain": "F×d.",
+          "stage": "both"
+        },
+        {
+          "q": "Sound cannot travel through…",
+          "type": "multi",
+          "options": [
+            "vacuum",
+            "air",
+            "water",
+            "steel"
+          ],
+          "answer": 0,
+          "explain": "needs medium.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1716,6 +2061,32 @@ const TEACH_MODULES_STAGE3 = {
           ],
           "answer": 0,
           "explain": "better method/repeats.",
+          "stage": "both"
+        },
+        {
+          "q": "Continuous variable example?",
+          "type": "multi",
+          "options": [
+            "temperature",
+            "eye colour",
+            "blood group",
+            "car brand"
+          ],
+          "answer": 0,
+          "explain": "can take any value in range.",
+          "stage": "both"
+        },
+        {
+          "q": "Bar chart vs histogram:",
+          "type": "multi",
+          "options": [
+            "bar chart: categories; histogram: continuous FD",
+            "identical always",
+            "histogram for names only",
+            "bar for time only"
+          ],
+          "answer": 0,
+          "explain": "different uses.",
           "stage": "both"
         }
       ],

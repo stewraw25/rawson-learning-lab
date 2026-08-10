@@ -974,6 +974,8 @@ const BADGES = [
   { id: "triple_astar", name: "Triple A*", emoji: "👑", desc: "Complete A* Mastery in all 3 subjects" },
   { id: "lesson_25", name: "Lesson Marathon", emoji: "📚", desc: "Complete 25 lessons" },
   { id: "lesson_50", name: "Century Scholar", emoji: "🦉", desc: "Complete 50 lessons" },
+  { id: "exam_star", name: "Exam Ready", emoji: "📝", desc: "Score 80%+ on an exam workout" },
+  { id: "exam_astar", name: "Exam Ace", emoji: "🏅", desc: "Score 90%+ on an A* workout" },
 ];
 
 const ENCOURAGEMENT = [

@@ -255,6 +255,8 @@ function go(screen, params = {}) {
     diagnosticResult: renderDiagnosticResult,
     lesson: renderLesson,
     lessonResult: renderLessonResult,
+    exam: renderExam,
+    examResult: renderExamResult,
     parent: renderParent,
     subject: renderSubject,
     sync: renderSyncSetup,
@@ -796,6 +798,209 @@ function subjectDashCard(subject) {
     </article>`;
 }
 
+/** Exam-style mixed workouts (stages 4–6) */
+function examPacksCardHtml(subject, p, activeStage) {
+  if (typeof EXAM_PACKS === "undefined" || !EXAM_PACKS[subject]) return "";
+  const packs = EXAM_PACKS[subject];
+  const stages = Object.keys(packs)
+    .map(Number)
+    .sort((a, b) => a - b);
+  if (!stages.length) return "";
+  const rows = stages
+    .map((st) => {
+      const pack = packs[st];
+      const unlocked =
+        activeStage >= (pack.minStage || st) || isStageComplete(p, subject, pack.minStage || st);
+      // Also unlock if learner has reached that pathway stage via completion of previous
+      const open =
+        unlocked ||
+        canAccessStage(p, subject, pack.minStage || st) ||
+        getActiveStage(p, subject) >= (pack.minStage || st);
+      const hist = (p.examHistory || []).filter(
+        (h) => h.subject === subject && h.packStage === st
+      );
+      const best = hist.length ? Math.max(...hist.map((h) => h.score)) : null;
+      return `<div class="course-item ${open ? "" : "locked"}">
+        <div class="num">📝</div>
+        <div class="body">
+          <h4>${escapeHtml(pack.title)}</h4>
+          <p>${escapeHtml(pack.blurb)}${
+            best != null ? ` · best ${best}%` : ""
+          }</p>
+        </div>
+        <button class="btn ${open ? "btn-primary" : "btn-secondary"}" type="button"
+          data-exam-stage="${st}" ${open ? "" : "disabled"}>
+          ${open ? "Start workout" : "🔒 Locked"}
+        </button>
+      </div>`;
+    })
+    .join("");
+  return `<div class="card mt-2">
+    <h3 style="margin-top:0">3. Exam-style workouts</h3>
+    <p class="muted">Mixed questions like a mini paper — unlock as you climb GCSE Core → Higher → A*.</p>
+    <div class="course-list mt-1">${rows}</div>
+  </div>`;
+}
+
+function renderExam({ subject, packStage }) {
+  if (!state.activeLearner) return go("home");
+  if (typeof EXAM_PACKS === "undefined" || !EXAM_PACKS[subject]?.[packStage]) {
+    return go("subject", { subject });
+  }
+  const pack = EXAM_PACKS[subject][packStage];
+  const qs = pack.questions || [];
+  const answers = {};
+  let index = 0;
+  let revealed = false;
+  let answerVal = null;
+
+  function paint() {
+    const q = qs[index];
+    const pct = Math.round((index / qs.length) * 100);
+    appEl.innerHTML = `
+      ${topbar()}
+      <div class="quiz-header">
+        <div>
+          <div class="q-meta">📝 ${escapeHtml(pack.title)} · Q${index + 1} of ${qs.length}</div>
+          <strong>${SUBJECTS[subject].emoji} Exam workout</strong>
+        </div>
+        <div class="progress-track" style="max-width:200px"><span style="width:${pct}%"></span></div>
+      </div>
+      <div class="card question-card">
+        <h3 class="teach-heading">${escapeHtml(q.q)}</h3>
+        <div id="qBody"></div>
+        <div id="feedback"></div>
+        <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <button class="btn btn-primary" type="button" id="btnCheck">Check</button>
+          <button class="btn btn-ok" type="button" id="btnNext" style="display:none">Continue →</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost mt-1" type="button" id="btnExitExam">Exit workout</button>
+    `;
+    bindShell();
+    document.getElementById("btnExitExam").onclick = () => go("subject", { subject });
+    answerVal = null;
+    revealed = false;
+    const body = document.getElementById("qBody");
+    if (q.type === "multi") {
+      body.innerHTML = `<div class="options">${q.options
+        .map(
+          (opt, i) =>
+            `<button type="button" class="option" data-i="${i}">${escapeHtml(opt)}</button>`
+        )
+        .join("")}</div>`;
+      body.querySelectorAll(".option").forEach((btn) => {
+        btn.onclick = () => {
+          if (revealed) return;
+          body.querySelectorAll(".option").forEach((b) => b.classList.remove("selected"));
+          btn.classList.add("selected");
+          answerVal = Number(btn.dataset.i);
+        };
+      });
+    } else {
+      body.innerHTML = `<input class="input-answer" id="typedAns" placeholder="Type your answer…" autocomplete="off" />`;
+      const input = document.getElementById("typedAns");
+      input.focus();
+      input.oninput = () => {
+        answerVal = input.value;
+      };
+      input.onkeydown = (e) => {
+        if (e.key === "Enter") document.getElementById("btnCheck")?.click();
+      };
+    }
+    document.getElementById("btnCheck").onclick = () => {
+      if (revealed) return;
+      if (answerVal === null || answerVal === "") {
+        alert("Pick or type an answer first!");
+        return;
+      }
+      revealed = true;
+      const ok = checkAnswer(q, answerVal);
+      answers[index] = { ok, answer: answerVal };
+      const fb = document.getElementById("feedback");
+      fb.className = `feedback ${ok ? "good" : "bad"}`;
+      fb.innerHTML = ok
+        ? `✓ ${escapeHtml(q.explain)}`
+        : `Not quite. ${escapeHtml(q.explain)}`;
+      if (q.type === "multi") {
+        body.querySelectorAll(".option").forEach((btn) => {
+          const i = Number(btn.dataset.i);
+          if (i === q.answer) btn.classList.add("correct");
+          if (i === answerVal && !ok) btn.classList.add("wrong");
+          btn.disabled = true;
+        });
+      }
+      document.getElementById("btnCheck").disabled = true;
+      document.getElementById("btnNext").style.display = "inline-flex";
+      document.getElementById("btnNext").onclick = async () => {
+        if (index + 1 >= qs.length) {
+          await finishExam();
+        } else {
+          index++;
+          paint();
+        }
+      };
+      autosaveSoon();
+    };
+  }
+
+  async function finishExam() {
+    const correct = Object.values(answers).filter((a) => a.ok).length;
+    const scorePct = Math.round((correct / qs.length) * 100);
+    const p = profile();
+    if (!p.examHistory) p.examHistory = [];
+    p.examHistory.push({
+      subject,
+      packStage,
+      score: scorePct,
+      correct,
+      total: qs.length,
+      date: todayKey(),
+    });
+    updateStreak(p);
+    addXp(p, 40 + Math.round(scorePct / 5) + packStage * 5);
+    if (scorePct >= 80) unlockBadge(p, "exam_star");
+    if (scorePct >= 90 && packStage >= 6) unlockBadge(p, "exam_astar");
+    try {
+      await save({ quiet: false });
+    } catch (e) {
+      console.error(e);
+    }
+    go("examResult", { subject, packStage, scorePct, correct, total: qs.length });
+  }
+
+  paint();
+}
+
+function renderExamResult({ subject, packStage, scorePct, correct, total }) {
+  const pack =
+    typeof EXAM_PACKS !== "undefined" ? EXAM_PACKS[subject]?.[packStage] : null;
+  appEl.innerHTML = `
+    ${topbar()}
+    <div class="card score-hero celebrate mb-2">
+      <div class="q-meta">📝 Exam workout complete</div>
+      <h2 style="font-family:var(--display);margin:0.5rem 0">${escapeHtml(
+        pack?.title || "Workout"
+      )}</h2>
+      <div class="score-big">${scorePct}%</div>
+      <p>${correct}/${total} correct · +XP earned!</p>
+      <p class="muted">${escapeHtml(randomEncouragement())}</p>
+    </div>
+    <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
+      <button class="btn btn-primary" type="button" id="again">Try again</button>
+      <button class="btn btn-secondary" type="button" data-go-subject="${subject}">Back to ${
+    SUBJECTS[subject].name
+  }</button>
+    </div>
+  `;
+  bindShell();
+  document.getElementById("again").onclick = () =>
+    go("exam", { subject, packStage });
+  appEl.querySelector("[data-go-subject]")?.addEventListener("click", (e) =>
+    go("subject", { subject: e.currentTarget.dataset.goSubject })
+  );
+}
+
 /** Visual map of the 6-stage GCSE → A* pathway */
 function pathwayMapHtml(p) {
   const stages = [];
@@ -990,6 +1195,8 @@ function renderSubject({ subject }) {
           : ""
       }
     </div>
+
+    ${examPacksCardHtml(subject, p, activeStage)}
   `;
   bindShell();
   const start = document.getElementById("startDiag");
@@ -1006,6 +1213,11 @@ function renderSubject({ subject }) {
     startCourseStage(p, subject, n);
     await save();
     go("subject", { subject });
+  });
+  appEl.querySelectorAll("[data-exam-stage]").forEach((btn) => {
+    btn.addEventListener("click", () =>
+      go("exam", { subject, packStage: Number(btn.dataset.examStage) })
+    );
   });
   appEl.querySelectorAll("[data-switch-stage]").forEach((btn) => {
     btn.addEventListener("click", async () => {

@@ -1,6 +1,5 @@
 /**
- * TEACH_MODULES_STAGE5 — Rawson Learning Lab pathway content
- * Auto-built curriculum bank (UK GCSE pathway)
+ * Stage 5 GCSE Higher
  */
 
 const TEACH_MODULES_STAGE5 = {
@@ -95,6 +94,29 @@ const TEACH_MODULES_STAGE5 = {
           ],
           "answer": 0,
           "explain": "√(25×2)=5√2.",
+          "stage": "both"
+        },
+        {
+          "q": "Simplify √75.",
+          "type": "multi",
+          "options": [
+            "5√3",
+            "3√5",
+            "15",
+            "25√3"
+          ],
+          "answer": 0,
+          "explain": "√(25×3)=5√3.",
+          "stage": "both"
+        },
+        {
+          "q": "27^(1/3)=?",
+          "type": "typed",
+          "answer": "3",
+          "explain": "cube root 27=3.",
+          "accept": [
+            "3"
+          ],
           "stage": "both"
         }
       ],
@@ -212,6 +234,30 @@ const TEACH_MODULES_STAGE5 = {
           "answer": 0,
           "explain": "round late.",
           "stage": "both"
+        },
+        {
+          "q": "sin 60° exact?",
+          "type": "multi",
+          "options": [
+            "√3/2",
+            "1/2",
+            "1",
+            "0"
+          ],
+          "answer": 0,
+          "explain": "√3/2.",
+          "stage": "both"
+        },
+        {
+          "q": "Area sector formula involves… fraction of πr² — fraction for 90°?",
+          "type": "typed",
+          "answer": "1/4",
+          "explain": "90/360=1/4.",
+          "accept": [
+            "1/4",
+            "0.25"
+          ],
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -328,6 +374,29 @@ const TEACH_MODULES_STAGE5 = {
           "answer": 0,
           "explain": "wildlife populations.",
           "stage": "both"
+        },
+        {
+          "q": "After 20% increase then 20% decrease, multiplier?",
+          "type": "multi",
+          "options": [
+            "0.96",
+            "1",
+            "1.04",
+            "0.8"
+          ],
+          "answer": 0,
+          "explain": "1.2×0.8=0.96.",
+          "stage": "both"
+        },
+        {
+          "q": "y∝x²; x=3,y=18. k=?",
+          "type": "typed",
+          "answer": "2",
+          "explain": "y=2x².",
+          "accept": [
+            "2"
+          ],
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -441,6 +510,32 @@ const TEACH_MODULES_STAGE5 = {
           "accept": [
             "5"
           ],
+          "stage": "both"
+        },
+        {
+          "q": "Roots of (x−4)(x+1)=0?",
+          "type": "multi",
+          "options": [
+            "4 and −1",
+            "−4 and 1",
+            "4 and 1",
+            "0 and 4"
+          ],
+          "answer": 0,
+          "explain": "x=4 or −1.",
+          "stage": "both"
+        },
+        {
+          "q": "Complete square x²−8x = ?",
+          "type": "multi",
+          "options": [
+            "(x−4)²−16",
+            "(x−8)²",
+            "(x−4)²+16",
+            "(x+4)²−16"
+          ],
+          "answer": 0,
+          "explain": "(x−4)²−16.",
           "stage": "both"
         }
       ],
@@ -561,6 +656,32 @@ const TEACH_MODULES_STAGE5 = {
           "answer": 0,
           "explain": "SAS area.",
           "stage": "both"
+        },
+        {
+          "q": "Sine rule: a/sin A = ?",
+          "type": "multi",
+          "options": [
+            "b/sin B",
+            "b sin B",
+            "a sin A",
+            "c only"
+          ],
+          "answer": 0,
+          "explain": "equal ratios.",
+          "stage": "both"
+        },
+        {
+          "q": "Angle at centre is… compared to angle at circumference (same arc)",
+          "type": "multi",
+          "options": [
+            "twice",
+            "half",
+            "equal",
+            "zero"
+          ],
+          "answer": 0,
+          "explain": "2×.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -680,6 +801,32 @@ const TEACH_MODULES_STAGE5 = {
           ],
           "answer": 0,
           "explain": "conditional.",
+          "stage": "both"
+        },
+        {
+          "q": "Frequency density = ?",
+          "type": "multi",
+          "options": [
+            "frequency ÷ class width",
+            "frequency × width",
+            "width only",
+            "mean"
+          ],
+          "answer": 0,
+          "explain": "f/width.",
+          "stage": "both"
+        },
+        {
+          "q": "Independent: P(A∩B)=?",
+          "type": "multi",
+          "options": [
+            "P(A)P(B)",
+            "P(A)+P(B)",
+            "P(A)|P(B)",
+            "1"
+          ],
+          "answer": 0,
+          "explain": "product.",
           "stage": "both"
         }
       ],
@@ -803,6 +950,32 @@ const TEACH_MODULES_STAGE5 = {
           "answer": 0,
           "explain": "stay consistent.",
           "stage": "both"
+        },
+        {
+          "q": "Fronted adverbial example:",
+          "type": "multi",
+          "options": [
+            "In the morning, we revised.",
+            "We revised.",
+            "Revise morning.",
+            "Morning revise we."
+          ],
+          "answer": 0,
+          "explain": "fronted.",
+          "stage": "both"
+        },
+        {
+          "q": "Relative pronoun for things:",
+          "type": "multi",
+          "options": [
+            "which/that",
+            "who only",
+            "whom only for things",
+            "whose never"
+          ],
+          "answer": 0,
+          "explain": "which/that.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -922,6 +1095,32 @@ const TEACH_MODULES_STAGE5 = {
           ],
           "answer": 0,
           "explain": "stick to standard marks.",
+          "stage": "both"
+        },
+        {
+          "q": "Complex list of clauses often uses…",
+          "type": "multi",
+          "options": [
+            "semi-colons",
+            "only spaces",
+            "question marks",
+            "ellipsis only"
+          ],
+          "answer": 0,
+          "explain": "; between items.",
+          "stage": "both"
+        },
+        {
+          "q": "Pair commas for non-essential clause:",
+          "type": "multi",
+          "options": [
+            "The book, which was new, arrived.",
+            "The book which was new arrived (restrictive may omit commas)",
+            "both can be correct depending on meaning",
+            "never commas"
+          ],
+          "answer": 2,
+          "explain": "depends restrictive vs non.",
           "stage": "both"
         }
       ],
@@ -1043,6 +1242,32 @@ const TEACH_MODULES_STAGE5 = {
           "answer": 0,
           "explain": "connotation.",
           "stage": "both"
+        },
+        {
+          "q": "'Subverts' means…",
+          "type": "multi",
+          "options": [
+            "undermines/overturns expectation",
+            "repeats",
+            "copies",
+            "ignores"
+          ],
+          "answer": 0,
+          "explain": "undermines.",
+          "stage": "both"
+        },
+        {
+          "q": "Lexical field of war might include…",
+          "type": "multi",
+          "options": [
+            "battle, siege, truce",
+            "only cake words",
+            "only maths",
+            "fonts"
+          ],
+          "answer": 0,
+          "explain": "related lexis.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1163,6 +1388,32 @@ const TEACH_MODULES_STAGE5 = {
           "answer": 0,
           "explain": "synthesis.",
           "stage": "both"
+        },
+        {
+          "q": "Zoom-in analysis starts with…",
+          "type": "multi",
+          "options": [
+            "a specific word/phrase",
+            "the whole novel summary only",
+            "writer biography only",
+            "exam code"
+          ],
+          "answer": 0,
+          "explain": "detail.",
+          "stage": "both"
+        },
+        {
+          "q": "Structural cyclical ending…",
+          "type": "multi",
+          "options": [
+            "echoes opening",
+            "introduces unrelated plot",
+            "removes characters",
+            "changes form randomly"
+          ],
+          "answer": 0,
+          "explain": "echo.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1282,6 +1533,32 @@ const TEACH_MODULES_STAGE5 = {
           ],
           "answer": 0,
           "explain": "crafted closure.",
+          "stage": "both"
+        },
+        {
+          "q": "Sustained voice means…",
+          "type": "multi",
+          "options": [
+            "consistent persona/tone",
+            "changing form every line",
+            "no paragraphs",
+            "only questions"
+          ],
+          "answer": 0,
+          "explain": "consistency.",
+          "stage": "both"
+        },
+        {
+          "q": "Engineered motif…",
+          "type": "multi",
+          "options": [
+            "recurs with purpose",
+            "appears once randomly",
+            "is a full stop",
+            "is AO6 only"
+          ],
+          "answer": 0,
+          "explain": "pattern.",
           "stage": "both"
         }
       ],
@@ -1405,6 +1682,32 @@ const TEACH_MODULES_STAGE5 = {
           "answer": 0,
           "explain": "haploid gametes.",
           "stage": "both"
+        },
+        {
+          "q": "Mitosis produces…",
+          "type": "multi",
+          "options": [
+            "identical body cells",
+            "gametes with half chromosomes",
+            "only eggs",
+            "only antibodies"
+          ],
+          "answer": 0,
+          "explain": "growth/repair.",
+          "stage": "both"
+        },
+        {
+          "q": "Type 1 diabetes involves…",
+          "type": "multi",
+          "options": [
+            "lack of insulin production",
+            "only diet sugar forever cured by salt",
+            "only bacteria",
+            "only bone loss"
+          ],
+          "answer": 0,
+          "explain": "insulin.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1525,6 +1828,32 @@ const TEACH_MODULES_STAGE5 = {
           "answer": 0,
           "explain": "equal rates.",
           "stage": "both"
+        },
+        {
+          "q": "Reduction is…",
+          "type": "multi",
+          "options": [
+            "gain of electrons",
+            "loss of electrons",
+            "gain of protons only",
+            "loss of neutrons"
+          ],
+          "answer": 0,
+          "explain": "RIG.",
+          "stage": "both"
+        },
+        {
+          "q": "Activation energy is…",
+          "type": "multi",
+          "options": [
+            "minimum energy to start reaction",
+            "total energy released always",
+            "temperature only",
+            "volume"
+          ],
+          "answer": 0,
+          "explain": "Ea.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1644,6 +1973,30 @@ const TEACH_MODULES_STAGE5 = {
           "answer": 0,
           "explain": "turns ratio.",
           "stage": "both"
+        },
+        {
+          "q": "a if Δv=10 m/s in 2 s?",
+          "type": "typed",
+          "answer": "5",
+          "explain": "a=Δv/t=5.",
+          "accept": [
+            "5",
+            "5 m/s²"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "EM spectrum: highest frequency often listed?",
+          "type": "multi",
+          "options": [
+            "gamma",
+            "radio",
+            "microwave",
+            "IR"
+          ],
+          "answer": 0,
+          "explain": "gamma.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1762,6 +2115,32 @@ const TEACH_MODULES_STAGE5 = {
           ],
           "answer": 0,
           "explain": "data-linked.",
+          "stage": "both"
+        },
+        {
+          "q": "% uncertainty = ?",
+          "type": "multi",
+          "options": [
+            "(uncertainty/value)×100%",
+            "uncertainty×value",
+            "value only",
+            "100/value"
+          ],
+          "answer": 0,
+          "explain": "relative %.",
+          "stage": "both"
+        },
+        {
+          "q": "Systematic vs random:",
+          "type": "multi",
+          "options": [
+            "systematic biases consistently; random scatters",
+            "identical",
+            "random always larger",
+            "systematic is noise only"
+          ],
+          "answer": 0,
+          "explain": "definitions.",
           "stage": "both"
         }
       ],

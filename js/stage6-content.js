@@ -1,5 +1,5 @@
 /**
- * TEACH_MODULES_STAGE6 — A* Mastery (grades 8–9)
+ * Stage 6 A* Mastery
  */
 
 const TEACH_MODULES_STAGE6 = {
@@ -99,6 +99,32 @@ const TEACH_MODULES_STAGE6 = {
           ],
           "answer": 0,
           "explain": "halfway to 3.6×10⁴.",
+          "stage": "both"
+        },
+        {
+          "q": "Min of a×b (a,b>0) uses…",
+          "type": "multi",
+          "options": [
+            "LB_a × LB_b",
+            "UB_a × UB_b",
+            "UB_a × LB_b",
+            "LB_a × UB_b"
+          ],
+          "answer": 0,
+          "explain": "small×small.",
+          "stage": "both"
+        },
+        {
+          "q": "√18 + √8 = ?",
+          "type": "multi",
+          "options": [
+            "5√2",
+            "√26",
+            "3√2",
+            "4√2"
+          ],
+          "answer": 0,
+          "explain": "3√2+2√2=5√2.",
           "stage": "both"
         }
       ],
@@ -218,6 +244,32 @@ const TEACH_MODULES_STAGE6 = {
           "answer": 0,
           "explain": "method marks.",
           "stage": "both"
+        },
+        {
+          "q": "Average speed ≠ mean of speeds when…",
+          "type": "multi",
+          "options": [
+            "different times for legs",
+            "always equal",
+            "units match",
+            "distance zero"
+          ],
+          "answer": 0,
+          "explain": "use total dist/time.",
+          "stage": "both"
+        },
+        {
+          "q": "Method marks reward…",
+          "type": "multi",
+          "options": [
+            "clear correct process",
+            "final answer only",
+            "rubbing out all working",
+            "guessing"
+          ],
+          "answer": 0,
+          "explain": "process.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -336,6 +388,32 @@ const TEACH_MODULES_STAGE6 = {
           ],
           "answer": 0,
           "explain": "inverse square.",
+          "stage": "both"
+        },
+        {
+          "q": "Length ×3 → volume ×?",
+          "type": "multi",
+          "options": [
+            "27",
+            "9",
+            "3",
+            "6"
+          ],
+          "answer": 0,
+          "explain": "k³.",
+          "stage": "both"
+        },
+        {
+          "q": "Area scale factor 16 → length scale?",
+          "type": "multi",
+          "options": [
+            "4",
+            "16",
+            "8",
+            "2"
+          ],
+          "answer": 0,
+          "explain": "√16=4.",
           "stage": "both"
         }
       ],
@@ -457,6 +535,32 @@ const TEACH_MODULES_STAGE6 = {
           "answer": 0,
           "explain": "approaches axes.",
           "stage": "both"
+        },
+        {
+          "q": "Discriminant <0 means…",
+          "type": "multi",
+          "options": [
+            "no real roots",
+            "two real roots",
+            "one real root",
+            "infinite roots"
+          ],
+          "answer": 0,
+          "explain": "no reals.",
+          "stage": "both"
+        },
+        {
+          "q": "f⁻¹ undoes f so f(f⁻¹(x)) = ?",
+          "type": "multi",
+          "options": [
+            "x",
+            "0",
+            "1",
+            "f(x)"
+          ],
+          "answer": 0,
+          "explain": "identity.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -574,6 +678,29 @@ const TEACH_MODULES_STAGE6 = {
           "answer": 0,
           "explain": "reverse bearing.",
           "stage": "both"
+        },
+        {
+          "q": "Cuboid 1×2×2 space diagonal?",
+          "type": "typed",
+          "answer": "3",
+          "explain": "√(1+4+4)=3.",
+          "accept": [
+            "3"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "Tangent ⊥ radius reason code often…",
+          "type": "multi",
+          "options": [
+            "tangent-radius theorem",
+            "SSS",
+            "only alternate segment without statement",
+            "Pythagoras only"
+          ],
+          "answer": 0,
+          "explain": "state theorem.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -690,6 +817,32 @@ const TEACH_MODULES_STAGE6 = {
           ],
           "answer": 0,
           "explain": "categorical probability.",
+          "stage": "both"
+        },
+        {
+          "q": "P(A∪B)= P(A)+P(B)−?",
+          "type": "multi",
+          "options": [
+            "P(A∩B)",
+            "P(A)P(B)",
+            "1",
+            "0"
+          ],
+          "answer": 0,
+          "explain": "inclusion.",
+          "stage": "both"
+        },
+        {
+          "q": "Histogram area total equals…",
+          "type": "multi",
+          "options": [
+            "total frequency",
+            "1 always",
+            "mean",
+            "IQR"
+          ],
+          "answer": 0,
+          "explain": "Σf.",
           "stage": "both"
         }
       ],
@@ -813,6 +966,32 @@ const TEACH_MODULES_STAGE6 = {
           "answer": 0,
           "explain": "AO6 errors.",
           "stage": "both"
+        },
+        {
+          "q": "A* control means…",
+          "type": "multi",
+          "options": [
+            "ambition without error clusters",
+            "longest sentences always",
+            "no variety",
+            "only fragments"
+          ],
+          "answer": 0,
+          "explain": "control.",
+          "stage": "both"
+        },
+        {
+          "q": "Homophone trap:",
+          "type": "multi",
+          "options": [
+            "their/there/they're",
+            "run/ran",
+            "cat/cats",
+            "big/bigger"
+          ],
+          "answer": 0,
+          "explain": "common AO6.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -932,6 +1111,32 @@ const TEACH_MODULES_STAGE6 = {
           ],
           "answer": 0,
           "explain": "comma clarity.",
+          "stage": "both"
+        },
+        {
+          "q": "Meaning-critical comma example is famous for…",
+          "type": "multi",
+          "options": [
+            "Let's eat, Grandma",
+            "only maths",
+            "only science",
+            "page numbers"
+          ],
+          "answer": 0,
+          "explain": "clarity.",
+          "stage": "both"
+        },
+        {
+          "q": "A* punctuation is…",
+          "type": "multi",
+          "options": [
+            "purposeful and accurate",
+            "maximum symbols",
+            "none",
+            "random"
+          ],
+          "answer": 0,
+          "explain": "purpose.",
           "stage": "both"
         }
       ],
@@ -1053,6 +1258,32 @@ const TEACH_MODULES_STAGE6 = {
           "answer": 0,
           "explain": "precision.",
           "stage": "both"
+        },
+        {
+          "q": "Prefer…",
+          "type": "multi",
+          "options": [
+            "exact ordinary word over wrong fancy word",
+            "longest word always",
+            "slang in formal analysis",
+            "repeating 'bad'"
+          ],
+          "answer": 0,
+          "explain": "precision.",
+          "stage": "both"
+        },
+        {
+          "q": "'Incongruity' helps discuss…",
+          "type": "multi",
+          "options": [
+            "mismatch for effect",
+            "only rhyme",
+            "only plot dates",
+            "handwriting"
+          ],
+          "answer": 0,
+          "explain": "mismatch.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1173,6 +1404,32 @@ const TEACH_MODULES_STAGE6 = {
           "answer": 0,
           "explain": "insightful return.",
           "stage": "both"
+        },
+        {
+          "q": "Conceptualised thesis is…",
+          "type": "multi",
+          "options": [
+            "unifying critical argument",
+            "feature list only",
+            "story retell",
+            "quote dump"
+          ],
+          "answer": 0,
+          "explain": "argument.",
+          "stage": "both"
+        },
+        {
+          "q": "Alternative reading should be…",
+          "type": "multi",
+          "options": [
+            "text-supported",
+            "contradict for fun only",
+            "biographical gossip",
+            "off-topic"
+          ],
+          "answer": 0,
+          "explain": "supported.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1289,6 +1546,32 @@ const TEACH_MODULES_STAGE6 = {
             "add a new plot arc",
             "change the form",
             "erase the plan only"
+          ],
+          "answer": 0,
+          "explain": "secure marks.",
+          "stage": "both"
+        },
+        {
+          "q": "Cut prose that…",
+          "type": "multi",
+          "options": [
+            "doesn't serve purpose/voice",
+            "is beautiful and useful",
+            "links paragraphs",
+            "shows motif"
+          ],
+          "answer": 0,
+          "explain": "kill darlings.",
+          "stage": "both"
+        },
+        {
+          "q": "Last-minute exam gain often from…",
+          "type": "multi",
+          "options": [
+            "AO6 sweep + ending polish",
+            "new full plot",
+            "changing form",
+            "deleting plan"
           ],
           "answer": 0,
           "explain": "secure marks.",
@@ -1415,6 +1698,32 @@ const TEACH_MODULES_STAGE6 = {
           "answer": 0,
           "explain": "balanced eval.",
           "stage": "both"
+        },
+        {
+          "q": "Carbon cycle links…",
+          "type": "multi",
+          "options": [
+            "photosynthesis, respiration, combustion",
+            "only digestion",
+            "only magnetism",
+            "only sound"
+          ],
+          "answer": 0,
+          "explain": "C stores.",
+          "stage": "both"
+        },
+        {
+          "q": "Evaluating gene tech needs…",
+          "type": "multi",
+          "options": [
+            "benefits, risks, ethics",
+            "only cost",
+            "only jokes",
+            "no science"
+          ],
+          "answer": 0,
+          "explain": "balanced.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1533,6 +1842,29 @@ const TEACH_MODULES_STAGE6 = {
           "answer": 0,
           "explain": "green chemistry.",
           "stage": "both"
+        },
+        {
+          "q": "Mr of H2O?",
+          "type": "typed",
+          "answer": "18",
+          "explain": "2+16=18.",
+          "accept": [
+            "18"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "High atom economy is greener because…",
+          "type": "multi",
+          "options": [
+            "less waste mass",
+            "always faster",
+            "uses more solvent always",
+            "lower temperature always"
+          ],
+          "answer": 0,
+          "explain": "less waste.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1649,6 +1981,30 @@ const TEACH_MODULES_STAGE6 = {
           ],
           "answer": 0,
           "explain": "Vp/Vs=Np/Ns.",
+          "stage": "both"
+        },
+        {
+          "q": "KE 4 kg at 5 m/s?",
+          "type": "typed",
+          "answer": "50",
+          "explain": "0.5×4×25=50 J.",
+          "accept": [
+            "50",
+            "50J"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "Series resistors: total R…",
+          "type": "multi",
+          "options": [
+            "increases",
+            "decreases below smallest always",
+            "is product only",
+            "is zero"
+          ],
+          "answer": 0,
+          "explain": "sum.",
           "stage": "both"
         }
       ],
@@ -1769,6 +2125,32 @@ const TEACH_MODULES_STAGE6 = {
           ],
           "answer": 0,
           "explain": "explain links.",
+          "stage": "both"
+        },
+        {
+          "q": "Limitation statement should link to…",
+          "type": "multi",
+          "options": [
+            "method/data quality",
+            "favourite colour",
+            "page length",
+            "pen type only"
+          ],
+          "answer": 0,
+          "explain": "method.",
+          "stage": "both"
+        },
+        {
+          "q": "Correlation caution:",
+          "type": "multi",
+          "options": [
+            "other variables may explain link",
+            "proves cause always",
+            "means equal",
+            "invalidates all graphs"
+          ],
+          "answer": 0,
+          "explain": "not causation.",
           "stage": "both"
         }
       ],

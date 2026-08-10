@@ -1,6 +1,5 @@
 /**
- * TEACH_MODULES_STAGE4 — Rawson Learning Lab pathway content
- * Auto-built curriculum bank (UK GCSE pathway)
+ * Stage 4 GCSE Core
  */
 
 const TEACH_MODULES_STAGE4 = {
@@ -92,6 +91,29 @@ const TEACH_MODULES_STAGE4 = {
           "explain": "Any non-zero number to power 0 is 1.",
           "accept": [
             "1"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "Write 6.2×10⁻³ as ordinary number.",
+          "type": "multi",
+          "options": [
+            "0.0062",
+            "0.062",
+            "6200",
+            "0.00062"
+          ],
+          "answer": 0,
+          "explain": "move DP 3 left.",
+          "stage": "both"
+        },
+        {
+          "q": "3² × 3⁵ = 3^?",
+          "type": "typed",
+          "answer": "7",
+          "explain": "add indices.",
+          "accept": [
+            "7"
           ],
           "stage": "both"
         }
@@ -204,6 +226,30 @@ const TEACH_MODULES_STAGE4 = {
             "30"
           ],
           "stage": "both"
+        },
+        {
+          "q": "Speed 90 km in 1.5 h?",
+          "type": "typed",
+          "answer": "60",
+          "explain": "90/1.5=60 km/h.",
+          "accept": [
+            "60",
+            "60 km/h"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "1 m³ = ? litres",
+          "type": "multi",
+          "options": [
+            "1000",
+            "100",
+            "10",
+            "1"
+          ],
+          "answer": 0,
+          "explain": "1000 L.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -314,6 +360,29 @@ const TEACH_MODULES_STAGE4 = {
             "3 hours"
           ],
           "stage": "ks3"
+        },
+        {
+          "q": "Share 80 in 1:3. Larger share?",
+          "type": "multi",
+          "options": [
+            "60",
+            "20",
+            "40",
+            "80"
+          ],
+          "answer": 0,
+          "explain": "3/4 of 80.",
+          "stage": "both"
+        },
+        {
+          "q": "Decrease 50 by 20%.",
+          "type": "typed",
+          "answer": "40",
+          "explain": "50×0.8=40.",
+          "accept": [
+            "40"
+          ],
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -425,6 +494,29 @@ const TEACH_MODULES_STAGE4 = {
           "explain": "6+5=11.",
           "accept": [
             "11"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "y-intercept of y=−3x+7?",
+          "type": "multi",
+          "options": [
+            "7",
+            "−3",
+            "3",
+            "0"
+          ],
+          "answer": 0,
+          "explain": "c=7.",
+          "stage": "both"
+        },
+        {
+          "q": "Solve 3x+2=2x+9.",
+          "type": "typed",
+          "answer": "7",
+          "explain": "x=7.",
+          "accept": [
+            "7"
           ],
           "stage": "both"
         }
@@ -540,6 +632,29 @@ const TEACH_MODULES_STAGE4 = {
           "answer": 0,
           "explain": "lengths ×2.",
           "stage": "both"
+        },
+        {
+          "q": "Pythagoras: legs 5 and 12, hyp?",
+          "type": "typed",
+          "answer": "13",
+          "explain": "5-12-13.",
+          "accept": [
+            "13"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "Volume of triangular prism needs…",
+          "type": "multi",
+          "options": [
+            "triangle area × length",
+            "only perimeter",
+            "πr²h always",
+            "surface area only"
+          ],
+          "answer": 0,
+          "explain": "cross-section×length.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -654,6 +769,31 @@ const TEACH_MODULES_STAGE4 = {
           ],
           "answer": 0,
           "explain": "midpoint vs frequency.",
+          "stage": "both"
+        },
+        {
+          "q": "P(A or B) exclusive =",
+          "type": "multi",
+          "options": [
+            "P(A)+P(B)",
+            "P(A)×P(B)",
+            "P(A)−P(B)",
+            "1"
+          ],
+          "answer": 0,
+          "explain": "add.",
+          "stage": "both"
+        },
+        {
+          "q": "Median position in 11 ordered values?",
+          "type": "typed",
+          "answer": "6th",
+          "explain": "middle is 6th.",
+          "accept": [
+            "6",
+            "6th",
+            "position 6"
+          ],
           "stage": "both"
         }
       ],
@@ -778,6 +918,32 @@ const TEACH_MODULES_STAGE4 = {
           "answer": 1,
           "explain": "subject who was running = we.",
           "stage": "both"
+        },
+        {
+          "q": "Avoid double negative in standard English:",
+          "type": "multi",
+          "options": [
+            "I didn't see anything.",
+            "I didn't see nothing.",
+            "I ain't saw none.",
+            "I never not went."
+          ],
+          "answer": 0,
+          "explain": "anything.",
+          "stage": "both"
+        },
+        {
+          "q": "Which is a complex sentence?",
+          "type": "multi",
+          "options": [
+            "Although tired, she revised.",
+            "She revised.",
+            "Revise!",
+            "Yes."
+          ],
+          "answer": 0,
+          "explain": "subordinate+main.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -897,6 +1063,32 @@ const TEACH_MODULES_STAGE4 = {
           ],
           "answer": 0,
           "explain": "parenthetical info.",
+          "stage": "both"
+        },
+        {
+          "q": "Titles of short poems often in…",
+          "type": "multi",
+          "options": [
+            "quotation marks",
+            "bold only",
+            "ALL CAPS only",
+            "no marks ever"
+          ],
+          "answer": 0,
+          "explain": "quotes (style).",
+          "stage": "both"
+        },
+        {
+          "q": "Possessive plural children:",
+          "type": "multi",
+          "options": [
+            "children's",
+            "childrens'",
+            "childrens",
+            "child'ss"
+          ],
+          "answer": 0,
+          "explain": "children's.",
           "stage": "both"
         }
       ],
@@ -1018,6 +1210,32 @@ const TEACH_MODULES_STAGE4 = {
           "answer": 0,
           "explain": "related lexical set.",
           "stage": "both"
+        },
+        {
+          "q": "Best synonym for 'significant' in analysis:",
+          "type": "multi",
+          "options": [
+            "noteworthy",
+            "tiny",
+            "random",
+            "loud"
+          ],
+          "answer": 0,
+          "explain": "noteworthy.",
+          "stage": "both"
+        },
+        {
+          "q": "'Understatement' opposite technique often…",
+          "type": "multi",
+          "options": [
+            "hyperbole",
+            "full stop",
+            "list",
+            "indent"
+          ],
+          "answer": 0,
+          "explain": "hyperbole.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1138,6 +1356,32 @@ const TEACH_MODULES_STAGE4 = {
           "answer": 0,
           "explain": "critical evaluation.",
           "stage": "both"
+        },
+        {
+          "q": "Synthesis means…",
+          "type": "multi",
+          "options": [
+            "bringing ideas together",
+            "copying one line",
+            "ignoring text",
+            "only spelling"
+          ],
+          "answer": 0,
+          "explain": "combine.",
+          "stage": "both"
+        },
+        {
+          "q": "Writer's perspective is…",
+          "type": "multi",
+          "options": [
+            "viewpoint/attitude",
+            "font size",
+            "page number",
+            "exam board"
+          ],
+          "answer": 0,
+          "explain": "viewpoint.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1257,6 +1501,32 @@ const TEACH_MODULES_STAGE4 = {
           ],
           "answer": 0,
           "explain": "AO6 basics.",
+          "stage": "both"
+        },
+        {
+          "q": "Counter-argument signal:",
+          "type": "multi",
+          "options": [
+            "Some people argue…",
+            "Firstly only",
+            "The end",
+            "Once upon"
+          ],
+          "answer": 0,
+          "explain": "acknowledge other view.",
+          "stage": "both"
+        },
+        {
+          "q": "Semantic field planning helps…",
+          "type": "multi",
+          "options": [
+            "unified imagery/tone",
+            "random vocab",
+            "AO6 only",
+            "margins"
+          ],
+          "answer": 0,
+          "explain": "coherence.",
           "stage": "both"
         }
       ],
@@ -1380,6 +1650,32 @@ const TEACH_MODULES_STAGE4 = {
           "answer": 0,
           "explain": "unspecialised → specialised.",
           "stage": "both"
+        },
+        {
+          "q": "Osmosis is water movement…",
+          "type": "multi",
+          "options": [
+            "across partially permeable membrane",
+            "of sodium only",
+            "only in animals never plants",
+            "requiring light"
+          ],
+          "answer": 0,
+          "explain": "water/ppm.",
+          "stage": "both"
+        },
+        {
+          "q": "Vaccines contain…",
+          "type": "multi",
+          "options": [
+            "dead/weakened pathogen or antigens",
+            "antibiotics only",
+            "only sugar",
+            "red blood cells only"
+          ],
+          "answer": 0,
+          "explain": "immune prep.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1500,6 +1796,32 @@ const TEACH_MODULES_STAGE4 = {
           "answer": 0,
           "explain": "energy in.",
           "stage": "both"
+        },
+        {
+          "q": "Isotopes have same…",
+          "type": "multi",
+          "options": [
+            "protons different neutrons",
+            "neutrons different protons",
+            "electrons only differ by mass 0",
+            "no nucleus"
+          ],
+          "answer": 0,
+          "explain": "same Z different n.",
+          "stage": "both"
+        },
+        {
+          "q": "Covalent bonds form between…",
+          "type": "multi",
+          "options": [
+            "non-metals sharing electrons",
+            "metals only",
+            "metal+non-metal transfer only",
+            "noble gases always"
+          ],
+          "answer": 0,
+          "explain": "sharing.",
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1619,6 +1941,31 @@ const TEACH_MODULES_STAGE4 = {
           "answer": 0,
           "explain": "speed has magnitude only.",
           "stage": "both"
+        },
+        {
+          "q": "Power = ?",
+          "type": "multi",
+          "options": [
+            "energy ÷ time",
+            "force ÷ area",
+            "mass × g only",
+            "V only"
+          ],
+          "answer": 0,
+          "explain": "P=E/t.",
+          "stage": "both"
+        },
+        {
+          "q": "I if V=12 and R=4?",
+          "type": "typed",
+          "answer": "3",
+          "explain": "I=V/R=3 A.",
+          "accept": [
+            "3",
+            "3A",
+            "3 A"
+          ],
+          "stage": "both"
         }
       ],
       "struggle": {
@@ -1737,6 +2084,32 @@ const TEACH_MODULES_STAGE4 = {
           ],
           "answer": 0,
           "explain": "quality check.",
+          "stage": "both"
+        },
+        {
+          "q": "Independent variable on graph usually…",
+          "type": "multi",
+          "options": [
+            "x-axis",
+            "y-axis always",
+            "title only",
+            "units only"
+          ],
+          "answer": 0,
+          "explain": "x-axis.",
+          "stage": "both"
+        },
+        {
+          "q": "Precision high means…",
+          "type": "multi",
+          "options": [
+            "results clustered closely",
+            "close to true value only",
+            "random",
+            "no units"
+          ],
+          "answer": 0,
+          "explain": "cluster.",
           "stage": "both"
         }
       ],
