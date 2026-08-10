@@ -870,6 +870,18 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
   margin-bottom: 0.35rem;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.coach-speak-btn {
+  font-size: 0.75rem !important;
+  padding: 0.3rem 0.55rem !important;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 800 !important;
 }
 .speech-bubble {
   background: rgba(243, 230, 200, 0.12);

@@ -713,6 +713,7 @@ function renderDashboard() {
   const daily = dailyProgress(p);
   const nextAct = findNextAction(p);
   touchTutorVisit(p);
+  window.__coachGreetSpoken = false; // allow auto-speak greeting this visit
   save({ quiet: true }).catch(() => {});
 
   appEl.innerHTML = `
@@ -1878,9 +1879,15 @@ function renderLesson({ subject, skillId, stage }) {
         <h3 class="teach-heading">${escapeHtml(mod.title)}</h3>
         <p class="muted">${escapeHtml(mod.blurb)}</p>
         ${mod.teach.visual ? `<div class="visual-wrap">${mod.teach.visual}</div>` : ""}
-        <ul class="teach-points">
+        <ul class="teach-points" id="teachPointsList">
           ${mod.teach.points.map((p) => `<li>${escapeHtml(p)}</li>`).join("")}
         </ul>
+        <div class="mt-1" style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <button type="button" class="btn btn-secondary" data-speak
+            data-speak-src="#teachPointsList" data-voice-label="🔊 Hear this lesson">
+            🔊 Hear this lesson
+          </button>
+        </div>
         <button class="btn btn-primary btn-lg mt-2" type="button" id="btnAdvance">Got it — show example →</button>`;
     } else if (session.phase === "example") {
       bodyHtml = `
@@ -1977,8 +1984,11 @@ function renderLesson({ subject, skillId, stage }) {
       go("subject", { subject });
 
     const adv = document.getElementById("btnAdvance");
+    if (typeof bindSpeakButtons === "function") bindSpeakButtons(appEl);
+
     if (adv && session.phase === "teach") {
       adv.onclick = () => {
+        if (typeof stopSpeaking === "function") stopSpeaking();
         session.phase = "example";
         paint();
       };
@@ -2617,30 +2627,62 @@ function renderSyncSetup() {
 function renderAiSettings() {
   const key = getAiKey();
   const proxy = getAiProxy();
+  const vp = typeof getVoicePrefs === "function" ? getVoicePrefs() : {};
+  const voiceOpts = (typeof GROK_VOICES !== "undefined" ? GROK_VOICES : [{ id: "eve", label: "Eve" }])
+    .map(
+      (v) =>
+        `<option value="${escapeHtml(v.id)}" ${
+          vp.voiceId === v.id ? "selected" : ""
+        }>${escapeHtml(v.label)}</option>`
+    )
+    .join("");
+
   appEl.innerHTML = `
     ${topbar(`<button class="btn btn-ghost" data-go="parent" type="button">← Parent zone</button>`)}
-    <h2 class="section-title">✨ AI tutor settings</h2>
-    <p class="lead">Adaptive lessons work <strong>without</strong> AI. Grok is optional for richer explanations.</p>
+    <h2 class="section-title">✨ AI + Voice settings</h2>
+    <p class="lead">Text lessons work without AI. Grok chat + <strong>Grok Voice</strong> make Coach speak and explain out loud.</p>
 
     <div class="card mb-2">
-      <h3 style="margin-top:0">What works right now (no key needed)</h3>
-      <ul class="muted" style="line-height:1.6">
-        <li>Teach → example → practice for every skill</li>
-        <li>If they get stuck → simpler path + diagrams</li>
-        <li>Video boost links to BBC Bitesize / Oak National Academy</li>
-        <li>Personal course still prioritises weak skills from tests</li>
-      </ul>
+      <h3 style="margin-top:0">🔊 Grok Voice (text-to-speech)</h3>
+      <p class="muted" style="font-size:0.9rem;margin-top:0">
+        Coach can <strong style="color:var(--text)">speak</strong> greetings, answers and lesson intros.
+        Uses Grok TTS when your API key/proxy is set; otherwise the Mac’s built-in British voice.
+      </p>
+      <label class="muted" style="display:flex;align-items:center;gap:0.5rem;font-weight:700;margin:0.5rem 0">
+        <input type="checkbox" id="voiceEnabled" ${vp.enabled !== false ? "checked" : ""} />
+        Enable voice on this Mac
+      </label>
+      <label class="muted" style="display:flex;align-items:center;gap:0.5rem;font-weight:700;margin:0.5rem 0">
+        <input type="checkbox" id="voiceAuto" ${vp.autoSpeak !== false ? "checked" : ""} />
+        Auto-speak Coach greetings &amp; answers
+      </label>
+      <label class="sync-label mt-1" style="display:flex;flex-direction:column;gap:0.35rem;font-size:0.8rem;font-weight:800;color:var(--muted)">
+        Voice engine
+        <select id="voiceProvider" class="input-answer">
+          <option value="auto" ${vp.provider === "auto" || !vp.provider ? "selected" : ""}>Auto (Grok if available, else browser)</option>
+          <option value="grok" ${vp.provider === "grok" ? "selected" : ""}>Grok Voice only</option>
+          <option value="browser" ${vp.provider === "browser" ? "selected" : ""}>Browser voice only (free)</option>
+        </select>
+      </label>
+      <label class="sync-label mt-1" style="display:flex;flex-direction:column;gap:0.35rem;font-size:0.8rem;font-weight:800;color:var(--muted)">
+        Grok voice
+        <select id="voiceId" class="input-answer">${voiceOpts}</select>
+      </label>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.75rem">
+        <button class="btn btn-primary" type="button" id="btnSaveVoice">Save voice settings</button>
+        <button class="btn btn-secondary" type="button" id="btnTestVoice">Test voice</button>
+        <button class="btn btn-ghost" type="button" id="btnStopVoice">Stop</button>
+      </div>
+      <p id="voiceMsg" class="muted mt-1" style="font-size:0.85rem"></p>
     </div>
 
     <div class="card mb-2">
-      <h3 style="margin-top:0">Optional: connect Grok (xAI)</h3>
+      <h3 style="margin-top:0">Optional: connect Grok (xAI) text + voice</h3>
       <p class="muted" style="font-size:0.9rem">
-        1. Create an API key at
-        <a href="https://console.x.ai/" target="_blank" rel="noopener" style="color:#7ec0f0">console.x.ai</a>
-        (Stewart’s xAI account)<br>
-        2. Paste it below on <strong style="color:var(--text)">each Mac</strong> that should use AI<br>
-        3. Browser apps often need a small proxy (CORS). If direct call fails, deploy
-        <code style="color:var(--gold)">worker/</code> from this project and paste the proxy URL.
+        1. API key at
+        <a href="https://console.x.ai/" target="_blank" rel="noopener" style="color:#7ec0f0">console.x.ai</a><br>
+        2. Paste on <strong style="color:var(--text)">each Mac</strong><br>
+        3. For best Voice results, redeploy the proxy worker (supports <code style="color:var(--gold)">/tts</code>) and paste its URL.
       </p>
       <label class="sync-label" style="display:flex;flex-direction:column;gap:0.35rem;font-size:0.8rem;font-weight:800;color:var(--muted)">
         xAI API key
@@ -2649,15 +2691,15 @@ function renderAiSettings() {
         )}" autocomplete="off" />
       </label>
       <label class="sync-label mt-1" style="display:flex;flex-direction:column;gap:0.35rem;font-size:0.8rem;font-weight:800;color:var(--muted)">
-        AI proxy URL (optional)
+        AI proxy URL (recommended for Voice)
         <input type="url" id="aiProxy" class="input-answer" placeholder="https://your-worker.workers.dev" value="${escapeHtml(
           proxy
         )}" />
       </label>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1rem">
         <button class="btn btn-primary" type="button" id="btnSaveAi">Save AI settings</button>
-        <button class="btn btn-secondary" type="button" id="btnTestAi">Test AI</button>
-        <button class="btn btn-ghost" type="button" id="btnClearAi">Clear</button>
+        <button class="btn btn-secondary" type="button" id="btnTestAi">Test chat AI</button>
+        <button class="btn btn-ghost" type="button" id="btnClearAi">Clear key</button>
       </div>
       <p id="aiMsg" class="muted mt-1" style="font-size:0.85rem"></p>
     </div>
@@ -2665,12 +2707,50 @@ function renderAiSettings() {
   `;
   bindShell();
   const msg = document.getElementById("aiMsg");
+  const vMsg = document.getElementById("voiceMsg");
+
+  document.getElementById("btnSaveVoice").onclick = () => {
+    setVoicePrefs({
+      enabled: document.getElementById("voiceEnabled").checked,
+      autoSpeak: document.getElementById("voiceAuto").checked,
+      provider: document.getElementById("voiceProvider").value,
+      voiceId: document.getElementById("voiceId").value,
+    });
+    vMsg.textContent = "Voice settings saved ✓";
+  };
+  document.getElementById("btnTestVoice").onclick = async () => {
+    setVoicePrefs({
+      enabled: true,
+      provider: document.getElementById("voiceProvider").value,
+      voiceId: document.getElementById("voiceId").value,
+    });
+    vMsg.textContent = "Playing…";
+    try {
+      const which = await speakText(
+        "Hello! I’m Coach. Ready for a quick learning win today?",
+        { force: true }
+      );
+      vMsg.textContent =
+        which === "grok"
+          ? "Grok Voice OK ✓"
+          : which === "browser"
+            ? "Browser voice OK ✓ (Grok TTS not used — set key/proxy for Grok Voice)"
+            : "Voice finished.";
+    } catch (e) {
+      vMsg.textContent = "Voice test failed: " + (e.message || e);
+    }
+  };
+  document.getElementById("btnStopVoice").onclick = () => {
+    if (typeof stopSpeaking === "function") stopSpeaking();
+    vMsg.textContent = "Stopped.";
+  };
+
   document.getElementById("btnSaveAi").onclick = () => {
     setAiKey(document.getElementById("aiKey").value);
     setAiProxy(document.getElementById("aiProxy").value);
     msg.textContent = isAiConfigured()
-      ? "Saved ✓ AI tutor enabled on this Mac."
-      : "Cleared — using built-in adaptive lessons only.";
+      ? "Saved ✓ AI + Voice enabled on this Mac."
+      : "Cleared — using built-in lessons; browser voice still works.";
   };
   document.getElementById("btnClearAi").onclick = () => {
     setAiKey("");

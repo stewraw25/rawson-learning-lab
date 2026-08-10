@@ -323,11 +323,15 @@ function coachPanelHtml(profile, learnerMeta, nextAct, opts) {
       <div class="coach-row">
         <img class="coach-avatar" src="${img.src}" alt="" width="88" height="88" />
         <div class="coach-main">
-          <div class="coach-name">${TEACHER_NAME} · your AI teacher</div>
+          <div class="coach-name">${TEACHER_NAME} · your AI teacher
+            <button type="button" class="btn btn-secondary coach-speak-btn" id="coachSpeak"
+              data-speak data-speak-src="#coachSpeech" data-voice-label="🔊 Hear Coach">🔊 Hear Coach</button>
+          </div>
           <div class="speech-bubble" id="coachSpeech">${escapeHtmlCoach(speech)}</div>
           ${struggleLine}
           <div class="coach-goals muted">
             Week ${m.weekDone}/${m.weeklyGoal} · Month ${m.monthDone}/${m.monthlyGoal}
+            · Voice: Grok TTS or browser
           </div>
         </div>
       </div>
@@ -352,16 +356,31 @@ function bindCoachPanel(profile, learnerMeta, nextAct) {
   const send = document.getElementById("coachSend");
   const log = document.getElementById("coachChatLog");
 
+  // Voice buttons
+  if (typeof bindSpeakButtons === "function") bindSpeakButtons(document.getElementById("coachPanel"));
+
+  // Auto-speak greeting once per paint (if enabled)
+  if (speechEl && typeof maybeAutoSpeak === "function") {
+    const greets = speechEl.textContent || "";
+    if (greets && !window.__coachGreetSpoken) {
+      window.__coachGreetSpoken = true;
+      maybeAutoSpeak(greets);
+    }
+  }
+
   async function handleAsk(q) {
     q = (q || input?.value || "").trim();
     if (!q) return;
     if (input) input.value = "";
+    if (typeof stopSpeaking === "function") stopSpeaking();
     if (speechEl) speechEl.textContent = "Thinking…";
     pushChat(profile, "user", q);
     try {
       const reply = await askCoach(profile, learnerMeta, q, nextAct);
       pushChat(profile, "coach", reply);
-      if (speechEl) speechEl.textContent = reply.replace(/\*\*/g, "");
+      const clean = reply.replace(/\*\*/g, "");
+      if (speechEl) speechEl.textContent = clean;
+      if (typeof maybeAutoSpeak === "function") maybeAutoSpeak(clean);
       if (log) {
         log.hidden = false;
         log.innerHTML = ensureTutorMemory(profile)

@@ -1,14 +1,15 @@
 /**
  * Cloudflare Worker — Grok (xAI) proxy for Rawson Learning Lab
  *
- * Deploy:
- *   1. npm i -g wrangler  (or use npx wrangler)
- *   2. wrangler login
- *   3. cd worker && wrangler secret put XAI_API_KEY
- *   4. wrangler deploy
- *   5. Paste the worker URL into Learning Lab → Parent zone → AI settings → Proxy URL
+ * Routes:
+ *   POST /chat  — chat completions
+ *   POST /tts   — Grok Text-to-Speech (returns audio/mpeg)
  *
- * wrangler.toml example is alongside this file.
+ * Deploy:
+ *   1. npx wrangler login
+ *   2. cd worker && npx wrangler secret put XAI_API_KEY
+ *   3. npx wrangler deploy
+ *   4. Paste worker URL into Learning Lab → Parent zone → AI settings
  */
 
 export default {
@@ -25,11 +26,7 @@ export default {
 
     const url = new URL(request.url);
     if (url.pathname === "/" || url.pathname === "/health") {
-      return json({ ok: true, service: "rawson-xai-proxy" }, cors);
-    }
-
-    if (url.pathname !== "/chat" || request.method !== "POST") {
-      return json({ error: "Not found" }, cors, 404);
+      return json({ ok: true, service: "rawson-xai-proxy", routes: ["/chat", "/tts"] }, cors);
     }
 
     const key =
@@ -41,31 +38,79 @@ export default {
       return json({ error: "Missing XAI_API_KEY" }, cors, 401);
     }
 
-    let body;
-    try {
-      body = await request.json();
-    } catch {
-      return json({ error: "Invalid JSON" }, cors, 400);
+    // —— Text to Speech ——
+    if (url.pathname === "/tts" && request.method === "POST") {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: "Invalid JSON" }, cors, 400);
+      }
+      const text = String(body.text || "").slice(0, 2000);
+      if (!text) return json({ error: "Missing text" }, cors, 400);
+
+      const upstream = await fetch("https://api.x.ai/v1/tts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          text,
+          voice_id: body.voice_id || body.voice || "eve",
+          language: body.language || "en",
+        }),
+      });
+
+      if (!upstream.ok) {
+        const errText = await upstream.text();
+        return new Response(errText, {
+          status: upstream.status,
+          headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+
+      const audio = await upstream.arrayBuffer();
+      return new Response(audio, {
+        status: 200,
+        headers: {
+          ...cors,
+          "Content-Type": upstream.headers.get("Content-Type") || "audio/mpeg",
+          "Cache-Control": "no-store",
+        },
+      });
     }
 
-    const upstream = await fetch("https://api.x.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model: body.model || "grok-3-mini",
-        messages: body.messages || [],
-        temperature: body.temperature ?? 0.5,
-      }),
-    });
+    // —— Chat ——
+    if (url.pathname === "/chat" && request.method === "POST") {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: "Invalid JSON" }, cors, 400);
+      }
 
-    const text = await upstream.text();
-    return new Response(text, {
-      status: upstream.status,
-      headers: { ...cors, "Content-Type": "application/json" },
-    });
+      const upstream = await fetch("https://api.x.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model: body.model || "grok-3-mini",
+          messages: body.messages || [],
+          temperature: body.temperature ?? 0.5,
+        }),
+      });
+
+      const text = await upstream.text();
+      return new Response(text, {
+        status: upstream.status,
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
+    return json({ error: "Not found. Use POST /chat or POST /tts" }, cors, 404);
   },
 };
 
