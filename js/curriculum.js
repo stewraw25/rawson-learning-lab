@@ -14,6 +14,7 @@ const LEARNERS = {
     stage: "ks3",
     emoji: "🌸",
     theme: "bella",
+    themeLabel: "Garden · golden mini poodles · horses",
     tagline: "Personalised KS3 path toward GCSE",
   },
   george: {
@@ -25,6 +26,7 @@ const LEARNERS = {
     stage: "ks2",
     emoji: "🍃",
     theme: "george",
+    themeLabel: "Garden · golden mini poodles · F1 & go-karts",
     tagline: "Personalised KS2 path toward GCSE",
   },
 };
@@ -35,58 +37,159 @@ const SUBJECTS = {
     name: "Maths",
     emoji: "🔢",
     colour: "maths",
-    illust: "assets/illust/subject-maths.jpg",
-    illustAlt: "Friendly fox teaching maths with numbers and pizza fractions",
+    illust: "assets/illust/shared/subject-maths.jpg",
+    illustAlt: "Golden miniature poodle teaching maths in the garden",
   },
   english: {
     id: "english",
     name: "English",
     emoji: "📚",
     colour: "english",
-    illust: "assets/illust/subject-english.jpg",
-    illustAlt: "Friendly rabbit reading a magical book in the garden",
+    illust: "assets/illust/shared/subject-english.jpg",
+    illustAlt: "Golden miniature poodle reading a magical garden book",
   },
   science: {
     id: "science",
     name: "Science",
     emoji: "🔬",
     colour: "science",
-    illust: "assets/illust/subject-science.jpg",
-    illustAlt: "Hedgehog scientist in a garden greenhouse lab",
+    illust: "assets/illust/shared/subject-science.jpg",
+    illustAlt: "Golden miniature poodle scientist in a greenhouse lab",
   },
 };
 
-/** Fun Grok Imagine storybook art used across the site */
-const ILLUST = {
+/**
+ * Fun Grok Imagine art — garden + golden miniature poodles throughout.
+ * Bella adds horses; George adds F1 / go-karting.
+ * Use illustFor(key, learnerId) so each child's hub feels personal.
+ */
+const ILLUST_V = "24";
+
+const ILLUST_SHARED = {
   mascot: {
-    src: "assets/illust/mascot-owl.jpg",
-    alt: "Owl tutor in a garden classroom shed",
+    src: "assets/illust/shared/mascot.jpg",
+    alt: "Golden miniature poodle tutor in the garden classroom",
+  },
+  garden: {
+    src: "assets/illust/shared/garden.jpg",
+    alt: "Golden miniature poodle in a cottage garden",
   },
   pathway: {
-    src: "assets/illust/pathway-climb.jpg",
-    alt: "Garden path climbing to a golden star trophy",
+    src: "assets/illust/shared/pathway.jpg",
+    alt: "Golden mini poodle climbing the garden path to the A* star",
   },
   celebrate: {
-    src: "assets/illust/celebrate.jpg",
-    alt: "Garden friends celebrating with confetti and stars",
+    src: "assets/illust/shared/celebrate.jpg",
+    alt: "Golden mini poodle celebrating with garden confetti",
   },
   exam: {
-    src: "assets/illust/exam-workout.jpg",
-    alt: "Brave owl ready for an exam workout",
+    src: "assets/illust/shared/exam.jpg",
+    alt: "Golden mini poodle ready for an exam workout",
   },
   teach: {
-    src: "assets/illust/teach-lesson.jpg",
-    alt: "Owl tutor teaching a fox student in the garden",
+    src: "assets/illust/shared/teach.jpg",
+    alt: "Golden mini poodle teaching in the garden classroom",
   },
   unlock: {
-    src: "assets/illust/unlock-stage.jpg",
-    alt: "Magical garden door unlocking the next stage",
+    src: "assets/illust/shared/unlock.jpg",
+    alt: "Golden mini poodle unlocking the next garden stage",
   },
   pick: {
-    src: "assets/illust/pick-learners.jpg",
-    alt: "Garden friends ready for a day of learning",
+    src: "assets/illust/shared/garden.jpg",
+    alt: "Garden learning with a golden miniature poodle",
+  },
+  "subject-maths": {
+    src: "assets/illust/shared/subject-maths.jpg",
+    alt: "Golden mini poodle maths adventure",
+  },
+  "subject-english": {
+    src: "assets/illust/shared/subject-english.jpg",
+    alt: "Golden mini poodle English reading adventure",
+  },
+  "subject-science": {
+    src: "assets/illust/shared/subject-science.jpg",
+    alt: "Golden mini poodle science lab adventure",
   },
 };
+
+const ILLUST_LEARNER = {
+  bella: {
+    mascot: {
+      src: "assets/illust/bella/mascot.jpg",
+      alt: "Golden mini poodle with a horse in the garden paddock",
+    },
+    welcome: {
+      src: "assets/illust/bella/welcome.jpg",
+      alt: "Golden mini poodle with flower crown beside a horse",
+    },
+    hero: {
+      src: "assets/illust/bella/hero.jpg",
+      alt: "Golden mini poodle and horses in the paddock garden",
+    },
+    celebrate: {
+      src: "assets/illust/bella/celebrate.jpg",
+      alt: "Poodle and horse celebrating in the rose garden",
+    },
+    pick: {
+      src: "assets/illust/bella/pick.jpg",
+      alt: "Bella-Rose theme — garden, poodles and horses",
+    },
+  },
+  george: {
+    mascot: {
+      src: "assets/illust/george/mascot.jpg",
+      alt: "Golden mini poodle driving a garden go-kart",
+    },
+    welcome: {
+      src: "assets/illust/george/welcome.jpg",
+      alt: "Golden mini poodle in racing helmet with a go-kart",
+    },
+    hero: {
+      src: "assets/illust/george/hero.jpg",
+      alt: "Golden mini poodle racing on a garden go-kart track",
+    },
+    celebrate: {
+      src: "assets/illust/george/celebrate.jpg",
+      alt: "Poodle go-kart celebration with chequered flag",
+    },
+    pick: {
+      src: "assets/illust/george/pick.jpg",
+      alt: "George theme — garden, poodles, F1 and go-karts",
+    },
+  },
+};
+
+/** Legacy alias used by older call sites */
+const ILLUST = {
+  mascot: ILLUST_SHARED.mascot,
+  pathway: ILLUST_SHARED.pathway,
+  celebrate: ILLUST_SHARED.celebrate,
+  exam: ILLUST_SHARED.exam,
+  teach: ILLUST_SHARED.teach,
+  unlock: ILLUST_SHARED.unlock,
+  pick: ILLUST_SHARED.pick,
+};
+
+/**
+ * Resolve illustration for current learner (bella/george) with shared fallback.
+ * @param {string} key mascot|welcome|hero|celebrate|pathway|exam|teach|unlock|pick|subject-maths...
+ * @param {string|null} [learnerId]
+ */
+function illustFor(key, learnerId) {
+  const id = learnerId || (typeof state !== "undefined" ? state.activeLearner : null);
+  const learnerPack = id && ILLUST_LEARNER[id] ? ILLUST_LEARNER[id] : null;
+  const item =
+    (learnerPack && learnerPack[key]) ||
+    ILLUST_SHARED[key] ||
+    ILLUST[key] ||
+    ILLUST_SHARED.mascot;
+  const src = item.src.includes("?") ? item.src : `${item.src}?v=${ILLUST_V}`;
+  return { src, alt: item.alt || "" };
+}
+
+function subjectIllust(subject, learnerId) {
+  return illustFor(`subject-${subject}`, learnerId);
+}
 
 /** Skill definitions used for diagnostics + adaptive courses */
 const SKILLS = {
