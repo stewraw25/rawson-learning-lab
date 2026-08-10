@@ -14,7 +14,7 @@ const LEARNERS = {
     stage: "ks3",
     emoji: "🌸",
     theme: "bella",
-    themeLabel: "Garden · golden mini poodles · horses",
+    themeLabel: "Horses",
     tagline: "Personalised KS3 path toward GCSE",
   },
   george: {
@@ -26,7 +26,7 @@ const LEARNERS = {
     stage: "ks2",
     emoji: "🍃",
     theme: "george",
-    themeLabel: "F1 · go-karting",
+    themeLabel: "F1 & go-karting",
     tagline: "Personalised KS2 path toward GCSE",
   },
 };
@@ -59,11 +59,11 @@ const SUBJECTS = {
 };
 
 /**
- * Fun Grok Imagine art — garden + golden miniature poodles throughout.
- * Bella adds horses; George adds F1 / go-karting.
- * Use illustFor(key, learnerId) so each child's hub feels personal.
+ * Illustrations: Bella = garden / poodles / horses.
+ * George = F1 & go-karting only (no dogs).
+ * Use illustFor(key, learnerId) so each child's hub is personal.
  */
-const ILLUST_V = "28";
+const ILLUST_V = "29";
 
 const ILLUST_SHARED = {
   mascot: {

@@ -539,7 +539,6 @@ function scoreBoardCard(id) {
         <div class="avatar mini">${L.emoji}</div>
         <div>
           <h3>${escapeHtml(L.fullName)}</h3>
-          <p class="muted" style="font-size:0.78rem">${escapeHtml(L.themeLabel || "")}</p>
           <p class="muted">Age ${L.age} · Lv ${p.level} · ${p.xp} XP · 🔥 ${p.streak || 0}</p>
         </div>
         <div class="home-avg">
@@ -581,7 +580,7 @@ function renderHome() {
         <img class="hero-logo" src="assets/logo.svg" width="72" height="72" alt="Rawson Learning Lab" />
         <p class="home-kicker">Rawson Learning Lab</p>
         <h2>Homeschooling with <span class="sparkle">AI tutors</span> — so learning fits around life</h2>
-        <p class="lead">Personal paths for <strong>Bella-Rose</strong> (garden · poodles · horses) &amp; <strong>George</strong> (F1 · go-karting) · English, Maths &amp; Science · GCSE → A*</p>
+        <p class="lead">Personal paths for <strong>Bella-Rose</strong> &amp; <strong>George</strong> · English, Maths &amp; Science · GCSE → A*</p>
         <div class="home-hero-cta">
           <button class="btn btn-primary btn-lg" type="button" data-pick="bella">Bella-Rose 🌸</button>
           <button class="btn btn-secondary btn-lg" type="button" data-pick="george">George 🍃</button>
@@ -593,11 +592,11 @@ function renderHome() {
       <div class="home-theme-row">
         <figure class="home-theme-card">
           <img src="${illustFor("pick","bella").src}" alt="${escapeHtml(illustFor("pick","bella").alt)}" />
-          <figcaption>🌸 Bella-Rose · garden, poodles &amp; horses</figcaption>
+          <figcaption>🌸 Bella-Rose</figcaption>
         </figure>
         <figure class="home-theme-card">
           <img src="${illustFor("pick","george").src}" alt="${escapeHtml(illustFor("pick","george").alt)}" />
-          <figcaption>🍃 George · F1 &amp; go-karting</figcaption>
+          <figcaption>🍃 George</figcaption>
         </figure>
       </div>
       <h2 class="section-title">Recent scores</h2>
@@ -612,19 +611,19 @@ function renderHome() {
       <h2 class="section-title">How it works</h2>
       <div class="home-features">
         <article class="card home-feature">
-          <img src="${illustFor("teach").src}" alt="${escapeHtml(illustFor("teach").alt)}" />
+          <img src="${illustFor("teach","bella").src}" alt="" />
           <h3>Placement &amp; practice</h3>
           <p class="muted">Tests find gaps, then lessons teach step by step — not just quizzes.</p>
         </article>
         <article class="card home-feature">
-          <img src="${illustFor("mascot").src}" alt="${escapeHtml(illustFor("mascot").alt)}" />
+          <img src="${illustFor("welcome","george").src}" alt="" />
           <h3>AI tutors on demand</h3>
           <p class="muted">“Learn about this subject” opens a full walkthrough when they’re stuck.</p>
         </article>
         <article class="card home-feature">
-          <img src="${illustFor("pathway").src}" alt="${escapeHtml(illustFor("pathway").alt)}" />
+          <img src="${illustFor("pathway","george").src}" alt="" />
           <h3>Path to GCSE A*</h3>
-          <p class="muted">Six stages from Foundation to A* Mastery — climb the garden path.</p>
+          <p class="muted">Six stages from Foundation to A* Mastery — finish each level to unlock the next.</p>
         </article>
       </div>
     </section>
@@ -722,7 +721,7 @@ function renderDashboard() {
   )}" width="120" height="120" />
       <div class="welcome-copy">
         <h2>Hey ${escapeHtml(L.name)}! ${L.emoji}</h2>
-        <p class="muted" style="margin:0.35rem 0 0">Your path to GCSE A* · ${escapeHtml(L.themeLabel || "")}</p>
+        <p class="muted" style="margin:0.35rem 0 0">Your path to GCSE A*</p>
       </div>
       <div class="xp-ring">
         <div class="lvl">Level ${p.level}</div>
@@ -766,7 +765,7 @@ function renderDashboard() {
   )}" class="pathway-art" />
       </div>
       <h3 style="margin-top:0.85rem;font-family:var(--display)">GCSE pathway map</h3>
-      <p class="muted" style="margin-top:0">Finish each stage to unlock the next. Climb the garden path to the A* star!</p>
+      <p class="muted" style="margin-top:0">Finish each stage to unlock the next — all the way to A*.</p>
       ${pathwayMapHtml(p)}
     </div>
 
