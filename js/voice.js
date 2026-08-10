@@ -38,6 +38,29 @@ function defaultVoicePrefs() {
 
 function getVoicePrefs() {
   try {
+    // One-time: turn off robot voice if older prefs had auto Apple TTS on
+    const migKey = "rawson-voice-mig-v2-off";
+    if (!localStorage.getItem(migKey)) {
+      localStorage.setItem(migKey, "1");
+      const raw0 = localStorage.getItem(VOICE_PREF_KEY);
+      if (raw0) {
+        try {
+          const old = JSON.parse(raw0);
+          // Force chat-only until parent re-enables Grok Voice intentionally
+          localStorage.setItem(
+            VOICE_PREF_KEY,
+            JSON.stringify({
+              ...defaultVoicePrefs(),
+              ...old,
+              enabled: false,
+              autoSpeak: false,
+            })
+          );
+        } catch (_) {
+          localStorage.setItem(VOICE_PREF_KEY, JSON.stringify(defaultVoicePrefs()));
+        }
+      }
+    }
     const raw = localStorage.getItem(VOICE_PREF_KEY);
     if (!raw) return defaultVoicePrefs();
     return { ...defaultVoicePrefs(), ...JSON.parse(raw) };
