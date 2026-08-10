@@ -846,6 +846,149 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
   font-weight: 800;
 }
 
+/* —— AI Coach companion —— */
+.coach-panel {
+  border-color: rgba(232, 197, 71, 0.35) !important;
+}
+.coach-row {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 0.85rem;
+  align-items: start;
+}
+.coach-avatar {
+  width: 88px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+}
+.coach-name {
+  font-weight: 800;
+  font-size: 0.82rem;
+  color: var(--gold);
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.speech-bubble {
+  background: rgba(243, 230, 200, 0.12);
+  border: 1px solid rgba(243, 230, 200, 0.2);
+  border-radius: 14px;
+  padding: 0.75rem 0.9rem;
+  line-height: 1.45;
+  font-size: 0.95rem;
+  position: relative;
+}
+.speech-bubble::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 18px;
+  border: 8px solid transparent;
+  border-right-color: rgba(243, 230, 200, 0.2);
+}
+.coach-struggle {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+}
+.coach-goals {
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.coach-ask {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  flex-wrap: wrap;
+}
+.coach-input {
+  flex: 1;
+  min-width: 12rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  padding: 0.65rem 0.85rem;
+  font: inherit;
+  font-weight: 600;
+}
+.coach-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+}
+.coach-chip {
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+.coach-chip:hover {
+  border-color: rgba(232, 197, 71, 0.45);
+}
+.coach-chat-log {
+  margin-top: 0.75rem;
+  max-height: 160px;
+  overflow: auto;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.coach-log-line {
+  margin-bottom: 0.4rem;
+  opacity: 0.9;
+}
+.coach-log-line.user {
+  color: var(--muted);
+}
+.legend-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.legend-table th,
+.legend-table td {
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+.legend-table th {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.leg-chip {
+  white-space: nowrap;
+}
+.fun-fact-strip {
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 12px;
+  background: rgba(232, 197, 71, 0.1);
+  border: 1px solid rgba(232, 197, 71, 0.25);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 720px) {
+  .coach-row {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+  .speech-bubble::before {
+    display: none;
+  }
+}
+
 /* —— Kid-clear subject page —— */
 .btn-xl {
   font-size: 1.15rem !important;

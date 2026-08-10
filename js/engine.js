@@ -24,6 +24,7 @@ function defaultProfile(learnerId) {
     lessonHistory: [],
     examHistory: [],
     daily: null, // { date, lessons, exams, goal }
+    tutorMemory: null, // AI coach memory — see companion.js
     parentNotes: "",
     // 0 = empty shell — must NOT beat real cloud progress on merge
     updatedAt: 0,
@@ -66,6 +67,7 @@ function normalizeProfile(learnerId, raw) {
   if (!Array.isArray(p.lessonHistory)) p.lessonHistory = [];
   if (!Array.isArray(p.examHistory)) p.examHistory = [];
   if (p.daily && typeof p.daily !== "object") p.daily = null;
+  if (p.tutorMemory && typeof p.tutorMemory !== "object") p.tutorMemory = null;
   if (typeof p.xp !== "number" || Number.isNaN(p.xp)) p.xp = Number(p.xp) || 0;
   if (typeof p.level !== "number" || Number.isNaN(p.level)) p.level = Number(p.level) || 1;
   if (typeof p.streak !== "number" || Number.isNaN(p.streak)) p.streak = Number(p.streak) || 0;

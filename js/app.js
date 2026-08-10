@@ -712,6 +712,8 @@ function renderDashboard() {
   const xpInLevel = (p.xp || 0) % 100;
   const daily = dailyProgress(p);
   const nextAct = findNextAction(p);
+  touchTutorVisit(p);
+  save({ quiet: true }).catch(() => {});
 
   appEl.innerHTML = `
     ${topbar()}
@@ -721,7 +723,7 @@ function renderDashboard() {
   )}" width="120" height="120" />
       <div class="welcome-copy">
         <h2>Hey ${escapeHtml(L.name)}! ${L.emoji}</h2>
-        <p class="muted" style="margin:0.35rem 0 0">Your path to GCSE A*</p>
+        <p class="muted" style="margin:0.35rem 0 0">Your path to GCSE A* — Coach is with you</p>
       </div>
       <div class="xp-ring">
         <div class="lvl">Level ${p.level}</div>
@@ -730,33 +732,37 @@ function renderDashboard() {
       </div>
     </div>
 
+    ${coachPanelHtml(p, L, nextAct)}
+
     <div class="grid-2 mb-2">
       <div class="card daily-goal-card ${daily.met ? "daily-met" : ""}">
         <h3 style="margin-top:0;font-family:var(--display)">☀️ Today's goal</h3>
-        <p class="muted" style="margin:0 0 0.5rem">Aim for ${daily.goal} activities (lessons or exam workouts).</p>
+        <p class="muted" style="margin:0 0 0.5rem">Small bites win — aim for ${daily.goal} activities today.</p>
         <div class="skill-meter"><div class="skill-fill" style="width:${daily.pct}%"></div></div>
         <p style="margin:0.5rem 0 0;font-weight:800">${daily.done} / ${daily.goal}${
     daily.met ? " · Goal hit! 🎉" : ""
   }</p>
       </div>
       <div class="card continue-card">
-        <h3 style="margin-top:0;font-family:var(--display)">▶️ Continue</h3>
+        <h3 style="margin-top:0;font-family:var(--display)">▶️ Do this next</h3>
         <p class="muted" style="margin:0 0 0.75rem;min-height:2.4em">${escapeHtml(
           nextAct?.label || "Open a subject to begin"
         )}</p>
-        <button class="btn btn-primary btn-lg" type="button" id="btnContinue">
+        <button class="btn btn-primary btn-lg btn-xl" type="button" id="btnContinue" style="max-width:100%">
           ${nextAct?.type === "unlock" ? "Unlock next stage →" : "Let's go →"}
         </button>
       </div>
     </div>
 
     <h2 class="section-title">Your subjects</h2>
-    <p class="lead">Placement test → personal path all the way to <strong>GCSE A*</strong> (grades 8–9).</p>
+    <p class="lead">Short lessons. Clear next steps. All the way to <strong>GCSE A*</strong>.</p>
     <div class="grid-3 mb-2">
       ${subjectDashCard("maths")}
       ${subjectDashCard("english")}
       ${subjectDashCard("science")}
     </div>
+
+    ${stageLegendHtml()}
 
     <div class="card mb-2 pathway-card-art">
       <div class="pathway-art-wrap">
@@ -764,7 +770,7 @@ function renderDashboard() {
     illustFor("pathway").alt
   )}" class="pathway-art" />
       </div>
-      <h3 style="margin-top:0.85rem;font-family:var(--display)">GCSE pathway map</h3>
+      <h3 style="margin-top:0.85rem;font-family:var(--display)">Your pathway map</h3>
       <p class="muted" style="margin-top:0">Finish each stage to unlock the next — all the way to A*.</p>
       ${pathwayMapHtml(p)}
     </div>
@@ -780,20 +786,10 @@ function renderDashboard() {
         }).join("")}
       </div>
     </div>
-
-    <div class="card">
-      <h3 style="margin-top:0;font-family:var(--display)">How it works</h3>
-      <ol class="muted" style="line-height:1.6;margin:0;padding-left:1.2rem">
-        <li><strong style="color:var(--text)">Placement test</strong> — see where you are in each subject</li>
-        <li><strong style="color:var(--text)">Six stages</strong> — Foundation → Intermediate → Secure → GCSE Core → Higher → A* Mastery</li>
-        <li><strong style="color:var(--text)">Unlock the next stage</strong> when you finish every lesson in the current one</li>
-        <li><strong style="color:var(--text)">Adaptive lessons</strong> — teach → example → practice; support path if you struggle</li>
-        <li><strong style="color:var(--text)">XP &amp; badges</strong> — level up all the way to Triple A*</li>
-      </ol>
-    </div>
     ${siteFooter()}
   `;
   bindShell();
+  bindCoachPanel(p, L, nextAct);
   appEl.querySelectorAll("[data-subject]").forEach((el) => {
     el.addEventListener("click", () => go("subject", { subject: el.dataset.subject }));
   });
@@ -1543,7 +1539,21 @@ function renderSubject({ subject }) {
 
     ${nextStepHtml}
     ${stageChips ? `<div class="mb-2">${stageChips}</div>` : ""}
+    ${
+      diag?.completed
+        ? coachPanelHtml(p, learner(), {
+            type: "subject",
+            subject,
+            label: nextId
+              ? `Continue ${S.name}: ${nextMeta?.title || nextId}`
+              : stageComplete
+                ? `Unlock the next ${S.name} stage`
+                : `Explore ${S.name} lessons`,
+          })
+        : ""
+    }
     ${lessonsHtml}
+    ${diag?.completed ? stageLegendHtml() : ""}
     ${secondaryHtml}
   `;
 
@@ -1553,6 +1563,15 @@ function renderSubject({ subject }) {
   }
 
   bindShell();
+  if (diag?.completed) {
+    bindCoachPanel(p, learner(), {
+      type: "subject",
+      subject,
+      label: nextId
+        ? `Continue ${S.name}: ${nextMeta?.title || nextId}`
+        : `Work through ${S.name}`,
+    });
+  }
 
   document.getElementById("startDiag")?.addEventListener("click", () =>
     go("diagnostic", { subject })
@@ -1851,6 +1870,11 @@ function renderLesson({ subject, skillId, stage }) {
         <img class="lesson-illust" src="${illustFor("teach").src}" alt="${escapeHtml(
         illustFor("teach").alt
       )}" />
+        ${
+          typeof lessonFunFactHtml === "function"
+            ? lessonFunFactHtml(subject, skillId)
+            : ""
+        }
         <h3 class="teach-heading">${escapeHtml(mod.title)}</h3>
         <p class="muted">${escapeHtml(mod.blurb)}</p>
         ${mod.teach.visual ? `<div class="visual-wrap">${mod.teach.visual}</div>` : ""}
@@ -2143,6 +2167,22 @@ function renderLesson({ subject, skillId, stage }) {
       at: todayKey(),
       stage: stageNum,
     };
+    // AI coach memory
+    const title =
+      getLessonMeta(subject, skillId, stageNum).title || skillId;
+    if (typeof recordTutorWin === "function") {
+      recordTutorWin(profile(), subject, skillId, scorePct, title);
+    }
+    if (
+      typeof recordTutorStruggle === "function" &&
+      (session.struggleUsed || session.totalWrong >= 2)
+    ) {
+      recordTutorStruggle(profile(), subject, skillId, title);
+    }
+    const mem = ensureTutorMemory(profile());
+    mem.lastSubject = subject;
+    mem.lastSkillId = skillId;
+    mem.lastStage = stageNum;
     try {
       await save({ quiet: false });
     } catch (e) {
@@ -2284,6 +2324,15 @@ function renderParent() {
     </div>
 
     <div class="card mt-2">
+      <h3 style="margin-top:0;font-family:var(--display)">📅 Weekly &amp; monthly goals</h3>
+      <p class="muted">Coach uses these to nudge each child. Counts lessons + exam workouts.</p>
+      <div class="grid-2">
+        ${parentGoalsForm("bella")}
+        ${parentGoalsForm("george")}
+      </div>
+    </div>
+
+    <div class="card mt-2">
       <h3 style="margin-top:0">Recent activity</h3>
       <div id="activityFeed" class="muted" style="font-size:0.9rem;line-height:1.5">
         ${activityFeedHtml()}
@@ -2326,6 +2375,27 @@ function renderParent() {
     ${siteFooter()}
   `;
   bindShell();
+
+  document.querySelectorAll("[data-save-goals]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.saveGoals;
+      const p = state.profiles[id];
+      if (!p) return;
+      const m = ensureTutorMemory(p);
+      const w = Number(document.getElementById(`wg-${id}`)?.value);
+      const mo = Number(document.getElementById(`mg-${id}`)?.value);
+      if (w >= 1 && w <= 40) m.weeklyGoal = w;
+      if (mo >= 1 && mo <= 120) m.monthlyGoal = mo;
+      const dailyG = Number(document.getElementById(`dg-${id}`)?.value);
+      if (dailyG >= 1 && dailyG <= 10) {
+        ensureDaily(p);
+        p.daily.goal = dailyG;
+      }
+      await persistLearner(state, id);
+      showSavedToast("Goals saved ✓");
+      go("parent");
+    });
+  });
 
   document.getElementById("pExport").onclick = () => {
     const blob = new Blob([exportState(state)], { type: "application/json" });
@@ -2425,9 +2495,42 @@ function activityFeedHtml() {
   return top.map((e) => `• ${escapeHtml(e.text)}`).join("<br>");
 }
 
+function parentGoalsForm(id) {
+  const L = LEARNERS[id];
+  const p = state.profiles[id] || defaultProfile(id);
+  const m = ensureTutorMemory(p);
+  const d = ensureDaily(p);
+  return `
+    <div class="card" style="margin:0;background:rgba(0,0,0,0.15)">
+      <h4 style="margin:0 0 0.5rem">${L.emoji} ${escapeHtml(L.name)}</h4>
+      <p class="muted" style="font-size:0.82rem;margin:0 0 0.65rem">
+        This week <strong>${m.weekDone}/${m.weeklyGoal}</strong> ·
+        This month <strong>${m.monthDone}/${m.monthlyGoal}</strong>
+      </p>
+      <label class="muted" style="font-size:0.78rem;display:block">Daily goal (activities)
+        <input class="input-answer" id="dg-${id}" type="number" min="1" max="10" value="${
+    d.goal || 2
+  }" style="margin-top:0.25rem" />
+      </label>
+      <label class="muted" style="font-size:0.78rem;display:block;margin-top:0.5rem">Weekly goal
+        <input class="input-answer" id="wg-${id}" type="number" min="1" max="40" value="${
+    m.weeklyGoal
+  }" style="margin-top:0.25rem" />
+      </label>
+      <label class="muted" style="font-size:0.78rem;display:block;margin-top:0.5rem">Monthly goal
+        <input class="input-answer" id="mg-${id}" type="number" min="1" max="120" value="${
+    m.monthlyGoal
+  }" style="margin-top:0.25rem" />
+      </label>
+      <button class="btn btn-primary mt-1" type="button" data-save-goals="${id}">Save goals</button>
+    </div>`;
+}
+
 function parentKid(id) {
   const L = LEARNERS[id];
   const p = state.profiles[id];
+  const mem = ensureTutorMemory(p);
+  const struggles = topStruggles(p, 3);
   const rows = Object.keys(SUBJECTS)
     .map((sub) => {
       const d = p.diagnostics[sub];
@@ -2470,7 +2573,15 @@ function parentKid(id) {
     p.xp
   } XP · Streak ${p.streak} days · ${p.badges.length} badges
       · Today ${dailyProgress(p).done}/${dailyProgress(p).goal} goal
+      · Week ${mem.weekDone}/${mem.weeklyGoal} · Month ${mem.monthDone}/${mem.monthlyGoal}
       · Updated ${formatTime(p.updatedAt)}</p>
+      ${
+        struggles.length
+          ? `<p class="muted" style="font-size:0.85rem">Coach focus zone: <strong style="color:var(--gold)">${escapeHtml(
+              struggles.map((s) => s.title).join(", ")
+            )}</strong></p>`
+          : ""
+      }
       <div class="table-wrap">
         <table class="progress-table">
           <thead><tr><th>Subject</th><th>Test</th><th>Course</th><th>Lessons</th><th>Level</th></tr></thead>
