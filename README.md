@@ -22,7 +22,8 @@ Finish every lesson in a stage to unlock the next. Adaptive order still prioriti
 - Personalised paths that prioritise weaker skills (GCSE AO / topic mapping)
 - Stage-appropriate practice for **George (KS2)** and **Bella-Rose (KS3)** where tagged
 - **Adaptive lessons**: teach → worked example → practice; struggle path + BBC Bitesize / Oak links
-- Optional **Grok (xAI) AI tutor** for personalised explanations (Parent zone → AI settings)
+- Optional **Grok (xAI) AI tutor** + **Grok Voice** (Coach speaks greetings, answers and lesson intros)
+- Parent zone: AI key, voice prefs, weekly/monthly goals
 - Pathway map, XP, levels, streaks and badges (including Triple A\*)
 - Progress autosaves in the browser
 - **Family cloud sync** (Firebase) so kids’ iMacs push progress and a parent Mac watches live
