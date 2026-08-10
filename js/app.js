@@ -2656,12 +2656,26 @@ function renderAiSettings() {
         <input type="checkbox" id="voiceAuto" ${vp.autoSpeak !== false ? "checked" : ""} />
         Auto-speak Coach greetings &amp; answers
       </label>
+      <div class="card" style="margin:0.75rem 0;background:rgba(232,197,71,0.08);border-color:rgba(232,197,71,0.35)">
+        <p style="margin:0;font-weight:800;color:var(--gold)">To hear real Grok Voice (not Apple)</p>
+        <p class="muted" style="margin:0.4rem 0 0;font-size:0.85rem;line-height:1.5">
+          Browsers block Grok’s servers directly. On this Mac, open Terminal and run:
+        </p>
+        <pre class="proxy-cmd" style="margin:0.5rem 0;padding:0.65rem;border-radius:10px;background:rgba(0,0,0,0.35);font-size:0.78rem;overflow:auto;color:var(--text)">cd ~/rawson-learning-lab
+export XAI_API_KEY="paste-your-key-here"
+node worker/local-voice-proxy.mjs</pre>
+        <p class="muted" style="margin:0;font-size:0.85rem">
+          Then set <strong style="color:var(--text)">Proxy URL</strong> below to
+          <code style="color:var(--gold)">http://127.0.0.1:8787</code>
+          and press <strong style="color:var(--text)">Test voice</strong>. Keep the Terminal window open while kids learn.
+        </p>
+      </div>
       <label class="sync-label mt-1" style="display:flex;flex-direction:column;gap:0.35rem;font-size:0.8rem;font-weight:800;color:var(--muted)">
         Voice engine
         <select id="voiceProvider" class="input-answer">
-          <option value="auto" ${vp.provider === "auto" || !vp.provider ? "selected" : ""}>Auto (Grok if available, else browser)</option>
-          <option value="grok" ${vp.provider === "grok" ? "selected" : ""}>Grok Voice only</option>
-          <option value="browser" ${vp.provider === "browser" ? "selected" : ""}>Browser voice only (free)</option>
+          <option value="grok" ${vp.provider === "grok" || !vp.provider ? "selected" : ""}>Grok Voice only (recommended)</option>
+          <option value="auto" ${vp.provider === "auto" ? "selected" : ""}>Auto (Grok, then Apple if Grok fails)</option>
+          <option value="browser" ${vp.provider === "browser" ? "selected" : ""}>Apple/Mac voice only</option>
         </select>
       </label>
       <label class="sync-label mt-1" style="display:flex;flex-direction:column;gap:0.35rem;font-size:0.8rem;font-weight:800;color:var(--muted)">
@@ -2719,25 +2733,32 @@ function renderAiSettings() {
     vMsg.textContent = "Voice settings saved ✓";
   };
   document.getElementById("btnTestVoice").onclick = async () => {
+    setAiKey(document.getElementById("aiKey").value);
+    setAiProxy(document.getElementById("aiProxy").value);
     setVoicePrefs({
       enabled: true,
       provider: document.getElementById("voiceProvider").value,
       voiceId: document.getElementById("voiceId").value,
+      allowBrowserFallback: document.getElementById("voiceProvider").value !== "grok",
     });
-    vMsg.textContent = "Playing…";
+    vMsg.textContent = "Playing Grok Voice…";
     try {
       const which = await speakText(
-        "Hello! I’m Coach. Ready for a quick learning win today?",
-        { force: true }
+        "Hello! I’m Coach, powered by Grok. Ready for a quick learning win today?",
+        { force: true, allowBrowserFallback: false }
       );
       vMsg.textContent =
         which === "grok"
-          ? "Grok Voice OK ✓"
+          ? "✓ That was Grok Voice — not Apple. You’re set!"
           : which === "browser"
-            ? "Browser voice OK ✓ (Grok TTS not used — set key/proxy for Grok Voice)"
+            ? "That was the Mac voice. Start the local proxy and set Proxy URL to http://127.0.0.1:8787"
             : "Voice finished.";
+      if (typeof updateVoiceStatusBanners === "function") updateVoiceStatusBanners();
     } catch (e) {
-      vMsg.textContent = "Voice test failed: " + (e.message || e);
+      vMsg.innerHTML =
+        "<strong style='color:var(--danger)'>Grok Voice failed</strong> (so you were hearing Apple before).<br>" +
+        escapeHtml(e.message || e) +
+        "<br><br>Run the Terminal commands above, set Proxy URL to <code>http://127.0.0.1:8787</code>, then Test again.";
     }
   };
   document.getElementById("btnStopVoice").onclick = () => {

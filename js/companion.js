@@ -331,8 +331,8 @@ function coachPanelHtml(profile, learnerMeta, nextAct, opts) {
           ${struggleLine}
           <div class="coach-goals muted">
             Week ${m.weekDone}/${m.weeklyGoal} · Month ${m.monthDone}/${m.monthlyGoal}
-            · Voice: Grok TTS or browser
           </div>
+          <div class="voice-status-slot" id="voiceStatusBanner"></div>
         </div>
       </div>
       <div class="coach-ask">
@@ -356,8 +356,9 @@ function bindCoachPanel(profile, learnerMeta, nextAct) {
   const send = document.getElementById("coachSend");
   const log = document.getElementById("coachChatLog");
 
-  // Voice buttons
+  // Voice buttons + status
   if (typeof bindSpeakButtons === "function") bindSpeakButtons(document.getElementById("coachPanel"));
+  if (typeof updateVoiceStatusBanners === "function") updateVoiceStatusBanners();
 
   // Auto-speak greeting once per paint (if enabled)
   if (speechEl && typeof maybeAutoSpeak === "function") {

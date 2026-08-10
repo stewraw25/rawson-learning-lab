@@ -989,6 +989,21 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
   font-size: 0.9rem;
   line-height: 1.4;
 }
+.voice-status {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+.voice-status.voice-ok {
+  color: var(--ok);
+}
+.voice-status.voice-warn {
+  color: var(--gold);
+}
+.voice-status code {
+  color: var(--gold);
+  font-size: 0.75rem;
+}
 
 @media (max-width: 720px) {
   .coach-row {

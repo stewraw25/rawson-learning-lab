@@ -1,14 +1,14 @@
 /**
  * Grok Voice (TTS) for Rawson Learning Lab Coach
- * Primary: xAI TTS via proxy or API key
- * Fallback: browser SpeechSynthesis (always available)
+ * Primary: xAI TTS via proxy (required for real Grok voice in browser)
+ * Fallback: browser SpeechSynthesis — only if provider is "auto" or "browser"
  *
- * Docs: POST https://api.x.ai/v1/tts  { text, voice_id, language }
+ * Docs: POST https://api.x.ai/v1/tts  { text, voice_id, language } → audio
  */
 
 const VOICE_PREF_KEY = "rawson-learning-voice-prefs-v1";
 const GROK_VOICES = [
-  { id: "eve", label: "Eve (default, clear)" },
+  { id: "eve", label: "Eve (clear, friendly)" },
   { id: "ara", label: "Ara" },
   { id: "rex", label: "Rex" },
   { id: "sal", label: "Sal" },
@@ -17,14 +17,22 @@ const GROK_VOICES = [
 
 let currentAudio = null;
 let speaking = false;
+/** Last error / status for UI */
+let lastVoiceStatus = { ok: false, provider: null, error: "" };
+
+function getLastVoiceStatus() {
+  return lastVoiceStatus;
+}
 
 function defaultVoicePrefs() {
   return {
     enabled: true,
-    autoSpeak: true, // speak coach greetings & replies
-    provider: "auto", // auto | grok | browser
+    autoSpeak: true,
+    // Default to grok so we don't silently use Apple when user expects Grok
+    provider: "grok",
     voiceId: "eve",
     rate: 1,
+    allowBrowserFallback: false,
   };
 }
 
@@ -73,11 +81,38 @@ function stripForSpeech(text) {
     .replace(/💡/g, "")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 1200); // keep TTS snappy for kids
+    .slice(0, 1200);
+}
+
+function voiceStatusHtml() {
+  const s = lastVoiceStatus;
+  const prefs = getVoicePrefs();
+  if (!prefs.enabled) {
+    return `<p class="voice-status muted">Voice is off in AI settings.</p>`;
+  }
+  if (s.provider === "grok" && s.ok) {
+    return `<p class="voice-status voice-ok">🔊 Using <strong>Grok Voice</strong> (${prefs.voiceId || "eve"})</p>`;
+  }
+  if (s.provider === "browser" && s.ok) {
+    return `<p class="voice-status voice-warn">⚠️ Using <strong>Apple/Mac voice</strong> — Grok Voice did not connect.
+      ${s.error ? `<br><span class="muted">${escapeVoice(s.error)}</span>` : ""}
+      <br>Fix: Parent zone → AI settings → set Proxy to <code>http://127.0.0.1:8787</code> and run the local proxy (see README).</p>`;
+  }
+  if (s.error) {
+    return `<p class="voice-status voice-warn">⚠️ Grok Voice error: ${escapeVoice(s.error)}</p>`;
+  }
+  return `<p class="voice-status muted">Voice ready — tap Hear Coach (needs Grok key + proxy for real Grok sound).</p>`;
+}
+
+function escapeVoice(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .slice(0, 200);
 }
 
 /**
- * Speak text with Grok TTS if possible, else browser voice.
  * @returns {Promise<"grok"|"browser"|"off"|"error">}
  */
 async function speakText(text, opts) {
@@ -91,82 +126,171 @@ async function speakText(text, opts) {
   stopSpeaking();
   speaking = true;
 
-  const preferGrok =
-    prefs.provider === "grok" ||
-    (prefs.provider === "auto" &&
-      typeof isAiConfigured === "function" &&
-      isAiConfigured());
+  const wantGrok = prefs.provider !== "browser";
+  const allowBrowser =
+    prefs.provider === "browser" ||
+    prefs.provider === "auto" ||
+    prefs.allowBrowserFallback === true ||
+    opts.allowBrowserFallback === true;
 
-  if (preferGrok && prefs.provider !== "browser") {
+  if (wantGrok && prefs.provider !== "browser") {
     try {
       await speakWithGrok(clean, prefs.voiceId || "eve");
       speaking = false;
+      lastVoiceStatus = { ok: true, provider: "grok", error: "" };
+      updateVoiceStatusBanners();
       return "grok";
     } catch (e) {
-      console.warn("Grok TTS failed, falling back to browser", e);
-      if (prefs.provider === "grok") {
+      const err = e.message || String(e);
+      console.warn("Grok TTS failed", e);
+      lastVoiceStatus = { ok: false, provider: "grok", error: err };
+      updateVoiceStatusBanners();
+
+      if (prefs.provider === "grok" && !allowBrowser && !opts.allowBrowserFallback) {
         speaking = false;
-        throw e;
+        // Don't silently use Apple — surface the problem
+        throw new Error(
+          "Grok Voice failed: " +
+            err +
+            ". Run the local proxy (node worker/local-voice-proxy.mjs) and set Proxy URL to http://127.0.0.1:8787"
+        );
       }
     }
   }
 
-  try {
-    await speakWithBrowser(clean, prefs.rate || 1);
-    speaking = false;
-    return "browser";
-  } catch (e) {
-    speaking = false;
-    console.warn("Browser TTS failed", e);
-    return "error";
+  if (allowBrowser || prefs.provider === "browser" || prefs.provider === "auto") {
+    try {
+      await speakWithBrowser(clean, prefs.rate || 1);
+      speaking = false;
+      if (wantGrok && lastVoiceStatus.error) {
+        lastVoiceStatus = {
+          ok: true,
+          provider: "browser",
+          error: lastVoiceStatus.error,
+        };
+      } else {
+        lastVoiceStatus = { ok: true, provider: "browser", error: "" };
+      }
+      updateVoiceStatusBanners();
+      return "browser";
+    } catch (e) {
+      speaking = false;
+      lastVoiceStatus = {
+        ok: false,
+        provider: "browser",
+        error: e.message || String(e),
+      };
+      updateVoiceStatusBanners();
+      return "error";
+    }
   }
+
+  speaking = false;
+  return "error";
+}
+
+function updateVoiceStatusBanners() {
+  document.querySelectorAll("#voiceStatusBanner, .voice-status-slot").forEach((el) => {
+    el.innerHTML = voiceStatusHtml();
+  });
 }
 
 async function speakWithGrok(text, voiceId) {
-  const proxy =
-    typeof getAiProxy === "function" ? getAiProxy() : "";
+  const proxy = typeof getAiProxy === "function" ? getAiProxy() : "";
   const key = typeof getAiKey === "function" ? getAiKey() : "";
 
-  let res;
+  // Prefer proxy — browsers block api.x.ai with CORS
+  const endpoints = [];
   if (proxy) {
-    res = await fetch(`${proxy.replace(/\/$/, "")}/tts`, {
-      method: "POST",
+    endpoints.push({
+      url: `${proxy.replace(/\/$/, "")}/tts`,
       headers: {
         "Content-Type": "application/json",
         ...(key ? { "X-Api-Key": key } : {}),
       },
-      body: JSON.stringify({
-        text,
-        voice_id: voiceId || "eve",
-        language: "en",
-      }),
     });
-  } else if (key) {
-    // Direct (may fail on CORS in some browsers)
-    res = await fetch("https://api.x.ai/v1/tts", {
-      method: "POST",
+  }
+  // Also try default local proxy if not set (common setup)
+  if (!proxy || !/127\.0\.0\.1|localhost/.test(proxy)) {
+    endpoints.push({
+      url: "http://127.0.0.1:8787/tts",
+      headers: {
+        "Content-Type": "application/json",
+        ...(key ? { "X-Api-Key": key } : {}),
+      },
+    });
+  }
+  if (key) {
+    endpoints.push({
+      url: "https://api.x.ai/v1/tts",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${key}`,
       },
-      body: JSON.stringify({
-        text,
-        voice_id: voiceId || "eve",
-        language: "en",
-      }),
     });
-  } else {
-    throw new Error("No API key or proxy for Grok Voice");
   }
 
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    throw new Error(`TTS ${res.status}: ${t.slice(0, 100)}`);
+  if (!endpoints.length) {
+    throw new Error("No API key and no proxy URL set");
   }
 
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  await new Promise((resolve, reject) => {
+  let lastErr = "Unknown error";
+  for (const ep of endpoints) {
+    try {
+      const res = await fetch(ep.url, {
+        method: "POST",
+        headers: ep.headers,
+        body: JSON.stringify({
+          text,
+          voice_id: voiceId || "eve",
+          language: "en",
+        }),
+      });
+
+      const ct = (res.headers.get("content-type") || "").toLowerCase();
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        lastErr = `${ep.url} → ${res.status} ${t.slice(0, 120)}`;
+        // CORS failures throw before this; 404 means old proxy without /tts
+        continue;
+      }
+
+      // Must be audio, not JSON error
+      if (ct.includes("json")) {
+        const t = await res.text();
+        lastErr = `Got JSON not audio: ${t.slice(0, 120)}`;
+        continue;
+      }
+
+      const blob = await res.blob();
+      if (blob.size < 100) {
+        lastErr = "Audio response too small";
+        continue;
+      }
+
+      // Ensure browser treats as audio
+      const audioBlob =
+        ct.includes("audio") || ct.includes("mpeg") || ct.includes("mp3")
+          ? blob
+          : new Blob([blob], { type: "audio/mpeg" });
+
+      const url = URL.createObjectURL(audioBlob);
+      await playAudioUrl(url);
+      return;
+    } catch (e) {
+      lastErr = `${ep.url} → ${e.message || e}`;
+      // TypeError Failed to fetch = CORS or proxy not running
+      if (/Failed to fetch|NetworkError|Load failed/i.test(String(e.message || e))) {
+        lastErr =
+          "Cannot reach Grok Voice (proxy not running or blocked). Start: node worker/local-voice-proxy.mjs";
+      }
+    }
+  }
+  throw new Error(lastErr);
+}
+
+function playAudioUrl(url) {
+  return new Promise((resolve, reject) => {
     const audio = new Audio(url);
     currentAudio = audio;
     audio.onended = () => {
@@ -192,10 +316,8 @@ function speakWithBrowser(text, rate) {
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "en-GB";
     u.rate = Math.min(1.15, Math.max(0.85, rate || 1));
-    // Prefer a British voice if available
     const voices = window.speechSynthesis.getVoices() || [];
     const gb =
-      voices.find((v) => /en-GB/i.test(v.lang) && /female|samantha|moira|fiona/i.test(v.name)) ||
       voices.find((v) => /en-GB/i.test(v.lang)) ||
       voices.find((v) => /^en/i.test(v.lang));
     if (gb) u.voice = gb;
@@ -205,7 +327,6 @@ function speakWithBrowser(text, rate) {
   });
 }
 
-/** Wire a Speak button: data-speak-src="#elementId" or data-speak-text="..." */
 function bindSpeakButtons(root) {
   const scope = root || document;
   scope.querySelectorAll("[data-speak]").forEach((btn) => {
@@ -227,10 +348,15 @@ function bindSpeakButtons(root) {
       btn.setAttribute("data-voice-speaking", "1");
       btn.textContent = "⏹ Stop";
       try {
-        await speakText(text, { force: true });
+        const which = await speakText(text, { force: true });
+        if (which === "browser") {
+          // brief non-blocking notice
+          console.info("Played with Apple voice — start local Grok proxy for real Grok Voice");
+        }
       } catch (e) {
         alert(
-          "Could not play voice. Check AI settings (API key or proxy) or allow sound in the browser."
+          (e.message || "Could not play Grok Voice") +
+            "\n\nQuick fix on this Mac:\n1. Terminal: export XAI_API_KEY='your-key'\n2. node worker/local-voice-proxy.mjs\n3. AI settings → Proxy = http://127.0.0.1:8787\n4. Voice engine = Grok Voice only\n5. Test voice"
         );
       }
       btn.removeAttribute("data-voice-speaking");
@@ -239,15 +365,16 @@ function bindSpeakButtons(root) {
   });
 }
 
-/**
- * Auto-speak if prefs allow (greetings / coach replies).
- */
 async function maybeAutoSpeak(text) {
   const prefs = getVoicePrefs();
   if (!prefs.enabled || !prefs.autoSpeak) return;
   try {
-    await speakText(text);
-  } catch (_) {
-    /* silent fail on auto */
+    // Auto: allow browser fallback only if provider is auto
+    await speakText(text, {
+      allowBrowserFallback: prefs.provider === "auto",
+    });
+  } catch (e) {
+    console.warn("Auto-speak Grok failed", e.message || e);
+    updateVoiceStatusBanners();
   }
 }
