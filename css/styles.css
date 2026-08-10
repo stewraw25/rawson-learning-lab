@@ -1428,6 +1428,23 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
     transform: none;
   }
 }
+.parent-next-rec {
+  margin: 0.35rem 0 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(129, 199, 132, 0.1);
+  border: 1px solid rgba(129, 199, 132, 0.35);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+/* Sticky primary next-step on tall subject pages (mobile-friendly) */
+@media (max-width: 720px) {
+  .next-step-primary {
+    position: sticky;
+    top: 0.35rem;
+    z-index: 20;
+  }
+}
 
 /* —— Fun Grok Imagine illustrations —— */
 .welcome-with-art {

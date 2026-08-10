@@ -2127,23 +2127,40 @@ function renderDiagnostic({ subject }) {
       questionLearnPayload(subject, q.skill, q)
     );
     const body = document.getElementById("qBody");
+    if (window.__diagKeyHandler) {
+      window.removeEventListener("keydown", window.__diagKeyHandler);
+      window.__diagKeyHandler = null;
+    }
     if (q.type === "multi") {
       body.innerHTML = `<div class="options">${q.options
         .map(
           (opt, i) =>
-            `<button type="button" class="option" data-i="${i}">${escapeHtml(
-              opt
-            )}</button>`
+            `<button type="button" class="option" data-i="${i}"><span class="opt-key">${
+              i + 1
+            }</span> ${escapeHtml(opt)}</button>`
         )
         .join("")}</div>`;
       body.querySelectorAll(".option").forEach((btn) => {
         btn.onclick = () => {
           if (revealed) return;
+          const already = btn.classList.contains("selected");
           body.querySelectorAll(".option").forEach((b) => b.classList.remove("selected"));
           btn.classList.add("selected");
           answers[q.id] = Number(btn.dataset.i);
+          if (already) document.getElementById("btnCheck")?.click();
         };
       });
+      window.__diagKeyHandler = (e) => {
+        if (revealed) return;
+        if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA"))
+          return;
+        const n = Number(e.key);
+        if (n >= 1 && n <= (q.options?.length || 0)) {
+          body.querySelector(`.option[data-i="${n - 1}"]`)?.click();
+        }
+        if (e.key === "Enter") document.getElementById("btnCheck")?.click();
+      };
+      window.addEventListener("keydown", window.__diagKeyHandler);
     } else {
       body.innerHTML = `<input class="input-answer" id="typedAns" placeholder="Type your answer…" autocomplete="off" />`;
       const input = document.getElementById("typedAns");
@@ -2163,6 +2180,10 @@ function renderDiagnostic({ subject }) {
         return;
       }
       revealed = true;
+      if (window.__diagKeyHandler) {
+        window.removeEventListener("keydown", window.__diagKeyHandler);
+        window.__diagKeyHandler = null;
+      }
       const ok = checkAnswer(q, answers[q.id]);
       const fb = document.getElementById("feedback");
       fb.className = `feedback ${ok ? "good" : "bad"}`;
@@ -2176,7 +2197,8 @@ function renderDiagnostic({ subject }) {
         });
       }
       document.getElementById("btnCheck").disabled = true;
-      document.getElementById("btnNext").style.display = "inline-flex";
+      const nextBtn = document.getElementById("btnNext");
+      nextBtn.style.display = "inline-flex";
       // Auto-save progress mid-test (kids never click save)
       try {
         if (!profile().diagnostics) profile().diagnostics = {};
@@ -2190,9 +2212,20 @@ function renderDiagnostic({ subject }) {
       } catch (_) {
         /* ignore */
       }
+      if (ok) {
+        setTimeout(() => {
+          if (document.getElementById("btnNext") === nextBtn) nextBtn.click();
+        }, 550);
+      } else {
+        nextBtn.focus();
+      }
     };
 
     document.getElementById("btnNext").onclick = () => {
+      if (window.__diagKeyHandler) {
+        window.removeEventListener("keydown", window.__diagKeyHandler);
+        window.__diagKeyHandler = null;
+      }
       if (index + 1 >= qs.length) {
         finish();
       } else {
@@ -3108,6 +3141,7 @@ function parentKid(id) {
     })
     .join("");
 
+  const nextRec = typeof findNextAction === "function" ? findNextAction(p) : null;
   return `
     <div class="card mb-2">
       <h3 style="margin-top:0;font-family:var(--display)">${L.emoji} ${escapeHtml(
@@ -3119,6 +3153,13 @@ function parentKid(id) {
       · Today ${dailyProgress(p).done}/${dailyProgress(p).goal} goal
       · Week ${mem.weekDone}/${mem.weeklyGoal} · Month ${mem.monthDone}/${mem.monthlyGoal}
       · Updated ${formatTime(p.updatedAt)}</p>
+      ${
+        nextRec
+          ? `<p class="parent-next-rec"><strong>Coach next step:</strong> ${escapeHtml(
+              nextRec.label
+            )}</p>`
+          : ""
+      }
       ${
         struggles.length
           ? `<p class="muted" style="font-size:0.85rem">Coach focus zone: <strong style="color:var(--gold)">${escapeHtml(
