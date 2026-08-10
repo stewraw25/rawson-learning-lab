@@ -22,6 +22,8 @@ function defaultProfile(learnerId) {
       // subject -> { path: [lessonKey...], completed: { lessonKey: true }, generatedAt }
     },
     lessonHistory: [],
+    examHistory: [],
+    daily: null, // { date, lessons, exams, goal }
     parentNotes: "",
     // 0 = empty shell — must NOT beat real cloud progress on merge
     updatedAt: 0,
@@ -62,6 +64,8 @@ function normalizeProfile(learnerId, raw) {
   }
   if (!Array.isArray(p.badges)) p.badges = [];
   if (!Array.isArray(p.lessonHistory)) p.lessonHistory = [];
+  if (!Array.isArray(p.examHistory)) p.examHistory = [];
+  if (p.daily && typeof p.daily !== "object") p.daily = null;
   if (typeof p.xp !== "number" || Number.isNaN(p.xp)) p.xp = Number(p.xp) || 0;
   if (typeof p.level !== "number" || Number.isNaN(p.level)) p.level = Number(p.level) || 1;
   if (typeof p.streak !== "number" || Number.isNaN(p.streak)) p.streak = Number(p.streak) || 0;
@@ -642,6 +646,7 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
     );
     if (allAstar) unlockBadge(profile, "triple_astar");
   }
+  recordDailyActivity(profile, "lesson");
 }
 
 function subjectOverall(profile, subject) {
@@ -712,4 +717,144 @@ function maxUnlockedStage(profile, subject) {
 
 function randomEncouragement() {
   return ENCOURAGEMENT[Math.floor(Math.random() * ENCOURAGEMENT.length)];
+}
+
+/** Daily goal tracker (lessons + exams count toward goal) */
+function ensureDaily(profile) {
+  const d = todayKey();
+  if (!profile.daily || profile.daily.date !== d) {
+    profile.daily = {
+      date: d,
+      lessons: 0,
+      exams: 0,
+      goal: 2,
+    };
+  }
+  if (typeof profile.daily.goal !== "number" || profile.daily.goal < 1) {
+    profile.daily.goal = 2;
+  }
+  return profile.daily;
+}
+
+function dailyProgress(profile) {
+  const d = ensureDaily(profile);
+  const done = (d.lessons || 0) + (d.exams || 0);
+  const goal = d.goal || 2;
+  return {
+    done,
+    goal,
+    remaining: Math.max(0, goal - done),
+    pct: Math.min(100, Math.round((done / goal) * 100)),
+    met: done >= goal,
+    date: d.date,
+  };
+}
+
+function recordDailyActivity(profile, kind) {
+  const d = ensureDaily(profile);
+  if (kind === "lesson") d.lessons = (d.lessons || 0) + 1;
+  if (kind === "exam") d.exams = (d.exams || 0) + 1;
+  if (dailyProgress(profile).met) unlockBadge(profile, "daily_goal");
+  return d;
+}
+
+/**
+ * Best next action for the hub "Continue" button.
+ * @returns {{ type: string, subject?: string, skillId?: string, stage?: number, label: string } | null}
+ */
+function findNextAction(profile) {
+  if (!profile) return null;
+  const subjects = ["maths", "english", "science"];
+
+  // Prefer in-progress lessons on active stages
+  for (const sub of subjects) {
+    const diag = profile.diagnostics?.[sub];
+    if (!diag?.completed) {
+      return {
+        type: "diagnostic",
+        subject: sub,
+        label: `Start ${SUBJECTS[sub].name} placement test`,
+      };
+    }
+  }
+
+  for (const sub of subjects) {
+    ensureCourseShape(profile, sub);
+    if (!profile.courses?.[sub]) buildCourse(profile, sub, 1);
+    const stage = getActiveStage(profile, sub);
+    const next = nextLesson(profile, sub, stage);
+    if (next) {
+      const meta = getLessonMeta(sub, next, stage);
+      const stName = (COURSE_STAGES[stage] || {}).name || `Stage ${stage}`;
+      return {
+        type: "lesson",
+        subject: sub,
+        skillId: next,
+        stage,
+        label: `Continue ${SUBJECTS[sub].name}: ${meta.title} (${stName})`,
+      };
+    }
+    // Stage complete — offer unlock
+    if (stage < MAX_COURSE_STAGE && isStageComplete(profile, sub, stage)) {
+      const ns = stage + 1;
+      const nm = COURSE_STAGES[ns];
+      return {
+        type: "unlock",
+        subject: sub,
+        stage: ns,
+        label: `Unlock ${nm.emoji} ${nm.name} ${SUBJECTS[sub].name}`,
+      };
+    }
+  }
+
+  // All lessons done — suggest exam workout
+  for (const sub of subjects) {
+    const stage = getActiveStage(profile, sub) || 1;
+    if (stage >= 4 && typeof EXAM_PACKS !== "undefined" && EXAM_PACKS[sub]) {
+      const packStage = stage >= 6 ? 6 : stage >= 5 ? 5 : 4;
+      if (EXAM_PACKS[sub][packStage]) {
+        return {
+          type: "exam",
+          subject: sub,
+          stage: packStage,
+          label: `Exam workout: ${EXAM_PACKS[sub][packStage].title}`,
+        };
+      }
+    }
+  }
+
+  return {
+    type: "dashboard",
+    label: "Browse your subjects",
+  };
+}
+
+/**
+ * Build a mixed revision set from completed stage content.
+ * @returns {Array|null}
+ */
+function buildRevisionQuestions(profile, subject, count) {
+  count = count || 10;
+  const bank = [];
+  if (!profile.courses?.[subject]) return null;
+  const c = migrateCourseEntry(profile.courses[subject]);
+  for (const [stageKey, st] of Object.entries(c.stages || {})) {
+    const stageNum = Number(stageKey);
+    if (!st?.completed) continue;
+    for (const skillId of Object.keys(st.completed)) {
+      if (typeof getTeachModule !== "function") continue;
+      const mod = getTeachModule(subject, skillId, stageNum, profile.id);
+      if (!mod?.practice) continue;
+      for (const q of mod.practice) {
+        bank.push({ ...q, _skillId: skillId, _stage: stageNum });
+      }
+    }
+  }
+  if (!bank.length) return null;
+  // Shuffle
+  for (let i = bank.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [bank[i], bank[j]] = [bank[j], bank[i]];
+  }
+  return bank.slice(0, Math.min(count, bank.length));
 }

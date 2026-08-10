@@ -1,5 +1,6 @@
 /**
- * GCSE exam-style mixed workouts (unlock with pathway stage)
+ * GCSE exam-style mixed workouts
+ * Practice (feedback) or timed mock mode.
  */
 
 const EXAM_PACKS = {
@@ -149,8 +150,55 @@ const EXAM_PACKS = {
           "answer": 0,
           "explain": "7.5.",
           "stage": "both"
+        },
+        {
+          "q": "Solve 3x=27",
+          "type": "typed",
+          "answer": "9",
+          "explain": "x=9.",
+          "accept": [
+            "9"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "Area 7x4?",
+          "type": "multi",
+          "options": [
+            "28",
+            "22",
+            "11",
+            "14"
+          ],
+          "answer": 0,
+          "explain": "28.",
+          "stage": "both"
+        },
+        {
+          "q": "0.25 as fraction?",
+          "type": "multi",
+          "options": [
+            "1/4",
+            "1/5",
+            "2/5",
+            "1/3"
+          ],
+          "answer": 0,
+          "explain": "1/4.",
+          "stage": "both"
+        },
+        {
+          "q": "12.5% of 80?",
+          "type": "typed",
+          "answer": "10",
+          "explain": "10.",
+          "accept": [
+            "10"
+          ],
+          "stage": "both"
         }
-      ]
+      ],
+      "timedMinutes": 12
     },
     "5": {
       "title": "Maths Higher workout",
@@ -306,8 +354,46 @@ const EXAM_PACKS = {
           "answer": 0,
           "explain": "×√5/√5.",
           "stage": "both"
+        },
+        {
+          "q": "Expand (x+3)(x+2)",
+          "type": "multi",
+          "options": [
+            "x²+5x+6",
+            "x²+6",
+            "x²+5",
+            "2x+5"
+          ],
+          "answer": 0,
+          "explain": "FOIL.",
+          "stage": "both"
+        },
+        {
+          "q": "sin30 decimal?",
+          "type": "typed",
+          "answer": "0.5",
+          "explain": "0.5.",
+          "accept": [
+            "0.5",
+            "1/2"
+          ],
+          "stage": "both"
+        },
+        {
+          "q": "√18 simplified?",
+          "type": "multi",
+          "options": [
+            "3√2",
+            "9√2",
+            "2√3",
+            "√9"
+          ],
+          "answer": 0,
+          "explain": "3√2.",
+          "stage": "both"
         }
-      ]
+      ],
+      "timedMinutes": 16
     },
     "6": {
       "title": "Maths A* workout",
@@ -466,8 +552,45 @@ const EXAM_PACKS = {
           "answer": 0,
           "explain": "method marks.",
           "stage": "both"
+        },
+        {
+          "q": "f(x)=x², f(-3)?",
+          "type": "multi",
+          "options": [
+            "9",
+            "-9",
+            "-3",
+            "6"
+          ],
+          "answer": 0,
+          "explain": "9.",
+          "stage": "both"
+        },
+        {
+          "q": "Gradient (0,1)-(2,7)?",
+          "type": "multi",
+          "options": [
+            "3",
+            "2",
+            "4",
+            "6"
+          ],
+          "answer": 0,
+          "explain": "3.",
+          "stage": "both"
+        },
+        {
+          "q": "Volume scale lengths x3?",
+          "type": "typed",
+          "answer": "27",
+          "explain": "27.",
+          "accept": [
+            "27"
+          ],
+          "stage": "both"
         }
-      ]
+      ],
+      "timedMinutes": 20
     }
   },
   "english": {
@@ -605,8 +728,35 @@ const EXAM_PACKS = {
           "answer": 0,
           "explain": "AO6.",
           "stage": "both"
+        },
+        {
+          "q": "Homophones with their:",
+          "type": "multi",
+          "options": [
+            "there/they are",
+            "they",
+            "then",
+            "them"
+          ],
+          "answer": 0,
+          "explain": "there/theyre.",
+          "stage": "both"
+        },
+        {
+          "q": "Simile uses",
+          "type": "multi",
+          "options": [
+            "like or as",
+            "only is",
+            "and",
+            "never"
+          ],
+          "answer": 0,
+          "explain": "like/as.",
+          "stage": "both"
         }
-      ]
+      ],
+      "timedMinutes": 12
     },
     "5": {
       "title": "English Higher workout",
@@ -742,8 +892,35 @@ const EXAM_PACKS = {
           "answer": 0,
           "explain": "echo.",
           "stage": "both"
+        },
+        {
+          "q": "Semantic field",
+          "type": "multi",
+          "options": [
+            "related words",
+            "paragraph",
+            "full stop",
+            "narrator"
+          ],
+          "answer": 0,
+          "explain": "related.",
+          "stage": "both"
+        },
+        {
+          "q": "Evaluate means",
+          "type": "multi",
+          "options": [
+            "judge methods",
+            "copy plot",
+            "list dates",
+            "count words"
+          ],
+          "answer": 0,
+          "explain": "judge.",
+          "stage": "both"
         }
-      ]
+      ],
+      "timedMinutes": 16
     },
     "6": {
       "title": "English A* workout",
@@ -879,8 +1056,35 @@ const EXAM_PACKS = {
           "answer": 0,
           "explain": "secure.",
           "stage": "both"
+        },
+        {
+          "q": "Thesis is",
+          "type": "multi",
+          "options": [
+            "controlling argument",
+            "quote only",
+            "title only",
+            "full stop"
+          ],
+          "answer": 0,
+          "explain": "argument.",
+          "stage": "both"
+        },
+        {
+          "q": "Result marker",
+          "type": "multi",
+          "options": [
+            "Therefore",
+            "However",
+            "Although",
+            "Despite"
+          ],
+          "answer": 0,
+          "explain": "Therefore.",
+          "stage": "both"
         }
-      ]
+      ],
+      "timedMinutes": 20
     }
   },
   "science": {
@@ -1044,8 +1248,35 @@ const EXAM_PACKS = {
           "answer": 0,
           "explain": "trend.",
           "stage": "both"
+        },
+        {
+          "q": "Plant cells often have",
+          "type": "multi",
+          "options": [
+            "wall/chloroplasts",
+            "nucleus only unique",
+            "membrane",
+            "cytoplasm"
+          ],
+          "answer": 0,
+          "explain": "wall.",
+          "stage": "both"
+        },
+        {
+          "q": "Force unit",
+          "type": "multi",
+          "options": [
+            "newton",
+            "joule",
+            "watt",
+            "volt"
+          ],
+          "answer": 0,
+          "explain": "N.",
+          "stage": "both"
         }
-      ]
+      ],
+      "timedMinutes": 12
     },
     "5": {
       "title": "Science Higher workout",
@@ -1207,8 +1438,35 @@ const EXAM_PACKS = {
           "answer": 0,
           "explain": "bias.",
           "stage": "both"
+        },
+        {
+          "q": "Photosynthesis store",
+          "type": "multi",
+          "options": [
+            "glucose",
+            "heat only",
+            "sound",
+            "plastic"
+          ],
+          "answer": 0,
+          "explain": "glucose.",
+          "stage": "both"
+        },
+        {
+          "q": "Current unit",
+          "type": "multi",
+          "options": [
+            "ampere",
+            "volt",
+            "ohm",
+            "watt"
+          ],
+          "answer": 0,
+          "explain": "A.",
+          "stage": "both"
         }
-      ]
+      ],
+      "timedMinutes": 16
     },
     "6": {
       "title": "Science A* workout",
@@ -1370,8 +1628,35 @@ const EXAM_PACKS = {
           "answer": 0,
           "explain": "CER.",
           "stage": "both"
+        },
+        {
+          "q": "moles 40g Mr20",
+          "type": "multi",
+          "options": [
+            "2",
+            "0.5",
+            "20",
+            "800"
+          ],
+          "answer": 0,
+          "explain": "2.",
+          "stage": "both"
+        },
+        {
+          "q": "KE depends on",
+          "type": "multi",
+          "options": [
+            "mass and speed squared",
+            "colour",
+            "height only",
+            "time"
+          ],
+          "answer": 0,
+          "explain": "½mv².",
+          "stage": "both"
         }
-      ]
+      ],
+      "timedMinutes": 20
     }
   }
 };

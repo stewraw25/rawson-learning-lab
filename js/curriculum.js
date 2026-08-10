@@ -63,7 +63,7 @@ const SUBJECTS = {
  * Bella adds horses; George adds F1 / go-karting.
  * Use illustFor(key, learnerId) so each child's hub feels personal.
  */
-const ILLUST_V = "25";
+const ILLUST_V = "26";
 
 const ILLUST_SHARED = {
   mascot: {
@@ -1132,6 +1132,9 @@ const BADGES = [
   { id: "lesson_50", name: "Century Scholar", emoji: "🦉", desc: "Complete 50 lessons" },
   { id: "exam_star", name: "Exam Ready", emoji: "📝", desc: "Score 80%+ on an exam workout" },
   { id: "exam_astar", name: "Exam Ace", emoji: "🏅", desc: "Score 90%+ on an A* workout" },
+  { id: "daily_goal", name: "Daily Goal", emoji: "☀️", desc: "Hit today's learning goal" },
+  { id: "timed_mock", name: "Under Pressure", emoji: "⏱️", desc: "Finish a timed mock exam" },
+  { id: "revision_king", name: "Revision Pro", emoji: "🔁", desc: "Complete a mixed revision set" },
 ];
 
 const ENCOURAGEMENT = [

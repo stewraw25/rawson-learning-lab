@@ -846,6 +846,31 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
   font-weight: 800;
 }
 
+/* Daily goal + continue */
+.daily-goal-card.daily-met {
+  border-color: rgba(129, 199, 132, 0.55);
+  background: rgba(129, 199, 132, 0.08);
+}
+.exam-timer {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.25rem;
+  color: var(--gold);
+  min-width: 3.5rem;
+  text-align: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--line);
+}
+.exam-timer.timer-urgent {
+  color: var(--danger);
+  animation: pulse-timer 1s ease infinite;
+}
+@keyframes pulse-timer {
+  50% { opacity: 0.65; }
+}
+
 /* —— Fun Grok Imagine illustrations —— */
 .welcome-with-art {
   display: flex;

@@ -711,6 +711,8 @@ function renderDashboard() {
     return go("home");
   }
   const xpInLevel = (p.xp || 0) % 100;
+  const daily = dailyProgress(p);
+  const nextAct = findNextAction(p);
 
   appEl.innerHTML = `
     ${topbar()}
@@ -726,6 +728,26 @@ function renderDashboard() {
         <div class="lvl">Level ${p.level}</div>
         <div class="xp-bar"><div class="xp-fill" style="width:${xpInLevel}%"></div></div>
         <div class="muted" style="font-size:0.75rem;margin-top:0.25rem">${xpInLevel}/100 XP</div>
+      </div>
+    </div>
+
+    <div class="grid-2 mb-2">
+      <div class="card daily-goal-card ${daily.met ? "daily-met" : ""}">
+        <h3 style="margin-top:0;font-family:var(--display)">☀️ Today's goal</h3>
+        <p class="muted" style="margin:0 0 0.5rem">Aim for ${daily.goal} activities (lessons or exam workouts).</p>
+        <div class="skill-meter"><div class="skill-fill" style="width:${daily.pct}%"></div></div>
+        <p style="margin:0.5rem 0 0;font-weight:800">${daily.done} / ${daily.goal}${
+    daily.met ? " · Goal hit! 🎉" : ""
+  }</p>
+      </div>
+      <div class="card continue-card">
+        <h3 style="margin-top:0;font-family:var(--display)">▶️ Continue</h3>
+        <p class="muted" style="margin:0 0 0.75rem;min-height:2.4em">${escapeHtml(
+          nextAct?.label || "Open a subject to begin"
+        )}</p>
+        <button class="btn btn-primary btn-lg" type="button" id="btnContinue">
+          ${nextAct?.type === "unlock" ? "Unlock next stage →" : "Let's go →"}
+        </button>
       </div>
     </div>
 
@@ -775,6 +797,30 @@ function renderDashboard() {
   bindShell();
   appEl.querySelectorAll("[data-subject]").forEach((el) => {
     el.addEventListener("click", () => go("subject", { subject: el.dataset.subject }));
+  });
+  document.getElementById("btnContinue")?.addEventListener("click", async () => {
+    if (!nextAct) return go("home");
+    if (nextAct.type === "diagnostic") return go("diagnostic", { subject: nextAct.subject });
+    if (nextAct.type === "lesson") {
+      return go("lesson", {
+        subject: nextAct.subject,
+        skillId: nextAct.skillId,
+        stage: nextAct.stage,
+      });
+    }
+    if (nextAct.type === "unlock") {
+      startCourseStage(p, nextAct.subject, nextAct.stage);
+      await save();
+      return go("subject", { subject: nextAct.subject });
+    }
+    if (nextAct.type === "exam") {
+      return go("exam", {
+        subject: nextAct.subject,
+        packStage: nextAct.stage,
+        mode: "practice",
+      });
+    }
+    go("dashboard");
   });
 }
 
@@ -848,12 +894,10 @@ function examPacksCardHtml(subject, p, activeStage) {
   const rows = stages
     .map((st) => {
       const pack = packs[st];
-      const unlocked =
-        activeStage >= (pack.minStage || st) || isStageComplete(p, subject, pack.minStage || st);
-      // Also unlock if learner has reached that pathway stage via completion of previous
       const open =
-        unlocked ||
+        activeStage >= (pack.minStage || st) ||
         canAccessStage(p, subject, pack.minStage || st) ||
+        isStageComplete(p, subject, (pack.minStage || st) - 1) ||
         getActiveStage(p, subject) >= (pack.minStage || st);
       const hist = (p.examHistory || []).filter(
         (h) => h.subject === subject && h.packStage === st
@@ -867,70 +911,185 @@ function examPacksCardHtml(subject, p, activeStage) {
             best != null ? ` · best ${best}%` : ""
           }</p>
         </div>
-        <button class="btn ${open ? "btn-primary" : "btn-secondary"}" type="button"
-          data-exam-stage="${st}" ${open ? "" : "disabled"}>
-          ${open ? "Start workout" : "🔒 Locked"}
-        </button>
+        <div style="display:flex;flex-direction:column;gap:0.35rem">
+          <button class="btn ${open ? "btn-primary" : "btn-secondary"}" type="button"
+            data-exam-stage="${st}" data-exam-mode="practice" ${open ? "" : "disabled"}>
+            ${open ? "Practice" : "🔒"}
+          </button>
+          <button class="btn btn-secondary" type="button"
+            data-exam-stage="${st}" data-exam-mode="timed" ${open ? "" : "disabled"}
+            style="font-size:0.78rem">
+            ⏱️ Timed
+          </button>
+        </div>
       </div>`;
     })
     .join("");
+  let revUnlocked = false;
+  try {
+    if (p.courses?.[subject]) {
+      const c = migrateCourseEntry(p.courses[subject]);
+      for (const st of Object.values(c.stages || {})) {
+        if (st?.completed && Object.keys(st.completed).length) {
+          revUnlocked = true;
+          break;
+        }
+      }
+    }
+  } catch (_) {
+    /* ignore */
+  }
+
   return `<div class="card mt-2 exam-card-art">
     <div class="exam-art-row">
       <img src="${illustFor("exam").src}" alt="${escapeHtml(illustFor("exam").alt)}" class="exam-art" />
       <div>
-        <h3 style="margin-top:0">3. Exam-style workouts</h3>
-        <p class="muted" style="margin:0">Mixed questions like a mini paper — unlock as you climb GCSE Core → Higher → A*.</p>
+        <h3 style="margin-top:0">3. Exam &amp; revision</h3>
+        <p class="muted" style="margin:0">Practice with feedback, or timed mocks like a real paper. Unlock packs as you climb GCSE Core → Higher → A*.</p>
       </div>
     </div>
     <div class="course-list mt-1">${rows}</div>
+    <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button class="btn btn-secondary" type="button" id="btnRevision" ${
+        revUnlocked ? "" : "disabled"
+      }>🔁 Mixed revision (10 Qs)</button>
+    </div>
   </div>`;
 }
 
-function renderExam({ subject, packStage }) {
+/**
+ * Exam modes:
+ * - practice: check answers as you go (default)
+ * - timed: countdown, mark only at the end (exam conditions)
+ * - revision: mixed Qs from completed lessons
+ */
+function renderExam({ subject, packStage, mode, questions, title, minutes }) {
   if (!state.activeLearner) return go("home");
-  if (typeof EXAM_PACKS === "undefined" || !EXAM_PACKS[subject]?.[packStage]) {
+  mode = mode || "practice";
+  const isTimed = mode === "timed";
+  const isRevision = mode === "revision";
+
+  let pack = null;
+  let qs = questions || null;
+  let packTitle = title || "Workout";
+  let minutesLeft = minutes || 0;
+
+  if (!isRevision) {
+    if (typeof EXAM_PACKS === "undefined" || !EXAM_PACKS[subject]?.[packStage]) {
+      return go("subject", { subject });
+    }
+    pack = EXAM_PACKS[subject][packStage];
+    qs = pack.questions || [];
+    packTitle = pack.title;
+    if (isTimed) minutesLeft = minutes || pack.timedMinutes || Math.max(8, Math.ceil(qs.length * 1.2));
+  } else {
+    qs = questions || buildRevisionQuestions(profile(), subject, 10) || [];
+    packTitle = title || `${SUBJECTS[subject].name} mixed revision`;
+    packStage = packStage || 0;
+  }
+
+  if (!qs.length) {
+    alert("No questions ready yet — complete some lessons first.");
     return go("subject", { subject });
   }
-  const pack = EXAM_PACKS[subject][packStage];
-  const qs = pack.questions || [];
+
   const answers = {};
   let index = 0;
   let revealed = false;
   let answerVal = null;
+  let timerId = null;
+  let secondsLeft = isTimed ? minutesLeft * 60 : 0;
+  let timedOut = false;
+
+  function formatTime(s) {
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${String(r).padStart(2, "0")}`;
+  }
+
+  function stopTimer() {
+    if (timerId) {
+      clearInterval(timerId);
+      timerId = null;
+    }
+  }
+
+  function startTimer() {
+    if (!isTimed) return;
+    stopTimer();
+    timerId = setInterval(() => {
+      secondsLeft--;
+      const el = document.getElementById("examTimer");
+      if (el) {
+        el.textContent = formatTime(Math.max(0, secondsLeft));
+        if (secondsLeft <= 60) el.classList.add("timer-urgent");
+      }
+      if (secondsLeft <= 0) {
+        stopTimer();
+        timedOut = true;
+        finishExam();
+      }
+    }, 1000);
+  }
 
   function paint() {
     const q = qs[index];
     const pct = Math.round((index / qs.length) * 100);
+    const modeLabel = isTimed
+      ? "⏱️ Timed mock"
+      : isRevision
+        ? "🔁 Revision"
+        : "📝 Practice";
     appEl.innerHTML = `
       ${topbar()}
       <div class="quiz-header">
         <div>
-          <div class="q-meta">📝 ${escapeHtml(pack.title)} · Q${index + 1} of ${qs.length}</div>
-          <strong>${SUBJECTS[subject].emoji} Exam workout</strong>
+          <div class="q-meta">${modeLabel} · ${escapeHtml(packTitle)} · Q${
+      index + 1
+    } of ${qs.length}</div>
+          <strong>${SUBJECTS[subject].emoji} ${
+      isTimed ? "Exam conditions — answers marked at the end" : "Exam workout"
+    }</strong>
         </div>
-        <div class="progress-track" style="max-width:200px"><span style="width:${pct}%"></span></div>
+        <div style="display:flex;align-items:center;gap:0.75rem">
+          ${
+            isTimed
+              ? `<div class="exam-timer" id="examTimer">${formatTime(secondsLeft)}</div>`
+              : ""
+          }
+          <div class="progress-track" style="max-width:160px"><span style="width:${pct}%"></span></div>
+        </div>
       </div>
       <div class="card question-card">
         <h3 class="teach-heading">${escapeHtml(q.q)}</h3>
         <div id="qBody"></div>
         <div id="feedback"></div>
         <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
-          <button class="btn btn-primary" type="button" id="btnCheck">Check</button>
-          <button class="btn btn-ok" type="button" id="btnNext" style="display:none">Continue →</button>
+          ${
+            isTimed
+              ? `<button class="btn btn-primary" type="button" id="btnNext">Next →</button>`
+              : `<button class="btn btn-primary" type="button" id="btnCheck">Check</button>
+                 <button class="btn btn-ok" type="button" id="btnNext" style="display:none">Continue →</button>`
+          }
         </div>
       </div>
-      <button class="btn btn-ghost mt-1" type="button" id="btnExitExam">Exit workout</button>
+      <button class="btn btn-ghost mt-1" type="button" id="btnExitExam">Exit</button>
     `;
     bindShell();
-    document.getElementById("btnExitExam").onclick = () => go("subject", { subject });
-    answerVal = null;
+    document.getElementById("btnExitExam").onclick = () => {
+      stopTimer();
+      go("subject", { subject });
+    };
+    answerVal = answers[index]?.answer ?? null;
     revealed = false;
     const body = document.getElementById("qBody");
     if (q.type === "multi") {
       body.innerHTML = `<div class="options">${q.options
         .map(
           (opt, i) =>
-            `<button type="button" class="option" data-i="${i}">${escapeHtml(opt)}</button>`
+            `<button type="button" class="option ${
+              answerVal === i ? "selected" : ""
+            }" data-i="${i}">${escapeHtml(opt)}</button>`
         )
         .join("")}</div>`;
       body.querySelectorAll(".option").forEach((btn) => {
@@ -942,53 +1101,82 @@ function renderExam({ subject, packStage }) {
         };
       });
     } else {
-      body.innerHTML = `<input class="input-answer" id="typedAns" placeholder="Type your answer…" autocomplete="off" />`;
+      body.innerHTML = `<input class="input-answer" id="typedAns" placeholder="Type your answer…" autocomplete="off" value="${
+        answerVal != null ? escapeHtml(String(answerVal)) : ""
+      }" />`;
       const input = document.getElementById("typedAns");
       input.focus();
       input.oninput = () => {
         answerVal = input.value;
       };
       input.onkeydown = (e) => {
-        if (e.key === "Enter") document.getElementById("btnCheck")?.click();
+        if (e.key === "Enter") {
+          if (isTimed) document.getElementById("btnNext")?.click();
+          else document.getElementById("btnCheck")?.click();
+        }
       };
     }
-    document.getElementById("btnCheck").onclick = () => {
-      if (revealed) return;
-      if (answerVal === null || answerVal === "") {
-        alert("Pick or type an answer first!");
-        return;
-      }
-      revealed = true;
-      const ok = checkAnswer(q, answerVal);
-      answers[index] = { ok, answer: answerVal };
-      const fb = document.getElementById("feedback");
-      fb.className = `feedback ${ok ? "good" : "bad"}`;
-      fb.innerHTML = ok
-        ? `✓ ${escapeHtml(q.explain)}`
-        : `Not quite. ${escapeHtml(q.explain)}`;
-      if (q.type === "multi") {
-        body.querySelectorAll(".option").forEach((btn) => {
-          const i = Number(btn.dataset.i);
-          if (i === q.answer) btn.classList.add("correct");
-          if (i === answerVal && !ok) btn.classList.add("wrong");
-          btn.disabled = true;
-        });
-      }
-      document.getElementById("btnCheck").disabled = true;
-      document.getElementById("btnNext").style.display = "inline-flex";
+
+    if (isTimed) {
       document.getElementById("btnNext").onclick = async () => {
-        if (index + 1 >= qs.length) {
-          await finishExam();
-        } else {
+        if (answerVal === null || answerVal === "") {
+          if (!confirm("No answer — leave blank and continue?")) return;
+        }
+        const ok = checkAnswer(q, answerVal);
+        answers[index] = { ok, answer: answerVal };
+        if (index + 1 >= qs.length) await finishExam();
+        else {
           index++;
           paint();
         }
       };
-      autosaveSoon();
-    };
+    } else {
+      document.getElementById("btnCheck").onclick = () => {
+        if (revealed) return;
+        if (answerVal === null || answerVal === "") {
+          alert("Pick or type an answer first!");
+          return;
+        }
+        revealed = true;
+        const ok = checkAnswer(q, answerVal);
+        answers[index] = { ok, answer: answerVal };
+        const fb = document.getElementById("feedback");
+        fb.className = `feedback ${ok ? "good" : "bad"}`;
+        fb.innerHTML = ok
+          ? `✓ ${escapeHtml(q.explain || "Correct!")}`
+          : `Not quite. ${escapeHtml(q.explain || "")}`;
+        if (q.type === "multi") {
+          body.querySelectorAll(".option").forEach((btn) => {
+            const i = Number(btn.dataset.i);
+            if (i === q.answer) btn.classList.add("correct");
+            if (i === answerVal && !ok) btn.classList.add("wrong");
+            btn.disabled = true;
+          });
+        }
+        document.getElementById("btnCheck").disabled = true;
+        document.getElementById("btnNext").style.display = "inline-flex";
+        document.getElementById("btnNext").onclick = async () => {
+          if (index + 1 >= qs.length) await finishExam();
+          else {
+            index++;
+            paint();
+          }
+        };
+        autosaveSoon();
+      };
+    }
   }
 
   async function finishExam() {
+    stopTimer();
+    // Score any unanswered as wrong
+    for (let i = 0; i < qs.length; i++) {
+      if (!answers[i]) {
+        answers[i] = { ok: false, answer: null };
+      } else if (answers[i].ok == null) {
+        answers[i].ok = checkAnswer(qs[i], answers[i].answer);
+      }
+    }
     const correct = Object.values(answers).filter((a) => a.ok).length;
     const scorePct = Math.round((correct / qs.length) * 100);
     const p = profile();
@@ -1000,34 +1188,63 @@ function renderExam({ subject, packStage }) {
       correct,
       total: qs.length,
       date: todayKey(),
+      mode: isTimed ? "timed" : isRevision ? "revision" : "practice",
+      timedOut: !!timedOut,
     });
     updateStreak(p);
-    addXp(p, 40 + Math.round(scorePct / 5) + packStage * 5);
+    recordDailyActivity(p, "exam");
+    const xpBonus = isTimed ? 20 : isRevision ? 10 : 0;
+    addXp(p, 40 + Math.round(scorePct / 5) + (packStage || 0) * 5 + xpBonus);
     if (scorePct >= 80) unlockBadge(p, "exam_star");
     if (scorePct >= 90 && packStage >= 6) unlockBadge(p, "exam_astar");
+    if (isTimed) unlockBadge(p, "timed_mock");
+    if (isRevision) unlockBadge(p, "revision_king");
     try {
       await save({ quiet: false });
     } catch (e) {
       console.error(e);
     }
-    go("examResult", { subject, packStage, scorePct, correct, total: qs.length });
+    go("examResult", {
+      subject,
+      packStage,
+      scorePct,
+      correct,
+      total: qs.length,
+      mode: isTimed ? "timed" : isRevision ? "revision" : "practice",
+      timedOut,
+      title: packTitle,
+    });
   }
 
   paint();
+  startTimer();
 }
 
-function renderExamResult({ subject, packStage, scorePct, correct, total }) {
+function renderExamResult({
+  subject,
+  packStage,
+  scorePct,
+  correct,
+  total,
+  mode,
+  timedOut,
+  title,
+}) {
   const pack =
     typeof EXAM_PACKS !== "undefined" ? EXAM_PACKS[subject]?.[packStage] : null;
+  const modeLabel =
+    mode === "timed" ? "Timed mock" : mode === "revision" ? "Revision" : "Practice";
   appEl.innerHTML = `
     ${topbar()}
     <div class="card score-hero celebrate mb-2 score-hero-art">
       <img class="score-illust" src="${illustFor("exam").src}" alt="${escapeHtml(
     illustFor("exam").alt
   )}" />
-      <div class="q-meta">📝 Exam workout complete</div>
+      <div class="q-meta">📝 ${escapeHtml(modeLabel)} complete${
+    timedOut ? " · time up" : ""
+  }</div>
       <h2 style="font-family:var(--display);margin:0.5rem 0">${escapeHtml(
-        pack?.title || "Workout"
+        title || pack?.title || "Workout"
       )}</h2>
       <div class="score-big">${scorePct}%</div>
       <p>${correct}/${total} correct · +XP earned!</p>
@@ -1035,6 +1252,11 @@ function renderExamResult({ subject, packStage, scorePct, correct, total }) {
     </div>
     <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
       <button class="btn btn-primary" type="button" id="again">Try again</button>
+      ${
+        mode !== "timed" && pack
+          ? `<button class="btn btn-secondary" type="button" id="timed">⏱️ Timed mock</button>`
+          : ""
+      }
       <button class="btn btn-secondary" type="button" data-go-subject="${subject}">Back to ${
     SUBJECTS[subject].name
   }</button>
@@ -1042,7 +1264,16 @@ function renderExamResult({ subject, packStage, scorePct, correct, total }) {
   `;
   bindShell();
   document.getElementById("again").onclick = () =>
-    go("exam", { subject, packStage });
+    go("exam", {
+      subject,
+      packStage,
+      mode: mode === "revision" ? "revision" : mode === "timed" ? "timed" : "practice",
+      questions: mode === "revision" ? buildRevisionQuestions(profile(), subject, 10) : null,
+      title: mode === "revision" ? `${SUBJECTS[subject].name} mixed revision` : undefined,
+    });
+  document.getElementById("timed")?.addEventListener("click", () =>
+    go("exam", { subject, packStage, mode: "timed" })
+  );
   appEl.querySelector("[data-go-subject]")?.addEventListener("click", (e) =>
     go("subject", { subject: e.currentTarget.dataset.goSubject })
   );
@@ -1278,8 +1509,26 @@ function renderSubject({ subject }) {
   });
   appEl.querySelectorAll("[data-exam-stage]").forEach((btn) => {
     btn.addEventListener("click", () =>
-      go("exam", { subject, packStage: Number(btn.dataset.examStage) })
+      go("exam", {
+        subject,
+        packStage: Number(btn.dataset.examStage),
+        mode: btn.dataset.examMode || "practice",
+      })
     );
+  });
+  document.getElementById("btnRevision")?.addEventListener("click", () => {
+    const qs = buildRevisionQuestions(profile(), subject, 10);
+    if (!qs?.length) {
+      alert("Complete a lesson first so we have questions to revise.");
+      return;
+    }
+    go("exam", {
+      subject,
+      packStage: 0,
+      mode: "revision",
+      questions: qs,
+      title: `${SUBJECTS[subject].name} mixed revision`,
+    });
   });
   appEl.querySelectorAll("[data-switch-stage]").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -2145,6 +2394,7 @@ function parentKid(id) {
       <p class="muted">Age ${L.age} · ${L.yearGroup} · Level ${p.level} · ${
     p.xp
   } XP · Streak ${p.streak} days · ${p.badges.length} badges
+      · Today ${dailyProgress(p).done}/${dailyProgress(p).goal} goal
       · Updated ${formatTime(p.updatedAt)}</p>
       <div class="table-wrap">
         <table class="progress-table">
