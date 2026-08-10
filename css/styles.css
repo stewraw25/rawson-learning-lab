@@ -54,11 +54,132 @@ a { color: inherit; }
 /* —— Shared —— */
 .topbar {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.65rem;
+  margin-bottom: 1.15rem;
+}
+.topbar-main {
+  display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.5rem;
   flex-wrap: wrap;
+}
+
+/* Always-on Daily / Weekly / Monthly goals */
+.goals-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  width: 100%;
+}
+.goals-bar:has(.goal-triple) {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 720px) {
+  .goals-bar {
+    grid-template-columns: 1fr;
+  }
+  .goals-bar:has(.goal-triple) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.goal-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding: 0.45rem 0.65rem 0.5rem;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--line);
+  min-width: 0;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.goal-chip-top {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.goal-chip-emoji {
+  font-size: 0.95rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.goal-chip-name {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.goal-chip-badge {
+  margin-left: auto;
+  font-size: 0.85rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.goal-chip-nums {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text);
+  font-family: var(--display);
+  letter-spacing: 0.01em;
+}
+.goal-chip-nums strong {
+  color: var(--gold);
+}
+.goal-slash {
+  opacity: 0.45;
+  margin: 0 0.05rem;
+  font-weight: 700;
+}
+.goal-chip-bar {
+  display: block;
+  height: 5px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.goal-chip-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #6b9fd4, #81c784);
+  min-width: 0;
+  transition: width 0.35s ease;
+}
+.goal-chip.is-met {
+  border-color: rgba(129, 199, 132, 0.65);
+  background:
+    linear-gradient(135deg, rgba(129, 199, 132, 0.16), rgba(232, 197, 71, 0.08)),
+    rgba(0, 0, 0, 0.22);
+  box-shadow: 0 0 0 1px rgba(129, 199, 132, 0.12), 0 6px 18px rgba(46, 125, 50, 0.15);
+}
+.goal-chip.is-met .goal-chip-name {
+  color: #a5d6a7;
+}
+.goal-chip.is-met .goal-chip-bar i {
+  background: linear-gradient(90deg, #81c784, #e8c547);
+}
+.goal-chip.goal-triple {
+  border-color: rgba(232, 197, 71, 0.55);
+  background:
+    linear-gradient(135deg, rgba(232, 197, 71, 0.18), rgba(129, 199, 132, 0.1)),
+    rgba(0, 0, 0, 0.22);
+}
+.goal-chip.goal-day .goal-chip-bar i {
+  background: linear-gradient(90deg, #e8c547, #81c784);
+}
+.goal-chip.goal-week .goal-chip-bar i {
+  background: linear-gradient(90deg, #6b9fd4, #81c784);
+}
+.goal-chip.goal-month .goal-chip-bar i {
+  background: linear-gradient(90deg, #b39ddb, #6b9fd4);
 }
 
 .logo {

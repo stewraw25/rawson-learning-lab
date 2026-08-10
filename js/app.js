@@ -496,35 +496,85 @@ function showFatalError(err) {
 }
 
 // —— Shell helpers ——
+
+/**
+ * Always-visible Daily · Weekly · Monthly goals strip for the active learner.
+ * Shows mini bars + ✅ when each goal is hit (badges unlock too).
+ */
+function goalsBarHtml(p) {
+  if (!p || typeof allGoalsProgress !== "function") return "";
+  const g = allGoalsProgress(p);
+  const hasDailyBadge = (p.badges || []).includes("daily_goal");
+  const hasWeekBadge = (p.badges || []).includes("weekly_goal");
+  const hasMonthBadge = (p.badges || []).includes("monthly_goal");
+  const hasTriple = (p.badges || []).includes("goal_triple");
+
+  function chip(key, emoji, label, part, badgeEarned) {
+    const met = part.met;
+    const title = met
+      ? `${label} goal hit! ${part.done}/${part.goal}`
+      : `${label}: ${part.done} of ${part.goal} activities`;
+    return `
+      <div class="goal-chip goal-${key} ${met ? "is-met" : ""}" title="${escapeHtml(title)}" role="status">
+        <span class="goal-chip-top">
+          <span class="goal-chip-emoji">${met ? "✅" : emoji}</span>
+          <span class="goal-chip-name">${escapeHtml(label)}</span>
+          ${badgeEarned ? `<span class="goal-chip-badge" title="Badge earned">🏅</span>` : ""}
+        </span>
+        <span class="goal-chip-nums"><strong>${part.done}</strong><span class="goal-slash">/</span>${part.goal}</span>
+        <span class="goal-chip-bar" aria-hidden="true"><i style="width:${part.pct}%"></i></span>
+      </div>`;
+  }
+
+  return `
+    <div class="goals-bar" aria-label="Daily, weekly and monthly goals">
+      ${chip("day", "☀️", "Today", g.daily, hasDailyBadge && g.daily.met)}
+      ${chip("week", "📅", "Week", g.week, hasWeekBadge && g.week.met)}
+      ${chip("month", "🌙", "Month", g.month, hasMonthBadge && g.month.met)}
+      ${
+        hasTriple || g.allMet
+          ? `<div class="goal-chip goal-triple is-met" title="Daily + weekly + monthly all hit!">
+              <span class="goal-chip-top">
+                <span class="goal-chip-emoji">🎯</span>
+                <span class="goal-chip-name">Triple</span>
+                <span class="goal-chip-badge">🏅</span>
+              </span>
+              <span class="goal-chip-nums"><strong>All hit!</strong></span>
+            </div>`
+          : ""
+      }
+    </div>`;
+}
+
 function topbar(extraRight = "") {
   const L = state.activeLearner ? learner() : null;
+  const p = L ? profile() : null;
   return `
     <header class="topbar">
-      <div class="logo" role="button" tabindex="0" data-go="home">
-        <img class="logo-mark" src="assets/logo.svg" width="46" height="46" alt="Rawson Learning Lab" />
-        <div>
-          <h1>Rawson Learning Lab</h1>
-          <p>AI tutors · learning that fits around life</p>
+      <div class="topbar-main">
+        <div class="logo" role="button" tabindex="0" data-go="home">
+          <img class="logo-mark" src="assets/logo.svg" width="46" height="46" alt="Rawson Learning Lab" />
+          <div>
+            <h1>Rawson Learning Lab</h1>
+            <p>AI tutors · learning that fits around life</p>
+          </div>
+        </div>
+        <div class="pill-row">
+          ${
+            L
+              ? `<span class="pill">${L.emoji} <strong>${escapeHtml(
+                  L.name
+                )}</strong></span>
+                 <span class="pill">⚡ Lv <strong>${p.level}</strong></span>
+                 <span class="pill">🔥 <strong>${p.streak || 0}</strong> day streak</span>
+                 <button class="btn btn-ghost" data-go="dashboard" type="button">My hub</button>
+                 <button class="btn btn-ghost" data-switch type="button">Switch kid</button>`
+              : ""
+          }
+          ${extraRight}
         </div>
       </div>
-      <div class="pill-row">
-        ${
-          L
-            ? `<span class="pill">${L.emoji} <strong>${escapeHtml(
-                L.name
-              )}</strong></span>
-               <span class="pill">⚡ Lv <strong>${
-                 profile().level
-               }</strong></span>
-               <span class="pill">🔥 <strong>${
-                 profile().streak
-               }</strong> day streak</span>
-               <button class="btn btn-ghost" data-go="dashboard" type="button">My hub</button>
-               <button class="btn btn-ghost" data-switch type="button">Switch kid</button>`
-            : ""
-        }
-        ${extraRight}
-      </div>
+      ${L && p ? goalsBarHtml(p) : ""}
     </header>`;
 }
 
@@ -828,7 +878,6 @@ function renderDashboard() {
     return go("home");
   }
   const xpInLevel = (p.xp || 0) % 100;
-  const daily = dailyProgress(p);
   const nextAct = findNextAction(p);
   touchTutorVisit(p);
   window.__coachGreetSpoken = false; // allow auto-speak greeting this visit
@@ -853,37 +902,49 @@ function renderDashboard() {
 
     ${coachPanelHtml(p, L, nextAct)}
 
-    <div class="grid-2 mb-2">
-      <div class="card daily-goal-card ${daily.met ? "daily-met" : ""}">
-        <h3 style="margin-top:0;font-family:var(--display)">☀️ Today's goal</h3>
-        <p class="muted" style="margin:0 0 0.5rem">Small bites win — aim for ${daily.goal} activities today.</p>
-        <div class="skill-meter"><div class="skill-fill" style="width:${daily.pct}%"></div></div>
-        <p style="margin:0.5rem 0 0;font-weight:800">${daily.done} / ${daily.goal}${
-    daily.met ? " · Goal hit! 🎉" : ""
-  }</p>
-        ${
-          p.streak
-            ? `<p class="muted" style="margin:0.4rem 0 0;font-size:0.85rem">🔥 ${p.streak}-day streak${
-                p.streak >= 7 ? " · Week Warrior!" : ""
-              }</p>`
-            : ""
-        }
-      </div>
-      <div class="card continue-card">
-        <h3 style="margin-top:0;font-family:var(--display)">▶️ Do this next</h3>
-        <p class="muted" style="margin:0 0 0.75rem;min-height:2.4em">${escapeHtml(
-          nextAct?.label || "Open a subject to begin"
-        )}</p>
-        <button class="btn btn-primary btn-lg btn-xl" type="button" id="btnContinue" style="max-width:100%">
-          ${
-            nextAct?.type === "unlock"
-              ? "Unlock next stage →"
-              : nextAct?.type === "power5"
-                ? "⚡ Power 5 →"
-                : "Let's go →"
+    ${(() => {
+      const g = typeof allGoalsProgress === "function" ? allGoalsProgress(p) : null;
+      return g
+        ? `<div class="card mb-2 hub-goals-echo">
+        <h3 style="margin:0 0 0.35rem;font-family:var(--display)">Your goals live up top ☝️</h3>
+        <p class="muted" style="margin:0;font-size:0.9rem">
+          Today <strong style="color:var(--gold)">${g.daily.done}/${g.daily.goal}</strong>${
+            g.daily.met ? " ✅" : ""
           }
-        </button>
-      </div>
+          · Week <strong style="color:var(--gold)">${g.week.done}/${g.week.goal}</strong>${
+            g.week.met ? " ✅" : ""
+          }
+          · Month <strong style="color:var(--gold)">${g.month.done}/${g.month.goal}</strong>${
+            g.month.met ? " ✅" : ""
+          }
+          ${g.allMet ? " · <strong>🎯 Triple Goal badge!</strong>" : ""}
+          ${
+            p.streak
+              ? ` · 🔥 ${p.streak}-day streak${p.streak >= 7 ? " (Week Warrior)" : ""}`
+              : ""
+          }
+        </p>
+        <p class="muted" style="margin:0.4rem 0 0;font-size:0.8rem">
+          Parent can set daily / weekly / monthly targets in Parent zone. Hit a goal → earn a badge 🏅
+        </p>
+      </div>`
+        : "";
+    })()}
+
+    <div class="card continue-card mb-2">
+      <h3 style="margin-top:0;font-family:var(--display)">▶️ Do this next</h3>
+      <p class="muted" style="margin:0 0 0.75rem;min-height:2.4em">${escapeHtml(
+        nextAct?.label || "Open a subject to begin"
+      )}</p>
+      <button class="btn btn-primary btn-lg btn-xl" type="button" id="btnContinue" style="max-width:100%">
+        ${
+          nextAct?.type === "unlock"
+            ? "Unlock next stage →"
+            : nextAct?.type === "power5"
+              ? "⚡ Power 5 →"
+              : "Let's go →"
+        }
+      </button>
     </div>
 
     <div class="quick-actions mb-2" role="group" aria-label="Quick actions">
@@ -1161,17 +1222,15 @@ function renderPower5({ subject }) {
     const prof = profile();
     updateStreak(prof);
     recordDailyActivity(prof, "exam");
+    if (typeof bumpWeekMonth === "function") bumpWeekMonth(prof);
+    if (typeof ensureTutorMemory === "function") {
+      ensureTutorMemory(prof).lastSubject = subject;
+    }
     addXp(prof, 25 + Math.round(scorePct / 4) + (scorePct === 100 ? 15 : 0));
     unlockBadge(prof, "power_blitz");
     if (scorePct === 100) unlockBadge(prof, "power_perfect");
     if (elapsedSec <= targetSec && scorePct >= 60) unlockBadge(prof, "speed_demon");
     if ((prof.streak || 0) >= 7) unlockBadge(prof, "streak_7");
-    if (typeof ensureTutorMemory === "function") {
-      const m = ensureTutorMemory(prof);
-      m.lastSubject = subject;
-      m.weekDone = (m.weekDone || 0) + 1;
-      m.monthDone = (m.monthDone || 0) + 1;
-    }
     if (!prof.examHistory) prof.examHistory = [];
     prof.examHistory.push({
       subject,
@@ -1595,6 +1654,7 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
     });
     updateStreak(p);
     recordDailyActivity(p, "exam");
+    if (typeof bumpWeekMonth === "function") bumpWeekMonth(p);
     const xpBonus = isTimed ? 20 : isRevision ? 10 : 0;
     addXp(p, 40 + Math.round(scorePct / 5) + (packStage || 0) * 5 + xpBonus);
     if (scorePct >= 80) unlockBadge(p, "exam_star");

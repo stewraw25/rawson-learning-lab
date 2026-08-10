@@ -124,9 +124,13 @@ function recordTutorWin(profile, subject, skillId, score, title) {
   m.wins = m.wins.slice(0, 12);
   m.lastSubject = subject;
   m.lastSkillId = skillId;
-  // Count toward week/month when a lesson finishes
-  m.weekDone = (m.weekDone || 0) + 1;
-  m.monthDone = (m.monthDone || 0) + 1;
+  // Count toward week/month when a lesson finishes (+ goal badges)
+  if (typeof bumpWeekMonth === "function") {
+    bumpWeekMonth(profile);
+  } else {
+    m.weekDone = (m.weekDone || 0) + 1;
+    m.monthDone = (m.monthDone || 0) + 1;
+  }
 }
 
 function topStruggles(profile, limit) {

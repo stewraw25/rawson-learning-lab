@@ -791,17 +791,114 @@ function dailyProgress(profile) {
     done,
     goal,
     remaining: Math.max(0, goal - done),
-    pct: Math.min(100, Math.round((done / goal) * 100)),
+    pct: Math.min(100, Math.round((done / Math.max(1, goal)) * 100)),
     met: done >= goal,
     date: d.date,
   };
+}
+
+/**
+ * Weekly + monthly activity goals (from coach memory).
+ * Week/month counters roll in ensureTutorMemory.
+ */
+function weekMonthProgress(profile) {
+  const m =
+    typeof ensureTutorMemory === "function"
+      ? ensureTutorMemory(profile)
+      : profile.tutorMemory || { weekDone: 0, weeklyGoal: 8, monthDone: 0, monthlyGoal: 30 };
+  const weekDone = m.weekDone || 0;
+  const weeklyGoal = m.weeklyGoal || 8;
+  const monthDone = m.monthDone || 0;
+  const monthlyGoal = m.monthlyGoal || 30;
+  return {
+    weekDone,
+    weeklyGoal,
+    weekRemaining: Math.max(0, weeklyGoal - weekDone),
+    weekPct: Math.min(100, Math.round((weekDone / Math.max(1, weeklyGoal)) * 100)),
+    weekMet: weekDone >= weeklyGoal,
+    monthDone,
+    monthlyGoal,
+    monthRemaining: Math.max(0, monthlyGoal - monthDone),
+    monthPct: Math.min(100, Math.round((monthDone / Math.max(1, monthlyGoal)) * 100)),
+    monthMet: monthDone >= monthlyGoal,
+  };
+}
+
+/** Snapshot of all three goals for UI */
+function allGoalsProgress(profile) {
+  const daily = dailyProgress(profile);
+  const wm = weekMonthProgress(profile);
+  return {
+    daily,
+    week: {
+      done: wm.weekDone,
+      goal: wm.weeklyGoal,
+      remaining: wm.weekRemaining,
+      pct: wm.weekPct,
+      met: wm.weekMet,
+    },
+    month: {
+      done: wm.monthDone,
+      goal: wm.monthlyGoal,
+      remaining: wm.monthRemaining,
+      pct: wm.monthPct,
+      met: wm.monthMet,
+    },
+    allMet: daily.met && wm.weekMet && wm.monthMet,
+  };
+}
+
+/**
+ * Unlock goal badges whenever a goal is newly met.
+ * @returns {{ goals: object, newly: string[] }}
+ */
+function awardGoalBadges(profile) {
+  const g = allGoalsProgress(profile);
+  const newly = [];
+  if (g.daily.met && unlockBadge(profile, "daily_goal")) newly.push("daily_goal");
+  if (g.week.met && unlockBadge(profile, "weekly_goal")) newly.push("weekly_goal");
+  if (g.month.met && unlockBadge(profile, "monthly_goal")) newly.push("monthly_goal");
+  if (g.allMet && unlockBadge(profile, "goal_triple")) newly.push("goal_triple");
+  // Celebrate first-time goal hits
+  if (newly.length && typeof fireConfetti === "function") {
+    try {
+      fireConfetti();
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  if (newly.length && typeof showSavedToast === "function") {
+    const labels = {
+      daily_goal: "☀️ Daily goal hit!",
+      weekly_goal: "📅 Weekly goal hit!",
+      monthly_goal: "🌙 Monthly goal hit!",
+      goal_triple: "🎯 Triple goal — legend!",
+    };
+    showSavedToast(labels[newly[newly.length - 1]] || "Goal hit! 🏅");
+  }
+  return { goals: g, newly };
+}
+
+/**
+ * Count an activity toward week + month goals (lessons, exams, Power 5).
+ * Call after daily is updated when appropriate.
+ */
+function bumpWeekMonth(profile) {
+  if (typeof ensureTutorMemory !== "function") return;
+  const m = ensureTutorMemory(profile);
+  m.weekDone = (m.weekDone || 0) + 1;
+  m.monthDone = (m.monthDone || 0) + 1;
+  awardGoalBadges(profile);
+  return m;
 }
 
 function recordDailyActivity(profile, kind) {
   const d = ensureDaily(profile);
   if (kind === "lesson") d.lessons = (d.lessons || 0) + 1;
   if (kind === "exam") d.exams = (d.exams || 0) + 1;
-  if (dailyProgress(profile).met) unlockBadge(profile, "daily_goal");
+  // Exams/Power 5 also feed week+month; lessons get week/month via recordTutorWin
+  // but award daily badge immediately either way
+  awardGoalBadges(profile);
   return d;
 }
 
