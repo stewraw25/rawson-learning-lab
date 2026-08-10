@@ -26,7 +26,7 @@ const LEARNERS = {
     stage: "ks2",
     emoji: "🍃",
     theme: "george",
-    themeLabel: "Garden · golden mini poodles · F1 & go-karts",
+    themeLabel: "F1 · go-karting",
     tagline: "Personalised KS2 path toward GCSE",
   },
 };
@@ -63,7 +63,7 @@ const SUBJECTS = {
  * Bella adds horses; George adds F1 / go-karting.
  * Use illustFor(key, learnerId) so each child's hub feels personal.
  */
-const ILLUST_V = "26";
+const ILLUST_V = "27";
 
 const ILLUST_SHARED = {
   mascot: {
@@ -138,23 +138,51 @@ const ILLUST_LEARNER = {
   george: {
     mascot: {
       src: "assets/illust/george/mascot.jpg",
-      alt: "Golden mini poodle driving a garden go-kart",
+      alt: "Formula-style race car on track",
     },
     welcome: {
       src: "assets/illust/george/welcome.jpg",
-      alt: "Golden mini poodle in racing helmet with a go-kart",
+      alt: "Go-kart on a professional racing track",
     },
     hero: {
       src: "assets/illust/george/hero.jpg",
-      alt: "Golden mini poodle racing on a garden go-kart track",
+      alt: "Go-kart racing action on track",
     },
     celebrate: {
       src: "assets/illust/george/celebrate.jpg",
-      alt: "Poodle go-kart celebration with chequered flag",
+      alt: "Motorsport podium and chequered flag",
     },
     pick: {
       src: "assets/illust/george/pick.jpg",
-      alt: "George theme — garden, poodles, F1 and go-karts",
+      alt: "George theme — F1 and go-karting only",
+    },
+    pathway: {
+      src: "assets/illust/george/pathway.jpg",
+      alt: "Racetrack path to the finish line",
+    },
+    teach: {
+      src: "assets/illust/george/teach.jpg",
+      alt: "Racing garage study session",
+    },
+    exam: {
+      src: "assets/illust/george/exam.jpg",
+      alt: "Race engineer desk ready for a timed session",
+    },
+    unlock: {
+      src: "assets/illust/george/unlock.jpg",
+      alt: "Track opening toward the finish",
+    },
+    "subject-maths": {
+      src: "assets/illust/george/subject-maths.jpg",
+      alt: "Racing telemetry and lap data for maths",
+    },
+    "subject-english": {
+      src: "assets/illust/george/subject-english.jpg",
+      alt: "Pit garage strategy board for English",
+    },
+    "subject-science": {
+      src: "assets/illust/george/subject-science.jpg",
+      alt: "Race engineering workshop for science",
     },
   },
 };

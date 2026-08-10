@@ -581,7 +581,7 @@ function renderHome() {
         <img class="hero-logo" src="assets/logo.svg" width="72" height="72" alt="Rawson Learning Lab" />
         <p class="home-kicker">Rawson Learning Lab</p>
         <h2>Homeschooling with <span class="sparkle">AI tutors</span> — so learning fits around life</h2>
-        <p class="lead">Personal paths for <strong>Bella-Rose</strong> (garden · poodles · horses) &amp; <strong>George</strong> (garden · poodles · F1 / go-karts) · English, Maths &amp; Science · GCSE → A*</p>
+        <p class="lead">Personal paths for <strong>Bella-Rose</strong> (garden · poodles · horses) &amp; <strong>George</strong> (F1 · go-karting) · English, Maths &amp; Science · GCSE → A*</p>
         <div class="home-hero-cta">
           <button class="btn btn-primary btn-lg" type="button" data-pick="bella">Bella-Rose 🌸</button>
           <button class="btn btn-secondary btn-lg" type="button" data-pick="george">George 🍃</button>
@@ -597,7 +597,7 @@ function renderHome() {
         </figure>
         <figure class="home-theme-card">
           <img src="${illustFor("pick","george").src}" alt="${escapeHtml(illustFor("pick","george").alt)}" />
-          <figcaption>🍃 George · garden, poodles &amp; go-karts</figcaption>
+          <figcaption>🍃 George · F1 &amp; go-karting</figcaption>
         </figure>
       </div>
       <h2 class="section-title">Recent scores</h2>
