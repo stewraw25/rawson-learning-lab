@@ -442,7 +442,22 @@ async function openLearnerHub(learnerId) {
   // Push quietly in background — never block opening hub
   save({ quiet: true, learnerId }).catch(() => {});
 
+  // Instant hub — never wait on network for the kid's first paint
   go("dashboard");
+}
+
+/** Prefetch next teach module so the next lesson feels instant */
+function prefetchNextLesson(profile, subject) {
+  try {
+    if (typeof getTeachModule !== "function") return;
+    const stage = getActiveStage(profile, subject);
+    const next = nextLesson(profile, subject, stage);
+    if (!next) return;
+    // Warm the module into memory (getTeachModule is sync but warms caches)
+    getTeachModule(subject, next, stage, profile.id);
+  } catch (_) {
+    /* ignore */
+  }
 }
 
 function showFatalError(err) {
@@ -518,7 +533,7 @@ function siteFooter() {
     <footer class="site-powered">
       <span class="powered-label">Powered via</span>
       <span class="powered-brands">
-        <img class="powered-logo powered-grok" src="assets/grok-logo.svg?v=15" alt="Grok" height="28" />
+        <img class="powered-logo powered-grok" src="assets/grok-logo.svg?v=36" alt="Grok" height="28" />
         <span class="powered-amp">&amp;</span>
         <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg" alt="Rawson LABS" height="28" />
       </span>
@@ -1960,6 +1975,8 @@ function renderSubject({ subject }) {
   // Persist repair if we rebuilt an empty path
   if (diag?.completed) {
     save({ quiet: true }).catch(() => {});
+    // Warm next lesson so Start feels instant
+    prefetchNextLesson(p, subject);
   }
 
   bindShell();
@@ -2507,25 +2524,48 @@ function renderLesson({ subject, skillId, stage }) {
       questionLearnPayload(subject, skillId, q)
     );
 
+    // Clean any prior keyboard binding for this lesson paint
+    if (session._keyHandler) {
+      window.removeEventListener("keydown", session._keyHandler);
+      session._keyHandler = null;
+    }
+
+    const doCheck = () => document.getElementById("btnCheck")?.click();
+
     if (q.type === "multi") {
       body.innerHTML = `<div class="options">${q.options
         .map(
           (opt, i) =>
-            `<button type="button" class="option" data-i="${i}">${escapeHtml(
-              opt
-            )}</button>`
+            `<button type="button" class="option" data-i="${i}"><span class="opt-key">${
+              i + 1
+            }</span> ${escapeHtml(opt)}</button>`
         )
         .join("")}</div>`;
       body.querySelectorAll(".option").forEach((btn) => {
         btn.onclick = () => {
           if (revealed) return;
+          const already = btn.classList.contains("selected");
           body.querySelectorAll(".option").forEach((b) =>
             b.classList.remove("selected")
           );
           btn.classList.add("selected");
           answerVal = Number(btn.dataset.i);
+          // Double-tap same option = check (speed)
+          if (already) doCheck();
         };
       });
+      session._keyHandler = (e) => {
+        if (revealed) return;
+        if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA"))
+          return;
+        const n = Number(e.key);
+        if (n >= 1 && n <= (q.options?.length || 0)) {
+          const btn = body.querySelector(`.option[data-i="${n - 1}"]`);
+          if (btn) btn.click();
+        }
+        if (e.key === "Enter") doCheck();
+      };
+      window.addEventListener("keydown", session._keyHandler);
     } else {
       body.innerHTML = `<input class="input-answer" id="typedAns" placeholder="Type your answer…" autocomplete="off" />`;
       const input = document.getElementById("typedAns");
@@ -2534,7 +2574,7 @@ function renderLesson({ subject, skillId, stage }) {
         answerVal = input.value;
       };
       input.onkeydown = (e) => {
-        if (e.key === "Enter") document.getElementById("btnCheck")?.click();
+        if (e.key === "Enter") doCheck();
       };
     }
 
@@ -2545,12 +2585,16 @@ function renderLesson({ subject, skillId, stage }) {
         return;
       }
       revealed = true;
+      if (session._keyHandler) {
+        window.removeEventListener("keydown", session._keyHandler);
+        session._keyHandler = null;
+      }
       const ok = checkAnswer(q, answerVal);
       const fb = document.getElementById("feedback");
       fb.className = `feedback ${ok ? "good" : "bad"}`;
       fb.innerHTML = ok
-        ? `✓ Nice! ${escapeHtml(q.explain)}`
-        : `Not quite. ${escapeHtml(q.explain)}`;
+        ? `✓ Nice! ${escapeHtml(q.explain || "Correct!")}`
+        : `Not quite. ${escapeHtml(q.explain || "")}`;
 
       if (q.type === "multi") {
         body.querySelectorAll(".option").forEach((btn) => {
@@ -2587,27 +2631,25 @@ function renderLesson({ subject, skillId, stage }) {
         }
       }
 
-      const prevPhase = session.phase;
       handlePracticeAnswer(session, q, answerVal);
 
-      document.getElementById("btnAdvance").style.display = "inline-flex";
-      document.getElementById("btnAdvance").onclick = () => {
-        // handlePracticeAnswer already advanced index / phase
+      const advBtn = document.getElementById("btnAdvance");
+      advBtn.style.display = "inline-flex";
+      advBtn.onclick = () => {
         if (session.phase === "complete") {
           finishSession();
           return;
         }
-        // If phase changed to struggle/video, paint that; else next Q
-        if (
-          session.phase !== prevPhase ||
-          session.phase === "struggle_teach" ||
-          session.phase === "video"
-        ) {
-          paint();
-        } else {
-          paint();
-        }
+        paint();
       };
+      // Auto-advance when correct (fastest teaching loop)
+      if (ok) {
+        setTimeout(() => {
+          if (document.getElementById("btnAdvance") === advBtn) advBtn.click();
+        }, 600);
+      } else {
+        advBtn.focus();
+      }
     };
   }
 
@@ -2682,6 +2724,10 @@ function renderLessonResult({
   const canGoNext = nextStage && canAccessStage(p, subject, nextStage);
   const nextMeta = nextStage ? COURSE_STAGES[nextStage] : null;
   const pathPct = pathwayProgressPct(p, subject);
+  const nextActAfter = findNextAction(p);
+  const coachTip = nextActAfter?.label
+    ? `Coach says: next up — ${nextActAfter.label}`
+    : randomEncouragement();
 
   appEl.innerHTML = `
     ${topbar()}
@@ -2703,7 +2749,7 @@ function renderLessonResult({
           ? `<p class="muted">You used the support path — that's smart learning, not failure.</p>`
           : ""
       }
-      <p class="muted">${escapeHtml(randomEncouragement())}</p>
+      <p class="muted">${escapeHtml(coachTip)}</p>
     </div>
     ${
       canGoNext && nextMeta

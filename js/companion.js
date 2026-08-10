@@ -151,6 +151,12 @@ const COACH_FACTS = [
   "Streaks beat cramming: small daily practice beats one giant panic session.",
   "Even pro racing drivers study data after every lap. Checking mistakes is pro behaviour.",
   "If a topic feels hard, that means you’re at the edge of growth — perfect place to be.",
+  "Power 5 is like a pit stop: five quick questions, stay race-ready, then back to the track.",
+  "Top marks often come from clear handwriting and checking units — not just ‘being clever’.",
+  "Your coach remembers where you left off so you never waste time hunting for the next step.",
+  "Sleep and short breaks help memory more than late-night marathon revision.",
+  "In English, one strong example can unlock a whole paragraph. Quality beats waffle.",
+  "Science loves cause and effect: if X changes, what happens to Y? That’s half the battle.",
 ];
 
 function randomCoachFact() {
