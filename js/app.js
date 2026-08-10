@@ -635,12 +635,17 @@ function siteFooter() {
     <footer class="site-powered">
       <span class="powered-label">Powered via</span>
       <span class="powered-brands">
-        <a class="brand-chip brand-grok" href="https://grok.com" target="_blank" rel="noopener noreferrer" title="Open Grok by xAI">
-          <img class="brand-grok-mark" src="assets/grok-mark.svg?v=47" alt="" width="28" height="28" />
+        <a id="linkGrok"
+           class="brand-chip brand-grok"
+           href="https://grok.com/"
+           target="_blank"
+           rel="noopener noreferrer"
+           title="Open Grok by xAI — grok.com">
+          <img class="brand-grok-mark" src="assets/grok-mark.svg?v=48" alt="" width="28" height="28" draggable="false" />
           <span class="brand-grok-text">Grok</span>
         </a>
         <span class="powered-amp">&amp;</span>
-        <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg?v=47" alt="Rawson Labs" height="52" width="200" />
+        <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg?v=48" alt="Rawson Labs" height="52" width="200" />
       </span>
     </footer>`;
 }
@@ -669,6 +674,21 @@ function bindShell() {
       go("home");
     });
   }
+  // External brand links (Grok) — never swallowed by SPA handlers
+  appEl.querySelectorAll("a.brand-grok, a[href^='http']").forEach((a) => {
+    a.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const url = a.getAttribute("href");
+      if (!url || !/^https?:\/\//i.test(url)) return;
+      // Force navigation in a new tab even if something blocks default
+      e.preventDefault();
+      const win = window.open(url, "_blank", "noopener,noreferrer");
+      if (!win) {
+        // Popup blocked — fall back to same-tab navigation
+        window.location.href = url;
+      }
+    });
+  });
 }
 
 function escapeHtml(s) {
