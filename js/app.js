@@ -636,11 +636,11 @@ function siteFooter() {
       <span class="powered-label">Powered via</span>
       <span class="powered-brands">
         <a class="brand-chip brand-grok" href="https://grok.com" target="_blank" rel="noopener noreferrer" title="Open Grok by xAI">
-          <img class="brand-grok-mark" src="assets/grok-mark.svg?v=46" alt="" width="28" height="28" />
+          <img class="brand-grok-mark" src="assets/grok-mark.svg?v=47" alt="" width="28" height="28" />
           <span class="brand-grok-text">Grok</span>
         </a>
         <span class="powered-amp">&amp;</span>
-        <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg?v=46" alt="Rawson Labs" height="48" width="220" />
+        <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg?v=47" alt="Rawson Labs" height="52" width="200" />
       </span>
     </footer>`;
 }

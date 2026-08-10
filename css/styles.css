@@ -1050,8 +1050,12 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
 }
 .powered-logo.powered-rawson {
   height: 52px;
+  width: auto;
   border-radius: 14px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  /* Keep logo mark + text visually balanced with Grok chip */
+  object-fit: contain;
+  object-position: center;
 }
 .powered-amp {
   font-size: 1rem;
