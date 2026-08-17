@@ -196,65 +196,61 @@ The student got this wrong. Explain gently why, teach the idea in 3 short steps,
 }
 
 /**
- * Create an adaptive session state for a skill module
- * @param {number} [stageNum=1] Foundation=1 Intermediate=2
+ * Create lesson session — linear queue that NEVER restarts from Q1 after wrong answers.
+ * @param {number} [stageNum=1]
  */
 function createTutorSession(subject, skillId, learnerId, stageNum) {
   const stage = Number(stageNum) || 1;
   const mod = getTeachModule(subject, skillId, stage, learnerId);
   if (!mod) return null;
+  const main = (mod.practice || []).map((q, i) => ({
+    ...q,
+    _src: "main",
+    _i: i,
+  }));
   return {
     subject,
     skillId,
     learnerId,
     stage,
-    phase: "teach", // teach | example | practice | struggle_teach | struggle_practice | video | complete
+    phase: "teach", // teach | example | practice | complete
+    /** One queue — wrong answers may INSERT extra help Qs after current, never reset to 0 */
+    queue: main.slice(),
     practiceIndex: 0,
     practiceCorrect: 0,
     practiceTotal: 0,
     wrongStreak: 0,
     totalWrong: 0,
+    helpShownForIndex: {},
     struggleUsed: false,
     videoShown: false,
-    aiHelp: null,
     history: [],
     startedAt: Date.now(),
+    finished: false,
   };
 }
 
 function currentPracticeList(session) {
-  const mod = getTeachModule(
-    session.subject,
-    session.skillId,
-    session.stage || 1,
-    session.learnerId
-  );
-  if (!mod) return [];
-  if (session.phase === "struggle_practice") {
-    return mod.struggle?.practice || mod.practice || [];
-  }
-  return mod.practice || [];
+  return session.queue || [];
 }
 
 function sessionProgress(session) {
-  const list = currentPracticeList(session);
-  if (session.phase === "teach" || session.phase === "example") {
-    return { label: "Learning", pct: session.phase === "teach" ? 10 : 25 };
-  }
-  if (session.phase === "video") return { label: "Video boost", pct: 50 };
-  if (session.phase === "complete") return { label: "Done", pct: 100 };
-  const idx = session.practiceIndex;
-  const n = list.length || 1;
-  const base = session.phase.startsWith("struggle") ? 55 : 30;
-  const span = session.phase.startsWith("struggle") ? 35 : 60;
+  if (session.phase === "teach") return { label: "Learn", pct: 8 };
+  if (session.phase === "example") return { label: "Example", pct: 18 };
+  if (session.phase === "complete" || session.finished)
+    return { label: "Complete!", pct: 100 };
+  const n = Math.max(1, (session.queue || []).length);
+  const idx = Math.min(session.practiceIndex, n);
+  const pct = 20 + Math.round((idx / n) * 75);
   return {
-    label: `Question ${Math.min(idx + 1, n)} / ${n}`,
-    pct: Math.min(99, base + Math.round((idx / n) * span)),
+    label: `Question ${Math.min(idx + 1, n)} of ${n}`,
+    pct: Math.min(95, pct),
   };
 }
 
 /**
- * After answering: returns { correct, nextPhase updates to apply }
+ * Record answer only (does NOT advance index).
+ * Caller should call advanceAfterAnswer() on "Next".
  */
 function handlePracticeAnswer(session, question, userAnswer) {
   const ok = checkAnswer(question, userAnswer);
@@ -265,37 +261,57 @@ function handlePracticeAnswer(session, question, userAnswer) {
     answer: userAnswer,
     at: Date.now(),
   });
-
   if (ok) {
     session.practiceCorrect++;
     session.wrongStreak = 0;
-    session.practiceIndex++;
-    const list = currentPracticeList(session);
-    if (session.practiceIndex >= list.length) {
-      session.phase = "complete";
-    }
   } else {
     session.totalWrong++;
     session.wrongStreak++;
-    // Branch into struggle path
-    if (!session.struggleUsed && session.wrongStreak >= 1) {
-      session.struggleUsed = true;
-      session.phase = "struggle_teach";
-      session.practiceIndex = 0;
-    } else if (session.wrongStreak >= 2 && !session.videoShown) {
-      session.videoShown = true;
-      session.phase = "video";
-    } else {
-      // stay on question but mark for feedback — caller shows explain then next
-      session.practiceIndex++;
-      const list = currentPracticeList(session);
-      if (session.practiceIndex >= list.length) {
-        session.phase = "complete";
-      }
-    }
+    session.struggleUsed = true;
+  }
+  return ok;
+}
+
+/**
+ * Move to next question. Optionally insert 1 easier Q after a miss.
+ * Never restarts the full set from the beginning.
+ */
+function advanceAfterAnswer(session, wasCorrect) {
+  const mod = getTeachModule(
+    session.subject,
+    session.skillId,
+    session.stage || 1,
+    session.learnerId
+  );
+  const idx = session.practiceIndex;
+  const queue = session.queue || [];
+
+  if (
+    !wasCorrect &&
+    mod?.struggle?.practice?.length &&
+    !session.helpShownForIndex[idx]
+  ) {
+    session.helpShownForIndex[idx] = true;
+    const easier = mod.struggle.practice.map((q, i) => ({
+      ...q,
+      _src: "help",
+      _i: i,
+    }));
+    session.queue = [
+      ...queue.slice(0, idx + 1),
+      ...easier,
+      ...queue.slice(idx + 1),
+    ];
   }
 
-  return ok;
+  session.practiceIndex++;
+  if (session.practiceIndex >= (session.queue || []).length) {
+    session.phase = "complete";
+    session.finished = true;
+    return { done: true };
+  }
+  session.phase = "practice";
+  return { done: false };
 }
 
 function scoreSession(session) {

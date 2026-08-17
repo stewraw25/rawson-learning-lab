@@ -651,11 +651,47 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
   const stage = Number(stageNum) || course.activeStage || 1;
   if (!course.stages[stage]) buildCourse(profile, subject, stage);
   const st = course.stages[stage];
+  if (!st.completed || typeof st.completed !== "object" || Array.isArray(st.completed)) {
+    st.completed = {};
+  }
   st.completed[skillId] = {
     score: scorePct,
     date: todayKey(),
     stage,
   };
+  // Update skill estimate so bars move after each lesson
+  if (!profile.diagnostics) profile.diagnostics = {};
+  if (!profile.diagnostics[subject]) {
+    profile.diagnostics[subject] = {
+      completed: true,
+      score: scorePct,
+      skillScores: {},
+      date: todayKey(),
+    };
+  }
+  if (
+    !profile.diagnostics[subject].skillScores ||
+    typeof profile.diagnostics[subject].skillScores !== "object" ||
+    Array.isArray(profile.diagnostics[subject].skillScores)
+  ) {
+    profile.diagnostics[subject].skillScores = {};
+  }
+  const prevSkill = profile.diagnostics[subject].skillScores[skillId];
+  if (typeof prevSkill === "number") {
+    profile.diagnostics[subject].skillScores[skillId] = Math.round(
+      prevSkill * 0.35 + scorePct * 0.65
+    );
+  } else {
+    profile.diagnostics[subject].skillScores[skillId] = scorePct;
+  }
+  const skillVals = Object.values(profile.diagnostics[subject].skillScores).filter(
+    (v) => typeof v === "number"
+  );
+  if (skillVals.length) {
+    profile.diagnostics[subject].score = Math.round(
+      skillVals.reduce((a, b) => a + b, 0) / skillVals.length
+    );
+  }
   profile.lessonHistory.push({
     subject,
     skillId,
@@ -704,30 +740,84 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
   recordDailyActivity(profile, "lesson");
 }
 
+/**
+ * Subject % for progress bars — rises as lessons complete (not stuck near placement %).
+ * Starts at placement; each finished lesson lifts toward mastery.
+ */
 function subjectOverall(profile, subject) {
-  if (!profile || !profile.diagnostics || typeof profile.diagnostics !== "object") {
-    return null;
-  }
-  const diag = profile.diagnostics[subject];
+  if (!profile) return null;
+  const diag = profile.diagnostics && profile.diagnostics[subject];
+
+  let placement = null;
   if (diag && diag.skillScores && typeof diag.skillScores === "object") {
     const vals = Object.values(diag.skillScores).filter((v) => typeof v === "number");
-    if (!vals.length) return diag.score != null ? Number(diag.score) : null;
-    let boost = 0;
-    const c = profile.courses && profile.courses[subject];
-    if (c) {
+    if (vals.length) {
+      placement = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+    }
+  }
+  if (placement == null && diag && diag.score != null) {
+    placement = Number(diag.score);
+  }
+
+  // Count completed lessons across stages
+  let doneCount = 0;
+  let pathLen = 0;
+  const lessonScores = [];
+  const c = profile.courses && profile.courses[subject];
+  if (c) {
+    try {
       const migrated = migrateCourseEntry(c);
       for (const st of Object.values(migrated.stages || {})) {
-        if (st && st.completed && typeof st.completed === "object") {
-          boost += Object.keys(st.completed).length * 3;
+        if (!st) continue;
+        const path = Array.isArray(st.path) ? st.path : [];
+        pathLen += path.length || 0;
+        const completed =
+          st.completed && typeof st.completed === "object" && !Array.isArray(st.completed)
+            ? st.completed
+            : {};
+        for (const [k, v] of Object.entries(completed)) {
+          if (!v) continue;
+          doneCount++;
+          if (typeof v.score === "number") lessonScores.push(v.score);
+        }
+        // If path empty but completed has keys
+        if (!path.length) {
+          /* already counted completed keys */
         }
       }
-      boost = Math.min(20, boost);
+      // Fallback path length from skills if stages empty
+      if (!pathLen) {
+        pathLen = Math.max(doneCount, Object.keys(SKILLS[subject] || {}).length, 1);
+      }
+    } catch (_) {
+      pathLen = Math.max(1, Object.keys(SKILLS[subject] || {}).length);
     }
-    const base = vals.reduce((a, b) => a + b, 0) / vals.length;
-    return Math.min(100, Math.round(base + boost * 0.3));
   }
-  if (diag && diag.completed && diag.score != null) return Number(diag.score);
-  return null;
+
+  const completionRatio = pathLen > 0 ? Math.min(1, doneCount / pathLen) : 0;
+  const lessonAvg = lessonScores.length
+    ? lessonScores.reduce((a, b) => a + b, 0) / lessonScores.length
+    : null;
+
+  if (placement == null && doneCount === 0) return null;
+  if (doneCount === 0 && placement != null) {
+    return Math.min(100, Math.max(0, Math.round(placement)));
+  }
+  if (placement == null) {
+    const q =
+      lessonAvg != null
+        ? lessonAvg * 0.4 + completionRatio * 100 * 0.6
+        : completionRatio * 100;
+    return Math.min(100, Math.max(0, Math.round(q)));
+  }
+
+  // Rise from placement toward a high target as more lessons finish
+  const target = Math.max(placement, lessonAvg != null ? lessonAvg : placement, 72);
+  const blended = placement + (target - placement) * completionRatio;
+  const finishBonus = completionRatio * 14;
+  const overall = Math.round(blended + finishBonus);
+  // Never drop below placement after they've started learning
+  return Math.min(100, Math.max(placement, overall));
 }
 
 /** Next incomplete skill on the active stage (null if stage path finished) */

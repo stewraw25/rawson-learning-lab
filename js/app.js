@@ -2534,8 +2534,13 @@ function renderLesson({ subject, skillId, stage }) {
   );
   let answerVal = null;
   let revealed = false;
+  let finishing = false;
 
   function paint() {
+    if (session.finished || session.phase === "complete") {
+      finishSession();
+      return;
+    }
     const prog = sessionProgress(session);
     const skillName = SKILLS[subject]?.[skillId]?.name || skillId;
     let bodyHtml = "";
@@ -2592,53 +2597,19 @@ function renderLesson({ subject, skillId, stage }) {
               : ""
           }
         </div>`;
-    } else if (session.phase === "struggle_teach") {
-      const st = mod.struggle || {};
-      bodyHtml = `
-        <div class="phase-pill phase-struggle">🛟 Let's slow down</div>
-        <h3 class="teach-heading">Another way to see it</h3>
-        <p class="muted">No worries — everyone gets stuck. Here's a simpler path.</p>
-        ${st.visual ? `<div class="visual-wrap">${st.visual}</div>` : ""}
-        <ul class="teach-points">
-          ${(st.points || []).map((p) => `<li>${escapeHtml(p)}</li>`).join("")}
-        </ul>
-        <div id="aiHelpBox"></div>
-        <button class="btn btn-primary btn-lg mt-2" type="button" id="btnAdvance">Try an easier question →</button>
-        ${
-          isAiConfigured()
-            ? `<button class="btn btn-secondary mt-1" type="button" id="btnAiHelp">✨ Ask AI tutor to explain differently</button>`
-            : `<p class="muted mt-1" style="font-size:0.8rem">Tip: Parent can turn on Grok AI in Parent zone for extra explanations.</p>`
-        }`;
-    } else if (session.phase === "video") {
-      const vid = getVideoForModule(mod);
-      bodyHtml = `
-        <div class="phase-pill">🎬 Video boost</div>
-        <h3 class="teach-heading">Watch a quick helper</h3>
-        <p class="muted">Trusted UK education site — open it, watch a bit, then come back.</p>
-        ${
-          vid
-            ? `<a class="btn btn-primary btn-lg" href="${escapeHtml(
-                vid.url
-              )}" target="_blank" rel="noopener">${escapeHtml(vid.title)} ↗</a>`
-            : `<p>Keep practising — you've got this.</p>`
-        }
-        <button class="btn btn-ok btn-lg mt-2" type="button" id="btnAdvance">Back to practice →</button>`;
-    } else if (session.phase === "complete") {
-      finishSession();
-      return;
     } else {
-      // practice or struggle_practice
+      // practice — linear queue only (never restarts from Q1)
       const list = currentPracticeList(session);
       const q = list[session.practiceIndex];
       if (!q) {
         session.phase = "complete";
-        paint();
+        session.finished = true;
+        finishSession();
         return;
       }
+      const isHelp = q._src === "help";
       bodyHtml = `
-        <div class="phase-pill">${
-          session.phase === "struggle_practice" ? "🛟 Easier practice" : "🎯 Practice"
-        }</div>
+        <div class="phase-pill">${isHelp ? "🛟 Extra practice" : "🎯 Practice"}</div>
         ${
           q.passage
             ? `<blockquote class="passage">${escapeHtml(q.passage)}</blockquote>`
@@ -2651,7 +2622,7 @@ function renderLesson({ subject, skillId, stage }) {
         <div id="aiHelpBox"></div>
         <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
           <button class="btn btn-primary" type="button" id="btnCheck">Check</button>
-          <button class="btn btn-ok" type="button" id="btnAdvance" style="display:none">Continue →</button>
+          <button class="btn btn-ok" type="button" id="btnAdvance" style="display:none">Next →</button>
         </div>`;
     }
 
@@ -2664,10 +2635,10 @@ function renderLesson({ subject, skillId, stage }) {
     )} · ${escapeHtml(skillName)}</div>
           <strong>${escapeHtml(mod.title)}</strong>
         </div>
-        <div style="min-width:140px">
+        <div style="min-width:160px">
           <div class="muted" style="font-size:0.75rem;margin-bottom:0.25rem">${escapeHtml(
             prog.label
-          )}</div>
+          )} · ${prog.pct}%</div>
           <div class="progress-track"><span style="width:${prog.pct}%"></span></div>
         </div>
       </div>
@@ -2707,50 +2678,9 @@ function renderLesson({ subject, skillId, stage }) {
         revealed = false;
         paint();
       };
-    } else if (adv && session.phase === "struggle_teach") {
-      adv.onclick = () => {
-        session.phase = "struggle_practice";
-        session.practiceIndex = 0;
-        answerVal = null;
-        revealed = false;
-        paint();
-      };
-    } else if (adv && session.phase === "video") {
-      adv.onclick = () => {
-        session.phase = session.struggleUsed ? "struggle_practice" : "practice";
-        answerVal = null;
-        revealed = false;
-        paint();
-      };
     }
 
-    const aiBtn = document.getElementById("btnAiHelp");
-    if (aiBtn) {
-      aiBtn.onclick = async () => {
-        const box = document.getElementById("aiHelpBox");
-        box.innerHTML = `<p class="muted">✨ AI tutor is thinking…</p>`;
-        try {
-          const lastWrong = [...session.history].reverse().find((h) => !h.ok);
-          const text = await grokStruggleHelp({
-            learnerMeta: learner(),
-            subject: SUBJECTS[subject].name,
-            skillName,
-            question: lastWrong?.q || mod.title,
-            userAnswer: String(lastWrong?.answer ?? "?"),
-            correctExplain: mod.teach.points.join(" "),
-          });
-          box.innerHTML = `<div class="ai-bubble"><strong>✨ AI tutor</strong><p>${escapeHtml(
-            text
-          ).replace(/\n/g, "<br>")}</p></div>`;
-        } catch (e) {
-          box.innerHTML = `<p class="feedback bad">AI unavailable (${escapeHtml(
-            e.message || "error"
-          )}). Using built-in teaching instead — you're fine!</p>`;
-        }
-      };
-    }
-
-    if (session.phase === "practice" || session.phase === "struggle_practice") {
+    if (session.phase === "practice") {
       wirePracticeQuestion();
     }
   }
@@ -2833,12 +2763,12 @@ function renderLesson({ subject, skillId, stage }) {
         window.removeEventListener("keydown", session._keyHandler);
         session._keyHandler = null;
       }
-      const ok = checkAnswer(q, answerVal);
+      const ok = handlePracticeAnswer(session, q, answerVal);
       const fb = document.getElementById("feedback");
       fb.className = `feedback ${ok ? "good" : "bad"}`;
       fb.innerHTML = ok
         ? `✓ Nice! ${escapeHtml(q.explain || "Correct!")}`
-        : `Not quite. ${escapeHtml(q.explain || "")}`;
+        : `Not quite. ${escapeHtml(q.explain || "Read the tip, then press Next.")}`;
 
       if (q.type === "multi") {
         body.querySelectorAll(".option").forEach((btn) => {
@@ -2849,13 +2779,12 @@ function renderLesson({ subject, skillId, stage }) {
         });
       }
       document.getElementById("btnCheck").disabled = true;
-      autosaveSoon(); // auto mid-lesson
+      autosaveSoon();
 
-      // Optional live AI tip on wrong
       if (!ok && isAiConfigured()) {
         const box = document.getElementById("aiHelpBox");
         if (box) {
-          box.innerHTML = `<p class="muted" style="font-size:0.85rem">✨ Getting an extra AI tip…</p>`;
+          box.innerHTML = `<p class="muted" style="font-size:0.85rem">✨ Getting an extra tip…</p>`;
           try {
             const text = await grokStruggleHelp({
               learnerMeta: learner(),
@@ -2875,22 +2804,30 @@ function renderLesson({ subject, skillId, stage }) {
         }
       }
 
-      handlePracticeAnswer(session, q, answerVal);
-
       const advBtn = document.getElementById("btnAdvance");
+      const remaining = session.queue.length - session.practiceIndex - 1;
+      const willInject =
+        !ok &&
+        mod.struggle?.practice?.length &&
+        !session.helpShownForIndex[session.practiceIndex];
       advBtn.style.display = "inline-flex";
+      advBtn.textContent =
+        remaining <= 0 && !willInject ? "Finish lesson →" : "Next →";
       advBtn.onclick = () => {
-        if (session.phase === "complete") {
+        const result = advanceAfterAnswer(session, ok);
+        if (result.done || session.finished || session.phase === "complete") {
           finishSession();
           return;
         }
+        answerVal = null;
+        revealed = false;
         paint();
       };
-      // Auto-advance when correct (fastest teaching loop)
+      // Auto-advance when correct (fast loop) — still goes Next, never restarts
       if (ok) {
         setTimeout(() => {
           if (document.getElementById("btnAdvance") === advBtn) advBtn.click();
-        }, 600);
+        }, 550);
       } else {
         advBtn.focus();
       }
@@ -2898,6 +2835,14 @@ function renderLesson({ subject, skillId, stage }) {
   }
 
   async function finishSession() {
+    if (finishing) return;
+    finishing = true;
+    session.finished = true;
+    session.phase = "complete";
+    if (session._keyHandler) {
+      window.removeEventListener("keydown", session._keyHandler);
+      session._keyHandler = null;
+    }
     const scorePct = scoreSession(session);
     recordLesson(profile(), subject, skillId, scorePct, stageNum);
     // Store adaptive stats
