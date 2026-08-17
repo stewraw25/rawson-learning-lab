@@ -718,6 +718,9 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
       ? makeFocusMessage(subject, ranked, profile.diagnostics[subject])
       : makeStageFocusMessage(subject, ranked, profile.diagnostics[subject], stage);
 
+  // Re-order remaining lessons by live skill scores (AI-style continuous tailoring)
+  retailorRemainingPath(profile, subject, stage);
+
   if (isStageComplete(profile, subject, stage)) {
     unlockBadge(profile, `stage_${stage}_done`);
     if (stage === 1) {
@@ -738,6 +741,56 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
     if (allAstar) unlockBadge(profile, "triple_astar");
   }
   recordDailyActivity(profile, "lesson");
+}
+
+/**
+ * After each lesson: keep completed skills in order, re-sort remaining
+ * by current weakness so the pathway adapts as the student develops.
+ */
+function retailorRemainingPath(profile, subject, stageNum) {
+  try {
+    if (!profile.courses?.[subject]) return;
+    const course = migrateCourseEntry(profile.courses[subject]);
+    profile.courses[subject] = course;
+    const stage = Number(stageNum) || course.activeStage || 1;
+    const st = course.stages[stage];
+    if (!st || !Array.isArray(st.path)) return;
+    if (!st.completed || typeof st.completed !== "object" || Array.isArray(st.completed)) {
+      st.completed = {};
+    }
+    const scores = profile.diagnostics?.[subject]?.skillScores || {};
+    const done = [];
+    const remaining = [];
+    for (const id of st.path) {
+      if (st.completed[id]) done.push(id);
+      else remaining.push(id);
+    }
+    remaining.sort((a, b) => (scores[a] ?? 50) - (scores[b] ?? 50));
+    st.path = [...done, ...remaining];
+    const ranked = st.path.map((id) => ({
+      id,
+      score: scores[id] ?? 50,
+    }));
+    st.focusMessage =
+      stage <= 1
+        ? makeFocusMessage(subject, ranked, profile.diagnostics?.[subject])
+        : makeStageFocusMessage(
+            subject,
+            ranked,
+            profile.diagnostics?.[subject],
+            stage
+          );
+    // Surface adaptation note for coach/UI
+    if (remaining.length) {
+      const weakest = remaining[0];
+      const wName = SKILLS[subject]?.[weakest]?.name || weakest;
+      st.adaptNote = `Pathway updated: next focus is ${wName} (based on how you’re doing).`;
+    } else {
+      st.adaptNote = `Stage complete — every skill practiced.`;
+    }
+  } catch (e) {
+    console.warn("retailorRemainingPath", e);
+  }
 }
 
 /**

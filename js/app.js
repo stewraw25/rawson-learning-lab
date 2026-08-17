@@ -2881,6 +2881,7 @@ function renderLesson({ subject, skillId, stage }) {
         /* ignore */
       }
     }
+    const nextSkill = nextLesson(profile(), subject, stageNum);
     go("lessonResult", {
       subject,
       skillId,
@@ -2889,6 +2890,7 @@ function renderLesson({ subject, skillId, stage }) {
       total: session.practiceTotal,
       struggle: session.struggleUsed,
       stage: stageNum,
+      nextSkill,
     });
   }
 
@@ -2903,6 +2905,7 @@ function renderLessonResult({
   total,
   struggle,
   stage,
+  nextSkill,
 }) {
   const stageNum = Number(stage) || 1;
   const stageMeta = COURSE_STAGES[stageNum] || COURSE_STAGES[1];
@@ -2913,6 +2916,15 @@ function renderLessonResult({
   const canGoNext = nextStage && canAccessStage(p, subject, nextStage);
   const nextMeta = nextStage ? COURSE_STAGES[nextStage] : null;
   const pathPct = pathwayProgressPct(p, subject);
+  const overallNow = subjectOverall(p, subject);
+  const nextSkillTitle =
+    nextSkill && typeof getLessonMeta === "function"
+      ? getLessonMeta(subject, nextSkill, stageNum).title
+      : nextSkill && LESSONS[subject]?.[nextSkill]?.title;
+  const adaptNote =
+    p.courses?.[subject]?.stages?.[stageNum]?.adaptNote ||
+    p.courses?.[subject]?.adaptNote ||
+    "";
   const nextActAfter = findNextAction(p);
   const coachTip = nextActAfter?.label
     ? `Coach says: next up — ${nextActAfter.label}`
@@ -2969,15 +2981,39 @@ function renderLessonResult({
       </div>`
           : ""
     }
-    <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
-      <button class="btn btn-primary" type="button" id="more">Continue course →</button>
+    ${
+      adaptNote
+        ? `<p class="muted" style="margin:0.5rem 0 0;font-size:0.9rem">🎯 ${escapeHtml(
+            adaptNote
+          )}</p>`
+        : ""
+    }
+    <p class="muted" style="margin:0.35rem 0 0">${SUBJECTS[subject].name} level: <strong style="color:var(--gold)">${
+      overallNow != null ? overallNow + "%" : "—"
+    }</strong> · pathway ${pathPct}%</p>
+    <div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-top:1rem">
+      ${
+        nextSkill
+          ? `<button class="btn btn-primary btn-lg" type="button" id="btnNextSkill">Next lesson: ${escapeHtml(
+              nextSkillTitle || nextSkill
+            )} →</button>`
+          : `<button class="btn btn-primary" type="button" id="more">Back to ${escapeHtml(
+              SUBJECTS[subject].name
+            )} course →</button>`
+      }
       <button class="btn btn-secondary" type="button" data-go="dashboard">Back to hub</button>
     </div>
   `;
   if (scorePct >= 80 && typeof fireConfetti === "function") fireConfetti();
   if ((p.streak || 0) >= 7) unlockBadge(p, "streak_7");
   bindShell();
-  document.getElementById("more").onclick = () => go("subject", { subject });
+  const moreBtn = document.getElementById("more");
+  if (moreBtn) moreBtn.onclick = () => go("subject", { subject });
+  const nextBtn = document.getElementById("btnNextSkill");
+  if (nextBtn && nextSkill) {
+    nextBtn.onclick = () =>
+      go("lesson", { subject, skillId: nextSkill, stage: stageNum });
+  }
   document.getElementById("unlockNext")?.addEventListener("click", async () => {
     startCourseStage(p, subject, nextStage);
     await save();
@@ -2985,14 +3021,14 @@ function renderLessonResult({
   });
   // Extra win CTA after strong scores
   if (scorePct >= 70) {
-    const more = document.getElementById("more");
-    if (more && more.parentElement) {
+    const anchor = nextBtn || moreBtn;
+    if (anchor && anchor.parentElement) {
       const p5 = document.createElement("button");
       p5.className = "btn btn-secondary";
       p5.type = "button";
       p5.textContent = "⚡ Power 5 warm-down";
       p5.onclick = () => go("power5", { subject });
-      more.parentElement.insertBefore(p5, more.nextSibling);
+      anchor.parentElement.insertBefore(p5, anchor.nextSibling);
     }
   }
 }
