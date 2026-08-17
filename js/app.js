@@ -2134,42 +2134,23 @@ function renderSubject({ subject }) {
     </div>
 
     ${nextStepHtml}
-    ${stageChips ? `<div class="mb-2">${stageChips}</div>` : ""}
     ${
-      diag?.completed
-        ? coachPanelHtml(p, learner(), {
-            type: "subject",
-            subject,
-            label: nextId
-              ? `Continue ${S.name}: ${nextMeta?.title || nextId}`
-              : stageComplete
-                ? `Unlock the next ${S.name} stage`
-                : `Explore ${S.name} lessons`,
-          })
+      /* Keep stage chips small — not the main focus for kids */
+      stageChips
+        ? `<details class="card mb-2 more-options"><summary>Levels (Foundation → A*)</summary><div class="more-options-body">${stageChips}</div></details>`
         : ""
     }
     ${lessonsHtml}
-    ${diag?.completed ? stageLegendHtml() : ""}
     ${secondaryHtml}
   `;
 
   // Persist repair if we rebuilt an empty path
   if (diag?.completed) {
     save({ quiet: true }).catch(() => {});
-    // Warm next lesson so Start feels instant
     prefetchNextLesson(p, subject);
   }
 
   bindShell();
-  if (diag?.completed) {
-    bindCoachPanel(p, learner(), {
-      type: "subject",
-      subject,
-      label: nextId
-        ? `Continue ${S.name}: ${nextMeta?.title || nextId}`
-        : `Work through ${S.name}`,
-    });
-  }
 
   document.getElementById("startDiag")?.addEventListener("click", () =>
     go("diagnostic", { subject })
@@ -2881,6 +2862,29 @@ function renderLesson({ subject, skillId, stage }) {
         /* ignore */
       }
     }
+    // Ensure complete is stamped on the right stage before reading next
+    try {
+      const course = profile().courses?.[subject];
+      if (course) {
+        const migrated = migrateCourseEntry(course);
+        profile().courses[subject] = migrated;
+        const st = migrated.stages[stageNum];
+        if (st) {
+          if (!st.completed || typeof st.completed !== "object" || Array.isArray(st.completed)) {
+            st.completed = {};
+          }
+          if (!st.completed[skillId]) {
+            st.completed[skillId] = {
+              score: scorePct,
+              date: todayKey(),
+              stage: stageNum,
+            };
+          }
+        }
+      }
+    } catch (_) {
+      /* ignore */
+    }
     const nextSkill = nextLesson(profile(), subject, stageNum);
     go("lessonResult", {
       subject,
@@ -2890,7 +2894,7 @@ function renderLesson({ subject, skillId, stage }) {
       total: session.practiceTotal,
       struggle: session.struggleUsed,
       stage: stageNum,
-      nextSkill,
+      nextSkill: nextSkill === skillId ? null : nextSkill,
     });
   }
 
@@ -2903,133 +2907,124 @@ function renderLessonResult({
   scorePct,
   correctCount,
   total,
-  struggle,
   stage,
   nextSkill,
 }) {
   const stageNum = Number(stage) || 1;
-  const stageMeta = COURSE_STAGES[stageNum] || COURSE_STAGES[1];
-  const mod = getTeachModule(subject, skillId, stageNum, state.activeLearner);
   const p = profile();
+  // Re-read next skill AFTER save — never point back at the lesson just finished
+  let nextId = nextSkill;
+  try {
+    const again = nextLesson(p, subject, stageNum);
+    if (again && again !== skillId) nextId = again;
+    else if (again === skillId) {
+      // Force mark complete if next still points at same skill
+      const course = p.courses?.[subject] && migrateCourseEntry(p.courses[subject]);
+      if (course?.stages?.[stageNum]) {
+        if (!course.stages[stageNum].completed || Array.isArray(course.stages[stageNum].completed)) {
+          course.stages[stageNum].completed = {};
+        }
+        course.stages[stageNum].completed[skillId] = {
+          score: scorePct,
+          date: todayKey(),
+          stage: stageNum,
+        };
+        p.courses[subject] = course;
+        nextId = nextLesson(p, subject, stageNum);
+      }
+    }
+  } catch (e) {
+    console.warn(e);
+  }
+
   const stageJustDone = isStageComplete(p, subject, stageNum);
   const nextStage = stageJustDone && stageNum < MAX_COURSE_STAGE ? stageNum + 1 : null;
-  const canGoNext = nextStage && canAccessStage(p, subject, nextStage);
+  const canUnlockStage = nextStage && canAccessStage(p, subject, nextStage);
   const nextMeta = nextStage ? COURSE_STAGES[nextStage] : null;
-  const pathPct = pathwayProgressPct(p, subject);
-  const overallNow = subjectOverall(p, subject);
-  const nextSkillTitle =
-    nextSkill && typeof getLessonMeta === "function"
-      ? getLessonMeta(subject, nextSkill, stageNum).title
-      : nextSkill && LESSONS[subject]?.[nextSkill]?.title;
-  const adaptNote =
-    p.courses?.[subject]?.stages?.[stageNum]?.adaptNote ||
-    p.courses?.[subject]?.adaptNote ||
-    "";
-  const nextActAfter = findNextAction(p);
-  const coachTip = nextActAfter?.label
-    ? `Coach says: next up — ${nextActAfter.label}`
-    : randomEncouragement();
+  const mod = getTeachModule(subject, skillId, stageNum, state.activeLearner);
+  const nextTitle =
+    nextId && typeof getLessonMeta === "function"
+      ? getLessonMeta(subject, nextId, stageNum).title
+      : nextId;
+
+  // ONE clear action for kids — no clutter
+  let primaryHtml = "";
+  if (canUnlockStage && nextMeta) {
+    primaryHtml = `
+      <button class="btn btn-primary btn-xl big-next-btn" type="button" id="unlockNext">
+        🎉 Level done! Unlock ${escapeHtml(nextMeta.name)} →
+      </button>`;
+  } else if (nextId && nextId !== skillId) {
+    primaryHtml = `
+      <button class="btn btn-primary btn-xl big-next-btn" type="button" id="btnNextSkill">
+        ✅ Next: ${escapeHtml(nextTitle || "continue")} →
+      </button>
+      <p class="muted" id="autoNextHint" style="margin-top:0.75rem;font-size:0.9rem">
+        Starting automatically in <strong id="autoNextCount">3</strong>…
+      </p>`;
+  } else {
+    primaryHtml = `
+      <button class="btn btn-primary btn-xl big-next-btn" type="button" id="more">
+        ✅ Back to ${escapeHtml(SUBJECTS[subject].name)} →
+      </button>`;
+  }
 
   appEl.innerHTML = `
     ${topbar()}
-    <div class="card score-hero celebrate mb-2 score-hero-art">
-      <img class="score-illust" src="${
-        canGoNext || (stageJustDone && stageNum >= MAX_COURSE_STAGE)
-          ? illustFor("celebrate").src
-          : illustFor("welcome").src
-      }" alt="" />
-      <div class="q-meta">${escapeHtml(stageMeta.emoji + " " + stageMeta.name)} lesson complete</div>
-      <h2 style="font-family:var(--display);margin:0.5rem 0">${escapeHtml(
-        mod?.title || skillId
-      )}</h2>
-      <div class="score-big">${scorePct}%</div>
-      <p>${correctCount}/${total || "?"} correct on practice · +XP earned!</p>
-      <p class="muted" style="font-size:0.85rem">${SUBJECTS[subject].name} pathway to A*: <strong style="color:var(--gold)">${pathPct}%</strong></p>
-      ${
-        struggle
-          ? `<p class="muted">You used the support path — that's smart learning, not failure.</p>`
-          : ""
-      }
-      <p class="muted">${escapeHtml(coachTip)}</p>
-    </div>
-    ${
-      canGoNext && nextMeta
-        ? `<div class="card mb-2 unlock-banner-art" style="border-color:rgba(61,220,151,0.5)">
-        <img class="banner-illust" src="${illustFor("unlock").src}" alt="${escapeHtml(
-            illustFor("unlock").alt
-          )}" />
-        <div>
-        <h3 style="margin-top:0;font-family:var(--display)">${stageMeta.emoji} ${escapeHtml(
-            stageMeta.name
-          )} complete!</h3>
-        <p class="muted">Every lesson in this stage is done for ${SUBJECTS[subject].name}.
-        Unlock <strong>${escapeHtml(nextMeta.name)}</strong> (${escapeHtml(nextMeta.gradeBand)}).</p>
-        <button class="btn btn-primary btn-lg" type="button" id="unlockNext">${nextMeta.emoji} Start ${escapeHtml(
-            nextMeta.name
-          )} →</button>
-        </div>
-      </div>`
-        : stageJustDone && stageNum >= MAX_COURSE_STAGE
-          ? `<div class="card mb-2 unlock-banner-art" style="border-color:rgba(255,200,80,0.5)">
-        <img class="banner-illust" src="${illustFor("celebrate").src}" alt="${escapeHtml(
-              illustFor("celebrate").alt
-            )}" />
-        <div>
-        <h3 style="margin-top:0;font-family:var(--display)">⭐ A* Mastery complete!</h3>
-        <p class="muted">Full pathway finished for ${SUBJECTS[subject].name}. Keep revising to stay exam-sharp.</p>
-        </div>
-      </div>`
-          : ""
-    }
-    ${
-      adaptNote
-        ? `<p class="muted" style="margin:0.5rem 0 0;font-size:0.9rem">🎯 ${escapeHtml(
-            adaptNote
-          )}</p>`
-        : ""
-    }
-    <p class="muted" style="margin:0.35rem 0 0">${SUBJECTS[subject].name} level: <strong style="color:var(--gold)">${
-      overallNow != null ? overallNow + "%" : "—"
-    }</strong> · pathway ${pathPct}%</p>
-    <div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-top:1rem">
-      ${
-        nextSkill
-          ? `<button class="btn btn-primary btn-lg" type="button" id="btnNextSkill">Next lesson: ${escapeHtml(
-              nextSkillTitle || nextSkill
-            )} →</button>`
-          : `<button class="btn btn-primary" type="button" id="more">Back to ${escapeHtml(
-              SUBJECTS[subject].name
-            )} course →</button>`
-      }
-      <button class="btn btn-secondary" type="button" data-go="dashboard">Back to hub</button>
+    <div class="card simple-done-card mb-2">
+      <p class="next-step-label" style="margin:0 0 0.5rem">Lesson finished · saved ✓</p>
+      <h1 class="simple-done-title">${escapeHtml(mod?.title || "Well done!")}</h1>
+      <p class="simple-done-score">${scorePct}%</p>
+      <p class="muted" style="margin:0 0 1.25rem">${correctCount || 0} of ${
+    total || "?"
+  } correct</p>
+      ${primaryHtml}
+      <div style="margin-top:1.25rem">
+        <button class="btn btn-ghost" type="button" data-go="dashboard">Home hub</button>
+      </div>
     </div>
   `;
   if (scorePct >= 80 && typeof fireConfetti === "function") fireConfetti();
-  if ((p.streak || 0) >= 7) unlockBadge(p, "streak_7");
   bindShell();
-  const moreBtn = document.getElementById("more");
-  if (moreBtn) moreBtn.onclick = () => go("subject", { subject });
-  const nextBtn = document.getElementById("btnNextSkill");
-  if (nextBtn && nextSkill) {
-    nextBtn.onclick = () =>
-      go("lesson", { subject, skillId: nextSkill, stage: stageNum });
-  }
-  document.getElementById("unlockNext")?.addEventListener("click", async () => {
-    startCourseStage(p, subject, nextStage);
-    await save();
+
+  let autoTimer = null;
+  let countTimer = null;
+  const clearAuto = () => {
+    if (autoTimer) clearTimeout(autoTimer);
+    if (countTimer) clearInterval(countTimer);
+    const hint = document.getElementById("autoNextHint");
+    if (hint) hint.remove();
+  };
+
+  document.getElementById("more")?.addEventListener("click", () => {
+    clearAuto();
     go("subject", { subject });
   });
-  // Extra win CTA after strong scores
-  if (scorePct >= 70) {
-    const anchor = nextBtn || moreBtn;
-    if (anchor && anchor.parentElement) {
-      const p5 = document.createElement("button");
-      p5.className = "btn btn-secondary";
-      p5.type = "button";
-      p5.textContent = "⚡ Power 5 warm-down";
-      p5.onclick = () => go("power5", { subject });
-      anchor.parentElement.insertBefore(p5, anchor.nextSibling);
-    }
+  document.getElementById("btnNextSkill")?.addEventListener("click", () => {
+    clearAuto();
+    go("lesson", { subject, skillId: nextId, stage: stageNum });
+  });
+  document.getElementById("unlockNext")?.addEventListener("click", async () => {
+    clearAuto();
+    startCourseStage(p, subject, nextStage);
+    await save({ quiet: true });
+    go("subject", { subject });
+  });
+
+  // Auto-start next lesson so kids aren't stuck choosing
+  if (nextId && nextId !== skillId && !canUnlockStage) {
+    let n = 3;
+    const countEl = document.getElementById("autoNextCount");
+    countTimer = setInterval(() => {
+      n -= 1;
+      if (countEl) countEl.textContent = String(Math.max(0, n));
+      if (n <= 0) clearInterval(countTimer);
+    }, 1000);
+    autoTimer = setTimeout(() => {
+      if (currentScreen === "lessonResult" || document.getElementById("btnNextSkill")) {
+        go("lesson", { subject, skillId: nextId, stage: stageNum });
+      }
+    }, 3000);
   }
 }
 

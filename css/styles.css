@@ -950,6 +950,33 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
   color: #c5e1a5 !important;
 }
 
+/* Super-clear lesson finished screen */
+.simple-done-card {
+  text-align: center;
+  padding: 2rem 1.5rem 1.75rem !important;
+  border-top: 4px solid #66bb6a;
+}
+.simple-done-title {
+  font-family: var(--display);
+  font-size: clamp(1.4rem, 4vw, 1.85rem);
+  margin: 0 0 0.5rem;
+  line-height: 1.25;
+}
+.simple-done-score {
+  font-family: var(--display);
+  font-size: 3.2rem;
+  font-weight: 700;
+  color: var(--gold);
+  margin: 0.25rem 0 0.5rem;
+  line-height: 1;
+}
+.big-next-btn {
+  width: 100%;
+  max-width: 28rem;
+  font-size: 1.15rem !important;
+  padding: 1rem 1.25rem !important;
+}
+
 /* Auto-save toast for kids */
 .auto-save-toast {
   position: fixed;
