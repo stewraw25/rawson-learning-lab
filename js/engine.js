@@ -404,6 +404,104 @@ function serializeCourseEntry(c) {
   };
 }
 
+/** Union two course maps so cloud sync cannot drop completed lessons. */
+function mergeCourseEntry(a, b) {
+  const A = migrateCourseEntry(a) || { activeStage: 1, stages: {} };
+  const B = migrateCourseEntry(b) || { activeStage: 1, stages: {} };
+  const stages = {};
+  const keys = new Set([
+    ...Object.keys(A.stages || {}),
+    ...Object.keys(B.stages || {}),
+  ]);
+  for (const k of keys) {
+    const sa = A.stages[k] || { path: [], completed: {}, generatedAt: 0, focusMessage: "" };
+    const sb = B.stages[k] || { path: [], completed: {}, generatedAt: 0, focusMessage: "" };
+    const completed = { ...(sb.completed || {}) };
+    for (const [id, rec] of Object.entries(sa.completed || {})) {
+      const prev = completed[id];
+      if (!prev || (Number(rec?.score) || 0) >= (Number(prev?.score) || 0)) {
+        completed[id] = rec;
+      }
+    }
+    const path =
+      (sa.path || []).length >= (sb.path || []).length ? sa.path || [] : sb.path || [];
+    stages[k] = {
+      path,
+      completed,
+      generatedAt: Math.max(Number(sa.generatedAt) || 0, Number(sb.generatedAt) || 0),
+      focusMessage: sa.focusMessage || sb.focusMessage || "",
+    };
+  }
+  return {
+    activeStage: Math.max(Number(A.activeStage) || 1, Number(B.activeStage) || 1),
+    stages,
+  };
+}
+
+function mergeHistory(a, b) {
+  const out = [];
+  const seen = new Set();
+  const push = (h) => {
+    if (!h || typeof h !== "object") return;
+    const key = [h.date || "", h.subject || "", h.skillId || "", h.stage || "", h.score || ""].join("|");
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(h);
+  };
+  (Array.isArray(a) ? a : []).forEach(push);
+  (Array.isArray(b) ? b : []).forEach(push);
+  return out;
+}
+
+/** Keep the best of both profiles. Never replace a working local with a wiped cloud copy. */
+function mergeProfiles(localP, remoteP, learnerId) {
+  if (!remoteP) return localP;
+  if (!localP) return normalizeProfile(learnerId, remoteP);
+  const L = normalizeProfile(learnerId, localP);
+  const R = normalizeProfile(learnerId, remoteP);
+  const out = { ...R, ...L, id: learnerId };
+  out.xp = Math.max(Number(L.xp) || 0, Number(R.xp) || 0);
+  out.level = Math.max(Number(L.level) || 1, Number(R.level) || 1);
+  out.streak = Math.max(Number(L.streak) || 0, Number(R.streak) || 0);
+  out.updatedAt = Math.max(Number(L.updatedAt) || 0, Number(R.updatedAt) || 0);
+  out.badges = [...new Set([...(L.badges || []), ...(R.badges || [])])];
+  out.lessonHistory = mergeHistory(L.lessonHistory, R.lessonHistory);
+  out.examHistory = mergeHistory(L.examHistory, R.examHistory);
+  out.diagnostics = { ...(R.diagnostics || {}), ...(L.diagnostics || {}) };
+  for (const sub of new Set([
+    ...Object.keys(R.diagnostics || {}),
+    ...Object.keys(L.diagnostics || {}),
+  ])) {
+    const ld = L.diagnostics?.[sub];
+    const rd = R.diagnostics?.[sub];
+    if (ld && rd) {
+      out.diagnostics[sub] = {
+        ...rd,
+        ...ld,
+        completed: !!(ld.completed || rd.completed),
+        score: Math.max(Number(ld.score) || 0, Number(rd.score) || 0),
+        skillScores: { ...(rd.skillScores || {}), ...(ld.skillScores || {}) },
+      };
+    }
+  }
+  out.courses = {};
+  const courseKeys = new Set([
+    ...Object.keys(L.courses || {}),
+    ...Object.keys(R.courses || {}),
+  ]);
+  for (const sub of courseKeys) {
+    if (L.courses?.[sub] && R.courses?.[sub]) {
+      out.courses[sub] = mergeCourseEntry(L.courses[sub], R.courses[sub]);
+    } else {
+      out.courses[sub] = migrateCourseEntry(L.courses?.[sub] || R.courses?.[sub]);
+    }
+  }
+  if (L.tutorMemory || R.tutorMemory) {
+    out.tutorMemory = { ...(R.tutorMemory || {}), ...(L.tutorMemory || {}) };
+  }
+  return normalizeProfile(learnerId, out);
+}
+
 /** Copy a profile for localStorage / Firebase without mutating live state. */
 function prepareProfileForCloud(profile, learnerId) {
   if (!profile || typeof profile !== "object") return profile;
@@ -979,7 +1077,8 @@ function subjectOverall(profile, subject) {
 }
 
 /** Next incomplete skill on the active stage (null if stage path finished) */
-function nextLesson(profile, subject, stageNum) {
+function nextLesson(profile, subject, stageNum, skipSkillId) {
+  recoverCompletionsFromHistory(profile, subject);
   if (!profile.courses || !profile.courses[subject]) {
     buildCourse(profile, subject, 1);
   }
@@ -995,7 +1094,17 @@ function nextLesson(profile, subject, stageNum) {
   if (!st.completed || typeof st.completed !== "object" || Array.isArray(st.completed)) {
     st.completed = {};
   }
-  for (const skillId of st.path) {
+  const skip = skipSkillId || null;
+  // Prefer the next item AFTER the one just finished so we never rewind
+  const startAt = skip && st.path.includes(skip) ? st.path.indexOf(skip) + 1 : 0;
+  for (let i = startAt; i < st.path.length; i++) {
+    const skillId = st.path[i];
+    if (skillId === skip) continue;
+    if (!st.completed[skillId]) return skillId;
+  }
+  for (let i = 0; i < startAt; i++) {
+    const skillId = st.path[i];
+    if (skillId === skip) continue;
     if (!st.completed[skillId]) return skillId;
   }
   return null; // this stage complete

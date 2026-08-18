@@ -192,9 +192,13 @@ async function pushProfile(learnerId, profile) {
     remote = null;
   }
 
-  // Don't clobber richer cloud data with emptier local
-  if (remote && progressScore(remote) > progressScore(profile)) {
-    return { skipped: true, reason: "remote_richer", remote };
+  // Never replace a just-recorded lesson with a wiped cloud copy
+  if (remote) {
+    const merged = mergeProfiles(profile, remote, learnerId);
+    if (progressScore(remote) > progressScore(profile) && progressScore(merged) >= progressScore(remote)) {
+      return { skipped: true, reason: "remote_richer_merged", remote: merged };
+    }
+    profile = merged;
   }
 
   const payload = prepareProfileForCloud(
@@ -238,13 +242,13 @@ async function pullProfiles(state) {
     if (!remoteP) continue;
     const localP = state.profiles[id] || defaultProfile(id);
 
-    if (preferRemoteProfile(localP, remoteP)) {
-      state.profiles[id] = normalizeProfile(id, {
-        ...remoteP,
-        updatedAt: remoteP.updatedAt || localP.updatedAt || 0,
-      });
+    const merged = mergeProfiles(localP, remoteP, id);
+    const before = progressScore(localP);
+    const after = progressScore(merged);
+    if (after !== before || preferRemoteProfile(localP, remoteP)) {
+      state.profiles[id] = merged;
       changed = true;
-      if (profileHasProgress(remoteP)) restored.push(id);
+      if (profileHasProgress(merged)) restored.push(id);
     }
   }
   return { ok: true, state, changed, restored };

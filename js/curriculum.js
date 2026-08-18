@@ -63,7 +63,7 @@ const SUBJECTS = {
  * George = F1 & go-karting only (no dogs).
  * Use illustFor(key, learnerId) so each child's hub is personal.
  */
-const ILLUST_V = "34";
+const ILLUST_V = "62";
 
 const ILLUST_SHARED = {
   coach: {
@@ -141,6 +141,34 @@ const ILLUST_LEARNER = {
     pick: {
       src: "assets/illust/bella/pick.jpg",
       alt: "Bella-Rose theme — golden poodle and black horse in the garden paddock",
+    },
+    pathway: {
+      src: "assets/illust/bella/pathway.jpg",
+      alt: "Poodle and black horse climbing a paddock path",
+    },
+    teach: {
+      src: "assets/illust/bella/teach.jpg",
+      alt: "Poodle teaching at a paddock chalkboard with the black horse watching",
+    },
+    exam: {
+      src: "assets/illust/bella/exam.jpg",
+      alt: "Poodle and black horse at a quiet exam table in the paddock",
+    },
+    unlock: {
+      src: "assets/illust/bella/unlock.jpg",
+      alt: "Poodle and black horse at an open paddock gate",
+    },
+    "subject-maths": {
+      src: "assets/illust/bella/subject-maths.jpg",
+      alt: "Black horse and poodle with a maths workbook in the paddock",
+    },
+    "subject-english": {
+      src: "assets/illust/bella/subject-english.jpg",
+      alt: "Black horse and poodle with a storybook in the garden",
+    },
+    "subject-science": {
+      src: "assets/illust/bella/subject-science.jpg",
+      alt: "Black horse and poodle at a greenhouse science table",
     },
   },
   george: {

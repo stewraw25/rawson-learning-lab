@@ -16,6 +16,9 @@ let debouncedSaveTimer = null;
 /** Cancels stale home-page repaints that stole focus from George's hub */
 let homePaintGeneration = 0;
 let currentScreen = "home";
+/** Live in-progress quiz — remounting the same lesson must NOT restart Q1 */
+let liveLesson = null;
+let liveDiag = null;
 
 function stopParentPoll() {
   if (parentPollTimer) {
@@ -242,6 +245,10 @@ function parseHashRoute() {
     params.subject = parts[1];
     params.skillId = parts[2];
     params.stage = Number(parts[3]) || 1;
+    // Finished-lesson hash — never remount the quiz from Q1
+    if (parts[2] === "done" || parts[4] === "done") {
+      return { screen: "subject", params: { subject: parts[1] } };
+    }
   }
   if (screen === "exam") {
     params.subject = parts[1];
@@ -261,14 +268,17 @@ function hashFor(screen, params = {}) {
   if (screen === "diagnostic") return `#/diagnostic/${params.subject || "maths"}`;
   if (screen === "lesson")
     return `#/lesson/${params.subject}/${params.skillId}/${params.stage || 1}`;
+  if (screen === "lessonResult")
+    return `#/lesson/${params.subject}/${params.skillId || "done"}/${params.stage || 1}/done`;
+  if (screen === "diagnosticResult")
+    return `#/subject/${params.subject || "maths"}`;
   if (screen === "exam")
     return `#/exam/${params.subject}/${params.packStage || 4}/${params.mode || "practice"}`;
   if (screen === "power5") return `#/power5/${params.subject || "maths"}`;
   if (screen === "parent") return "#/parent";
   if (screen === "aiSettings") return "#/aiSettings";
   if (screen === "sync") return "#/sync";
-  // Results: point hash at a safe parent so refresh/back doesn't blank out
-  if (screen === "lessonResult" || screen === "diagnosticResult" || screen === "examResult") {
+  if (screen === "examResult") {
     return `#/subject/${params.subject || "maths"}`;
   }
   return `#/${screen}`;
@@ -648,11 +658,11 @@ function siteFooter() {
            target="_blank"
            rel="noopener noreferrer"
            title="Open Grok by xAI — grok.com">
-          <img class="brand-grok-mark" src="assets/grok-mark.svg?v=61" alt="" width="28" height="28" draggable="false" />
+          <img class="brand-grok-mark" src="assets/grok-mark.svg?v=62" alt="" width="28" height="28" draggable="false" />
           <span class="brand-grok-text">Grok</span>
         </a>
         <span class="powered-amp">&amp;</span>
-        <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg?v=61" alt="Rawson Labs" height="52" width="200" />
+        <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg?v=62" alt="Rawson Labs" height="52" width="200" />
       </span>
     </footer>`;
 }
@@ -832,8 +842,9 @@ function renderHome() {
     ${topbar(`<button class="btn btn-ghost" data-go="parent" type="button">Parent zone</button>`)}
 
     <section class="home-hero">
-      <div class="home-hero-media">
-        <img src="assets/hero-home.jpg" alt="Homeschool study table with books in a garden setting" />
+      <div class="home-hero-media home-hero-split">
+        <img src="${illustFor("pick", "bella").src}" alt="${escapeHtml(illustFor("pick", "bella").alt)}" />
+        <img src="${illustFor("pick", "george").src}" alt="${escapeHtml(illustFor("pick", "george").alt)}" />
         <div class="home-hero-overlay"></div>
       </div>
       <div class="home-hero-copy">
@@ -2262,6 +2273,16 @@ function renderSubject({ subject }) {
 function renderDiagnostic({ subject }) {
   if (!state.activeLearner) return go("home");
   if (!subject || !SUBJECTS[subject]) return go("dashboard");
+  const diagKey = `${state.activeLearner}:${subject}`;
+  if (
+    liveDiag &&
+    liveDiag.key === diagKey &&
+    typeof liveDiag.paint === "function" &&
+    !liveDiag.finished
+  ) {
+    liveDiag.paint();
+    return;
+  }
   let qs = [];
   try {
     qs = questionsForLearner(subject, state.activeLearner) || [];
@@ -2284,6 +2305,7 @@ function renderDiagnostic({ subject }) {
   const answers = {};
   let index = 0;
   let revealed = false;
+  liveDiag = { key: diagKey, finished: false, paint: null };
 
   function paint() {
     const q = qs[index];
@@ -2442,6 +2464,10 @@ function renderDiagnostic({ subject }) {
   }
 
   async function finish() {
+    if (liveDiag && liveDiag.key === diagKey) {
+      liveDiag.finished = true;
+      liveDiag = null;
+    }
     const result = scoreDiagnostic(subject, state.activeLearner, answers);
     recordDiagnostic(profile(), subject, answers, result);
     try {
@@ -2458,6 +2484,7 @@ function renderDiagnostic({ subject }) {
     go("diagnosticResult", { subject, result });
   }
 
+  if (liveDiag && liveDiag.key === diagKey) liveDiag.paint = paint;
   paint();
 }
 
@@ -2518,6 +2545,18 @@ function renderLesson({ subject, skillId, stage }) {
     return go("subject", { subject });
   }
 
+  const liveKey = `${state.activeLearner}:${subject}:${skillId}:${stageNum}`;
+  if (
+    liveLesson &&
+    liveLesson.key === liveKey &&
+    liveLesson.session &&
+    !liveLesson.session.finished &&
+    typeof liveLesson.paint === "function"
+  ) {
+    liveLesson.paint();
+    return;
+  }
+
   // Revising a finished lesson? Offer a fast skip to practice.
   let isRevise = false;
   try {
@@ -2536,6 +2575,7 @@ function renderLesson({ subject, skillId, stage }) {
   let answerVal = null;
   let revealed = false;
   let finishing = false;
+  liveLesson = { key: liveKey, session, paint: null };
 
   function paint() {
     if (session.finished || session.phase === "complete") {
@@ -2840,6 +2880,7 @@ function renderLesson({ subject, skillId, stage }) {
     finishing = true;
     session.finished = true;
     session.phase = "complete";
+    if (liveLesson && liveLesson.key === liveKey) liveLesson = null;
     if (session._keyHandler) {
       window.removeEventListener("keydown", session._keyHandler);
       session._keyHandler = null;
@@ -2905,7 +2946,7 @@ function renderLesson({ subject, skillId, stage }) {
     } catch (_) {
       /* ignore */
     }
-    const nextSkill = nextLesson(profile(), subject, stageNum);
+    const nextSkill = nextLesson(profile(), subject, stageNum, skillId);
     go("lessonResult", {
       subject,
       skillId,
@@ -2918,6 +2959,7 @@ function renderLesson({ subject, skillId, stage }) {
     });
   }
 
+  if (liveLesson && liveLesson.key === liveKey) liveLesson.paint = paint;
   paint();
 }
 
@@ -2935,7 +2977,7 @@ function renderLessonResult({
   // Re-read next skill AFTER save — never point back at the lesson just finished
   let nextId = nextSkill;
   try {
-    const again = nextLesson(p, subject, stageNum);
+    const again = nextLesson(p, subject, stageNum, skillId);
     if (again && again !== skillId) nextId = again;
     else if (again === skillId) {
       // Force mark complete if next still points at same skill
