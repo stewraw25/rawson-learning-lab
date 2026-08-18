@@ -605,7 +605,33 @@ function ensureCourseReady(profile, subject) {
         `Your ${SUBJECTS[subject].name} lessons are ready — start at the top!`,
     };
   }
-  return c.stages[stage];
+  if (!profile._autoProgressing) {
+    profile._autoProgressing = true;
+    try {
+      autoProgressStages(profile, subject);
+    } finally {
+      profile._autoProgressing = false;
+    }
+  }
+  return c.stages[c.activeStage] || c.stages[stage];
+}
+
+/** If Foundation (or any stage) is finished, move them on. Don't send them back to Q1. */
+function autoProgressStages(profile, subject) {
+  if (!profile?.diagnostics?.[subject]?.completed) return;
+  recoverCompletionsFromHistory(profile, subject);
+  let guard = 0;
+  while (guard++ < MAX_COURSE_STAGE) {
+    const stage = Number(profile.courses?.[subject]?.activeStage) || 1;
+    if (!isStageComplete(profile, subject, stage)) break;
+    if (stage >= MAX_COURSE_STAGE) break;
+    const next = stage + 1;
+    if (!canAccessStage(profile, subject, next)) break;
+    startCourseStage(profile, subject, next);
+    if (!profile.courses[subject].stages[next]?.path?.length) {
+      buildCourse(profile, subject, next);
+    }
+  }
 }
 
 function getCourseStageData(profile, subject, stageNum) {

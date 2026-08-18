@@ -199,6 +199,43 @@ The student got this wrong. Explain gently why, teach the idea in 3 short steps,
  * Create lesson session — linear queue that NEVER restarts from Q1 after wrong answers.
  * @param {number} [stageNum=1]
  */
+function quizPersistKey(learnerId, subject, skillId, stage) {
+  return `rawson-live-quiz-v1:${learnerId || "x"}:${subject}:${skillId}:${stage}`;
+}
+
+function persistQuizSession(session) {
+  if (!session || session.finished || typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.setItem(
+      quizPersistKey(session.learnerId, session.subject, session.skillId, session.stage),
+      JSON.stringify({
+        phase: session.phase,
+        practiceIndex: session.practiceIndex,
+        practiceCorrect: session.practiceCorrect,
+        practiceTotal: session.practiceTotal,
+        wrongStreak: session.wrongStreak,
+        totalWrong: session.totalWrong,
+        helpShownForIndex: session.helpShownForIndex || {},
+        struggleUsed: !!session.struggleUsed,
+        queue: session.queue,
+        history: session.history,
+        startedAt: session.startedAt,
+      })
+    );
+  } catch (_) {
+    /* ignore quota */
+  }
+}
+
+function clearQuizSession(learnerId, subject, skillId, stage) {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.removeItem(quizPersistKey(learnerId, subject, skillId, stage));
+  } catch (_) {
+    /* ignore */
+  }
+}
+
 function createTutorSession(subject, skillId, learnerId, stageNum) {
   const stage = Number(stageNum) || 1;
   const mod = getTeachModule(subject, skillId, stage, learnerId);
@@ -208,7 +245,7 @@ function createTutorSession(subject, skillId, learnerId, stageNum) {
     _src: "main",
     _i: i,
   }));
-  return {
+  const session = {
     subject,
     skillId,
     learnerId,
@@ -228,6 +265,31 @@ function createTutorSession(subject, skillId, learnerId, stageNum) {
     startedAt: Date.now(),
     finished: false,
   };
+  // Resume mid-quiz if the screen remounted (this was sending kids back to Q1)
+  if (typeof sessionStorage !== "undefined") {
+    try {
+      const raw = sessionStorage.getItem(quizPersistKey(learnerId, subject, skillId, stage));
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved && typeof saved === "object" && saved.phase && saved.phase !== "complete") {
+          session.phase = saved.phase;
+          session.practiceIndex = Number(saved.practiceIndex) || 0;
+          session.practiceCorrect = Number(saved.practiceCorrect) || 0;
+          session.practiceTotal = Number(saved.practiceTotal) || 0;
+          session.wrongStreak = Number(saved.wrongStreak) || 0;
+          session.totalWrong = Number(saved.totalWrong) || 0;
+          session.helpShownForIndex = saved.helpShownForIndex || {};
+          session.struggleUsed = !!saved.struggleUsed;
+          if (Array.isArray(saved.queue) && saved.queue.length) session.queue = saved.queue;
+          if (Array.isArray(saved.history)) session.history = saved.history;
+          if (saved.startedAt) session.startedAt = saved.startedAt;
+        }
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  return session;
 }
 
 function currentPracticeList(session) {

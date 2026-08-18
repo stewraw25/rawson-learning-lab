@@ -19,6 +19,7 @@ let currentScreen = "home";
 /** Live in-progress quiz — remounting the same lesson must NOT restart Q1 */
 let liveLesson = null;
 let liveDiag = null;
+let navLock = false;
 
 function stopParentPoll() {
   if (parentPollTimer) {
@@ -304,6 +305,7 @@ function cleanupTransientUi() {
 }
 
 function go(screen, params = {}, opts = {}) {
+  navLock = true;
   stopParentPoll();
   cleanupTransientUi();
   try {
@@ -418,10 +420,36 @@ function go(screen, params = {}, opts = {}) {
     } catch (err2) {
       showFatalError(err2 || err);
     }
+  } finally {
+    setTimeout(() => {
+      navLock = false;
+    }, 50);
   }
 }
 
 function onHashNavigation() {
+  if (navLock) return;
+  if (
+    currentScreen === "lessonResult" ||
+    currentScreen === "diagnosticResult" ||
+    currentScreen === "examResult"
+  ) {
+    return;
+  }
+  // Never remount an in-progress quiz — that was resetting kids to Q1
+  if (
+    liveLesson &&
+    liveLesson.session &&
+    !liveLesson.session.finished &&
+    typeof liveLesson.paint === "function"
+  ) {
+    liveLesson.paint();
+    return;
+  }
+  if (liveDiag && !liveDiag.finished && typeof liveDiag.paint === "function") {
+    liveDiag.paint();
+    return;
+  }
   const { screen, params } = parseHashRoute();
   const allowed = new Set([
     "home",
@@ -623,9 +651,10 @@ function topbar(extraRight = "") {
       <div class="topbar-main">
         <div class="logo" role="button" tabindex="0" data-go="home">
           <img class="logo-mark" src="assets/logo.svg" width="46" height="46" alt="Rawson Learning Lab" />
+          <span class="sr-only">Rawson Learning Lab v63</span>
           <div>
             <h1>Rawson Learning Lab</h1>
-            <p>AI tutors · learning that fits around life</p>
+            <p>AI tutors · v63 · learning that fits around life</p>
           </div>
         </div>
         <div class="pill-row">
@@ -658,11 +687,11 @@ function siteFooter() {
            target="_blank"
            rel="noopener noreferrer"
            title="Open Grok by xAI — grok.com">
-          <img class="brand-grok-mark" src="assets/grok-mark.svg?v=62" alt="" width="28" height="28" draggable="false" />
+          <img class="brand-grok-mark" src="assets/grok-mark.svg?v=63" alt="" width="28" height="28" draggable="false" />
           <span class="brand-grok-text">Grok</span>
         </a>
         <span class="powered-amp">&amp;</span>
-        <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg?v=62" alt="Rawson Labs" height="52" width="200" />
+        <img class="powered-logo powered-rawson" src="assets/rawson-labs-logo.svg?v=63" alt="Rawson Labs" height="52" width="200" />
       </span>
     </footer>`;
 }
@@ -2305,7 +2334,26 @@ function renderDiagnostic({ subject }) {
   const answers = {};
   let index = 0;
   let revealed = false;
+  const diagStore = `rawson-live-diag-v1:${diagKey}`;
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(diagStore) || "null");
+    if (saved && typeof saved.index === "number" && saved.index >= 0) {
+      index = saved.index;
+      if (saved.answers && typeof saved.answers === "object") {
+        Object.assign(answers, saved.answers);
+      }
+    }
+  } catch (_) {
+    /* ignore */
+  }
   liveDiag = { key: diagKey, finished: false, paint: null };
+  const persistDiag = () => {
+    try {
+      sessionStorage.setItem(diagStore, JSON.stringify({ index, answers }));
+    } catch (_) {
+      /* ignore */
+    }
+  };
 
   function paint() {
     const q = qs[index];
@@ -2436,6 +2484,7 @@ function renderDiagnostic({ subject }) {
           date: todayKey(),
         };
         autosaveSoon();
+        persistDiag();
       } catch (_) {
         /* ignore */
       }
@@ -2458,6 +2507,7 @@ function renderDiagnostic({ subject }) {
       } else {
         index++;
         revealed = false;
+        persistDiag();
         paint();
       }
     };
@@ -2467,6 +2517,11 @@ function renderDiagnostic({ subject }) {
     if (liveDiag && liveDiag.key === diagKey) {
       liveDiag.finished = true;
       liveDiag = null;
+    }
+    try {
+      sessionStorage.removeItem(diagStore);
+    } catch (_) {
+      /* ignore */
     }
     const result = scoreDiagnostic(subject, state.activeLearner, answers);
     recordDiagnostic(profile(), subject, answers, result);
@@ -2572,6 +2627,9 @@ function renderLesson({ subject, skillId, stage }) {
     state.activeLearner,
     stageNum
   );
+  if (!session) {
+    return go("subject", { subject });
+  }
   let answerVal = null;
   let revealed = false;
   let finishing = false;
@@ -2709,14 +2767,16 @@ function renderLesson({ subject, skillId, stage }) {
       adv.onclick = () => {
         if (typeof stopSpeaking === "function") stopSpeaking();
         session.phase = "example";
+        if (typeof persistQuizSession === "function") persistQuizSession(session);
         paint();
       };
     } else if (adv && session.phase === "example") {
       adv.onclick = () => {
         session.phase = "practice";
-        session.practiceIndex = 0;
+        if (session.practiceIndex == null) session.practiceIndex = 0;
         answerVal = null;
         revealed = false;
+        if (typeof persistQuizSession === "function") persistQuizSession(session);
         paint();
       };
     }
@@ -2805,6 +2865,7 @@ function renderLesson({ subject, skillId, stage }) {
         session._keyHandler = null;
       }
       const ok = handlePracticeAnswer(session, q, answerVal);
+      if (typeof persistQuizSession === "function") persistQuizSession(session);
       const fb = document.getElementById("feedback");
       fb.className = `feedback ${ok ? "good" : "bad"}`;
       fb.innerHTML = ok
@@ -2856,6 +2917,7 @@ function renderLesson({ subject, skillId, stage }) {
         remaining <= 0 && !willInject ? "Finish lesson →" : "Next →";
       advBtn.onclick = () => {
         const result = advanceAfterAnswer(session, ok);
+        if (typeof persistQuizSession === "function") persistQuizSession(session);
         if (result.done || session.finished || session.phase === "complete") {
           finishSession();
           return;
@@ -2881,6 +2943,9 @@ function renderLesson({ subject, skillId, stage }) {
     session.finished = true;
     session.phase = "complete";
     if (liveLesson && liveLesson.key === liveKey) liveLesson = null;
+    if (typeof clearQuizSession === "function") {
+      clearQuizSession(state.activeLearner, subject, skillId, stageNum);
+    }
     if (session._keyHandler) {
       window.removeEventListener("keydown", session._keyHandler);
       session._keyHandler = null;
@@ -2946,6 +3011,7 @@ function renderLesson({ subject, skillId, stage }) {
     } catch (_) {
       /* ignore */
     }
+    autoProgressStages(profile(), subject);
     const nextSkill = nextLesson(profile(), subject, stageNum, skillId);
     go("lessonResult", {
       subject,
@@ -3678,6 +3744,13 @@ node worker/local-voice-proxy.mjs
         onHashNavigation();
       } catch (e) {
         console.warn("popstate nav", e);
+      }
+    });
+    window.addEventListener("hashchange", () => {
+      try {
+        onHashNavigation();
+      } catch (e) {
+        console.warn("hashchange nav", e);
       }
     });
 
