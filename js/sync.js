@@ -197,11 +197,14 @@ async function pushProfile(learnerId, profile) {
     return { skipped: true, reason: "remote_richer", remote };
   }
 
-  const payload = {
-    ...profile,
-    id: learnerId,
-    updatedAt: Date.now(),
-  };
+  const payload = prepareProfileForCloud(
+    {
+      ...profile,
+      id: learnerId,
+      updatedAt: Date.now(),
+    },
+    learnerId
+  );
   // Keep a fingerprint of progress for debugging
   payload._progressScore = progressScore(payload);
 
@@ -283,7 +286,7 @@ async function seedCloudFromLocal(state) {
       p.updatedAt = Date.now();
       state.profiles[id] = p;
       await cloudPut(`profiles/${id}`, {
-        ...p,
+        ...prepareProfileForCloud(p, id),
         id,
         _progressScore: progressScore(p),
       });

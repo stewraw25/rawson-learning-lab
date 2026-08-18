@@ -70,6 +70,18 @@ function normalizeProfile(learnerId, raw) {
     }
     p.courses[sk] = migrateCourseEntry(c);
   }
+  // Restore ticks that a rebuild / Firebase array wipe dropped
+  const subjectsToRepair = new Set([
+    ...Object.keys(p.courses),
+    ...Object.keys(p.diagnostics || {}),
+  ]);
+  for (const sk of subjectsToRepair) {
+    try {
+      recoverCompletionsFromHistory(p, sk);
+    } catch (_) {
+      /* ignore */
+    }
+  }
   if (p.daily && typeof p.daily !== "object") p.daily = null;
   if (p.tutorMemory && typeof p.tutorMemory !== "object") p.tutorMemory = null;
   if (typeof p.streak !== "number" || Number.isNaN(p.streak)) p.streak = Number(p.streak) || 0;
@@ -302,56 +314,143 @@ function getStageTeachBank(stageNum) {
   return null;
 }
 
-/** Normalise one subject course: flat legacy → { activeStage, stages } */
+/** Cloud-safe stage key. Firebase RTDB turns {1: …} into [null, …] and wipes progress. */
+function stageStorageKey(n) {
+  return `s${Number(n) || 1}`;
+}
+
+function parseStageStorageKey(k) {
+  if (typeof k === "number" && Number.isFinite(k)) return k;
+  const s = String(k || "");
+  if (/^s\d+$/i.test(s)) return Number(s.slice(1));
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function normaliseStageRecord(st) {
+  if (!st || typeof st !== "object") {
+    return { path: [], completed: {}, generatedAt: 0, focusMessage: "" };
+  }
+  return {
+    path: Array.isArray(st.path) ? st.path.slice() : [],
+    completed:
+      st.completed && typeof st.completed === "object" && !Array.isArray(st.completed)
+        ? { ...st.completed }
+        : {},
+    generatedAt: st.generatedAt || 0,
+    focusMessage: st.focusMessage || "",
+  };
+}
+
+/**
+ * Pull stages out of every shape we have shipped:
+ *   { s1: … }           — cloud-safe
+ *   { 1: … } / { "1" }  — in-memory / localStorage
+ *   [null, stage1]      — Firebase array (the wipe bug)
+ *   { path, completed } — original flat course
+ */
+function collectStageMap(c) {
+  const out = {};
+  const src = c && c.stages;
+  if (Array.isArray(src)) {
+    src.forEach((st, i) => {
+      if (!st || typeof st !== "object") return;
+      const n = i >= 1 ? i : 1;
+      out[n] = normaliseStageRecord(st);
+    });
+  } else if (src && typeof src === "object") {
+    for (const [k, st] of Object.entries(src)) {
+      if (!st || typeof st !== "object") continue;
+      const n = parseStageStorageKey(k);
+      if (!Number.isFinite(n) || n < 1) continue;
+      out[n] = normaliseStageRecord(st);
+    }
+  }
+  if (!out[1] && (Array.isArray(c.path) || c.completed)) {
+    out[1] = normaliseStageRecord({
+      path: c.path,
+      completed: c.completed,
+      generatedAt: c.generatedAt,
+      focusMessage: c.focusMessage,
+    });
+  }
+  return out;
+}
+
+/** Normalise one subject course: flat / Firebase-array / s-keys → { activeStage, stages } */
 function migrateCourseEntry(c) {
   if (!c || typeof c !== "object") return null;
-  // Already staged
-  if (c.stages && typeof c.stages === "object" && !Array.isArray(c.stages)) {
-    const out = {
-      activeStage: Number(c.activeStage) || 1,
-      stages: {},
-    };
-    for (const [k, st] of Object.entries(c.stages)) {
-      if (!st || typeof st !== "object") continue;
-      out.stages[k] = {
-        path: Array.isArray(st.path) ? st.path : [],
-        completed:
-          st.completed && typeof st.completed === "object" && !Array.isArray(st.completed)
-            ? st.completed
-            : {},
-        generatedAt: st.generatedAt || 0,
-        focusMessage: st.focusMessage || "",
-      };
-    }
-    if (!out.stages[1] && (c.path || c.completed)) {
-      // partial hybrid
-      out.stages[1] = {
-        path: Array.isArray(c.path) ? c.path : [],
-        completed:
-          c.completed && typeof c.completed === "object" && !Array.isArray(c.completed)
-            ? c.completed
-            : {},
-        generatedAt: c.generatedAt || 0,
-        focusMessage: c.focusMessage || "",
-      };
-    }
-    return out;
-  }
-  // Legacy flat shape
+  const stages = collectStageMap(c);
+  const active = Number(c.activeStage) || 1;
   return {
-    activeStage: 1,
-    stages: {
-      1: {
-        path: Array.isArray(c.path) ? c.path : [],
-        completed:
-          c.completed && typeof c.completed === "object" && !Array.isArray(c.completed)
-            ? c.completed
-            : {},
-        generatedAt: c.generatedAt || 0,
-        focusMessage: c.focusMessage || "",
-      },
-    },
+    activeStage: active >= 1 ? active : 1,
+    stages,
   };
+}
+
+/** Write stages as s1/s2 so Firebase cannot turn them into an array. */
+function serializeCourseEntry(c) {
+  const m = migrateCourseEntry(c);
+  if (!m) return null;
+  const stages = {};
+  for (const [k, st] of Object.entries(m.stages || {})) {
+    const n = Number(k);
+    if (!Number.isFinite(n) || n < 1 || !st) continue;
+    stages[stageStorageKey(n)] = normaliseStageRecord(st);
+  }
+  return {
+    activeStage: Number(m.activeStage) || 1,
+    stages,
+  };
+}
+
+/** Copy a profile for localStorage / Firebase without mutating live state. */
+function prepareProfileForCloud(profile, learnerId) {
+  if (!profile || typeof profile !== "object") return profile;
+  const p = { ...profile, id: learnerId || profile.id };
+  const courses = {};
+  for (const [sub, c] of Object.entries(p.courses || {})) {
+    const ser = serializeCourseEntry(c);
+    if (ser) courses[sub] = ser;
+  }
+  p.courses = courses;
+  return p;
+}
+
+/**
+ * Re-apply completed ticks from lessonHistory.
+ * Rebuilds were wiping the path; history still has every lesson the kids finished.
+ */
+function recoverCompletionsFromHistory(profile, subject) {
+  if (!profile || !subject) return null;
+  if (!profile.courses || typeof profile.courses !== "object") profile.courses = {};
+  if (!profile.courses[subject]) {
+    profile.courses[subject] = { activeStage: 1, stages: {} };
+  } else {
+    profile.courses[subject] = migrateCourseEntry(profile.courses[subject]);
+  }
+  const c = profile.courses[subject];
+  const hist = Array.isArray(profile.lessonHistory) ? profile.lessonHistory : [];
+  for (const h of hist) {
+    if (!h || h.subject !== subject || !h.skillId) continue;
+    const stage = Number(h.stage) || 1;
+    if (!c.stages[stage]) {
+      c.stages[stage] = normaliseStageRecord(null);
+    }
+    const done = c.stages[stage].completed;
+    const prev = done[h.skillId];
+    const score = Number(h.score);
+    const better =
+      !prev || (Number.isFinite(score) && score > (Number(prev.score) || 0));
+    if (better) {
+      done[h.skillId] = {
+        score: Number.isFinite(score) ? score : Number(prev && prev.score) || 0,
+        date: h.date || (prev && prev.date) || todayKey(),
+        stage,
+      };
+    }
+  }
+  return c;
 }
 
 function ensureCourseShape(profile, subject) {
@@ -377,6 +476,7 @@ function ensureCourseShape(profile, subject) {
 function ensureCourseReady(profile, subject) {
   if (!profile?.diagnostics?.[subject]?.completed) return null;
   if (!profile.courses) profile.courses = {};
+  recoverCompletionsFromHistory(profile, subject);
   if (!profile.courses[subject]) {
     buildCourse(profile, subject, 1);
   } else {
@@ -387,16 +487,20 @@ function ensureCourseReady(profile, subject) {
   const stage = Number(c.activeStage) || 1;
   c.activeStage = stage;
   let st = c.stages[stage];
+  const keptCompleted = (st && st.completed) || {};
   if (!st || !Array.isArray(st.path) || st.path.length === 0) {
     buildCourse(profile, subject, stage);
     st = c.stages[stage];
+    if (st) {
+      st.completed = { ...keptCompleted, ...(st.completed || {}) };
+    }
   }
   // Still empty? force unfiltered skill path so kids are never stuck
   if (!st || !st.path || !st.path.length) {
     const skillIds = Object.keys(SKILLS[subject] || {});
     c.stages[stage] = {
       path: skillIds,
-      completed: (st && st.completed) || {},
+      completed: { ...keptCompleted, ...((st && st.completed) || {}) },
       generatedAt: Date.now(),
       focusMessage:
         (st && st.focusMessage) ||
@@ -462,6 +566,7 @@ function getLessonMeta(subject, skillId, stageNum) {
  */
 function buildCourse(profile, subject, stageNum) {
   if (!profile.courses) profile.courses = {};
+  recoverCompletionsFromHistory(profile, subject);
   const existing = profile.courses[subject]
     ? migrateCourseEntry(profile.courses[subject])
     : { activeStage: 1, stages: {} };
