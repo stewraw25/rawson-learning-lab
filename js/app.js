@@ -1114,13 +1114,19 @@ function recentScoresSummary(id) {
   const L = LEARNERS[id];
   const subjects = ["maths", "english", "science"].map((sub) => {
     const d = p.diagnostics?.[sub];
-    const overall = subjectOverall(p, sub);
+    const prog = subjectProgressSummary(p, sub);
     return {
       sub,
       name: SUBJECTS[sub].name,
       emoji: SUBJECTS[sub].emoji,
       test: d?.completed ? d.score : null,
-      level: overall,
+      level: prog.overall,
+      stageName: prog.stageName,
+      stageEmoji: prog.stageEmoji,
+      stagePct: prog.stagePct,
+      pathwayPct: prog.pathwayPct,
+      statusLabel: prog.statusLabel,
+      started: prog.started,
       date: d?.date || null,
     };
   });
@@ -1139,14 +1145,17 @@ function scoreBoardCard(id) {
   const { p, L, subjects, lastLesson, avg } = recentScoresSummary(id);
   const bars = subjects
     .map((s) => {
-      const pct = s.level ?? s.test ?? 0;
-      const label =
-        s.test != null ? `${s.test}% test` : s.level != null ? `~${s.level}%` : "—";
+      const pct = s.started ? s.stagePct : 0;
+      const label = !s.started
+        ? "Not started"
+        : `${s.stageEmoji} ${s.stageName} · ${pct}%`;
       return `
         <div class="home-score-row">
           <span>${s.emoji} ${s.name}</span>
-          <div class="home-score-bar"><i style="width:${Math.max(pct, 4)}%"></i></div>
-          <strong>${label}</strong>
+          <div class="home-score-bar"><i style="width:${
+            s.started ? Math.max(pct, pct === 0 ? 3 : 0) : 0
+          }%"></i></div>
+          <strong title="${escapeHtml(s.statusLabel)}">${escapeHtml(label)}</strong>
         </div>`;
     })
     .join("");
@@ -3943,36 +3952,37 @@ function parentKid(id) {
   const p = state.profiles[id];
   const mem = ensureTutorMemory(p);
   const struggles = topStruggles(p, 3);
-  const rows = Object.keys(SUBJECTS)
+  const subjectCards = Object.keys(SUBJECTS)
     .map((sub) => {
-      const d = p.diagnostics[sub];
-      let lessonsDone = 0;
-      let totalLessons = "—";
-      let stageLabel = "—";
-      try {
-        if (p.courses?.[sub]) {
-          const c = migrateCourseEntry(p.courses[sub]);
-          const active = c.activeStage || 1;
-          stageLabel = (COURSE_STAGES[active] || COURSE_STAGES[1]).name;
-          const st = c.stages?.[active];
-          if (st) {
-            lessonsDone = Object.keys(st.completed || {}).length;
-            totalLessons = Array.isArray(st.path) ? st.path.length : "—";
-          }
-          // Show foundation complete hint
-          const pathPct = pathwayProgressPct(p, sub);
-          stageLabel = `${stageLabel} · ${pathPct}%→A*`;
-        }
-      } catch (_) {
-        /* ignore */
-      }
-      return `<tr>
-        <td>${SUBJECTS[sub].emoji} ${SUBJECTS[sub].name}</td>
-        <td>${d?.completed ? d.score + "%" : "—"}</td>
-        <td>${escapeHtml(stageLabel)}</td>
-        <td>${lessonsDone}/${totalLessons}</td>
-        <td>${subjectOverall(p, sub) ?? "—"}%</td>
-      </tr>`;
+      const s = subjectProgressSummary(p, sub);
+      const barPct = s.started ? s.stagePct : 0;
+      const pathway = s.started ? s.pathwayPct : 0;
+      const testLabel =
+        s.placementScore != null ? `${s.placementScore}% placement` : "No placement yet";
+      return `
+        <div class="parent-subject-card">
+          <div class="parent-subject-head">
+            <strong>${SUBJECTS[sub].emoji} ${SUBJECTS[sub].name}</strong>
+            <span class="parent-stage-pill">${escapeHtml(s.stageEmoji)} ${escapeHtml(
+              s.stageName
+            )}</span>
+          </div>
+          <p class="parent-subject-status muted">${escapeHtml(s.statusLabel)}</p>
+          <div class="parent-bar-label"><span>This level</span><strong>${
+            s.started ? `${s.stageLessonDone}/${s.stageLessonTotal || "?"} · ${barPct}%` : "—"
+          }</strong></div>
+          <div class="parent-progress-bar"><i style="width:${Math.max(
+            s.started ? barPct : 0,
+            s.started && barPct === 0 ? 2 : 0
+          )}%"></i></div>
+          <div class="parent-bar-label"><span>Path to A*</span><strong>${
+            s.started ? pathway + "%" : "—"
+          }</strong></div>
+          <div class="parent-progress-bar parent-progress-bar-path"><i style="width:${
+            s.started ? Math.max(pathway, pathway === 0 ? 2 : 0) : 0
+          }%"></i></div>
+          <p class="parent-test-line muted">${escapeHtml(testLabel)}</p>
+        </div>`;
     })
     .join("");
 
@@ -3982,7 +3992,7 @@ function parentKid(id) {
       <h3 style="margin-top:0;font-family:var(--display)">${L.emoji} ${escapeHtml(
     L.fullName
   )}</h3>
-      <p class="muted">Age ${L.age} · ${L.yearGroup} · Level ${p.level} · ${
+      <p class="muted">Age ${L.age} · ${L.yearGroup} · App level ${p.level} · ${
     p.xp
   } XP · ★ ${ensureTimeBonus(p).points} Time Bonus · Streak ${p.streak} days · ${
     p.badges.length
@@ -4005,12 +4015,9 @@ function parentKid(id) {
             )}</strong></p>`
           : ""
       }
-      <div class="table-wrap">
-        <table class="progress-table">
-          <thead><tr><th>Subject</th><th>Test</th><th>Course</th><th>Lessons</th><th>Level</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
+      <h4 class="parent-subjects-title">Subjects &amp; levels</h4>
+      <p class="muted parent-subjects-legend">“This level” = lessons on their current stage (Foundation → A*). “Path to A*” = overall journey. Placement test score is separate.</p>
+      <div class="parent-subjects-grid">${subjectCards}</div>
     </div>`;
 }
 

@@ -1644,80 +1644,119 @@ function retailorRemainingPath(profile, subject, stageNum) {
  * Subject % for progress bars — rises as lessons complete (not stuck near placement %).
  * Starts at placement; each finished lesson lifts toward mastery.
  */
-function subjectOverall(profile, subject) {
-  if (!profile) return null;
+/**
+ * Honest subject progress for parents / scoreboards.
+ * Never treats a high placement test as “nearly finished the course”.
+ */
+function subjectProgressSummary(profile, subject) {
+  const empty = {
+    started: false,
+    placementScore: null,
+    stageNum: 0,
+    stageName: "Not started",
+    stageEmoji: "○",
+    stageLessonDone: 0,
+    stageLessonTotal: 0,
+    stagePct: 0,
+    pathwayPct: 0,
+    overall: null,
+    statusLabel: "Not started",
+  };
+  if (!profile || !SUBJECTS[subject]) return empty;
+
   const diag = profile.diagnostics && profile.diagnostics[subject];
-
-  let placement = null;
-  if (diag && diag.skillScores && typeof diag.skillScores === "object") {
-    const vals = Object.values(diag.skillScores).filter((v) => typeof v === "number");
-    if (vals.length) {
-      placement = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
-    }
-  }
-  if (placement == null && diag && diag.score != null) {
-    placement = Number(diag.score);
+  const placementDone = !!(diag && diag.completed);
+  let placementScore = null;
+  if (placementDone && diag.score != null && !Number.isNaN(Number(diag.score))) {
+    placementScore = Math.max(0, Math.min(100, Math.round(Number(diag.score))));
   }
 
-  // Count completed lessons across stages
+  let stageNum = 0;
+  let stageName = "Not started";
+  let stageEmoji = "○";
+  let stageLessonDone = 0;
+  let stageLessonTotal = 0;
+  let stagePct = 0;
+  let pathwayPct = 0;
   let doneCount = 0;
-  let pathLen = 0;
-  const lessonScores = [];
-  const c = profile.courses && profile.courses[subject];
-  if (c) {
+
+  if (placementDone) {
     try {
-      const migrated = migrateCourseEntry(c);
-      for (const st of Object.values(migrated.stages || {})) {
-        if (!st) continue;
-        const path = Array.isArray(st.path) ? st.path : [];
-        pathLen += path.length || 0;
-        const completed =
-          st.completed && typeof st.completed === "object" && !Array.isArray(st.completed)
-            ? st.completed
-            : {};
-        for (const [k, v] of Object.entries(completed)) {
-          if (!v) continue;
-          doneCount++;
-          if (typeof v.score === "number") lessonScores.push(v.score);
-        }
-        // If path empty but completed has keys
-        if (!path.length) {
-          /* already counted completed keys */
-        }
-      }
-      // Fallback path length from skills if stages empty
-      if (!pathLen) {
-        pathLen = Math.max(doneCount, Object.keys(SKILLS[subject] || {}).length, 1);
-      }
+      ensureCourseReady(profile, subject);
     } catch (_) {
-      pathLen = Math.max(1, Object.keys(SKILLS[subject] || {}).length);
+      /* ignore */
+    }
+    const active = getActiveStage(profile, subject) || 1;
+    stageNum = active;
+    const meta = COURSE_STAGES[active] || COURSE_STAGES[1];
+    stageName = meta.name;
+    stageEmoji = meta.emoji || "📘";
+    const st = getCourseStageData(profile, subject, active);
+    const path = (st && Array.isArray(st.path) && st.path) || [];
+    const completed =
+      st && st.completed && typeof st.completed === "object" && !Array.isArray(st.completed)
+        ? st.completed
+        : {};
+    stageLessonTotal = path.length;
+    stageLessonDone = path.filter((id) => !!completed[id]).length;
+    stagePct = stageLessonTotal
+      ? Math.round((stageLessonDone / stageLessonTotal) * 100)
+      : 0;
+    pathwayPct = pathwayProgressPct(profile, subject);
+
+    // Count finished lessons across stages (for overall blend)
+    const c = profile.courses && profile.courses[subject];
+    if (c) {
+      try {
+        const migrated = migrateCourseEntry(c);
+        for (const stage of Object.values(migrated.stages || {})) {
+          if (!stage || !stage.completed || typeof stage.completed !== "object") continue;
+          if (Array.isArray(stage.completed)) continue;
+          doneCount += Object.keys(stage.completed).filter((k) => stage.completed[k]).length;
+        }
+      } catch (_) {
+        /* ignore */
+      }
     }
   }
 
-  const completionRatio = pathLen > 0 ? Math.min(1, doneCount / pathLen) : 0;
-  const lessonAvg = lessonScores.length
-    ? lessonScores.reduce((a, b) => a + b, 0) / lessonScores.length
-    : null;
-
-  if (placement == null && doneCount === 0) return null;
-  if (doneCount === 0 && placement != null) {
-    return Math.min(100, Math.max(0, Math.round(placement)));
-  }
-  if (placement == null) {
-    const q =
-      lessonAvg != null
-        ? lessonAvg * 0.4 + completionRatio * 100 * 0.6
-        : completionRatio * 100;
-    return Math.min(100, Math.max(0, Math.round(q)));
+  // Overall = progress toward A* (pathway), not the placement score
+  let overall = null;
+  if (!placementDone && doneCount === 0) {
+    overall = null;
+  } else if (placementDone && doneCount === 0) {
+    // Started placement only — show tiny progress, not 90%+
+    overall = Math.min(8, Math.max(2, Math.round((placementScore || 0) / 20)));
+  } else {
+    overall = pathwayPct;
   }
 
-  // Rise from placement toward a high target as more lessons finish
-  const target = Math.max(placement, lessonAvg != null ? lessonAvg : placement, 72);
-  const blended = placement + (target - placement) * completionRatio;
-  const finishBonus = completionRatio * 14;
-  const overall = Math.round(blended + finishBonus);
-  // Never drop below placement after they've started learning
-  return Math.min(100, Math.max(placement, overall));
+  let statusLabel = "Not started";
+  if (!placementDone) statusLabel = "Needs placement test";
+  else if (stagePct >= 100 && stageNum >= MAX_COURSE_STAGE)
+    statusLabel = "A* path complete";
+  else if (stagePct >= 100) statusLabel = `${stageName} complete — unlock next`;
+  else statusLabel = `${stageEmoji} ${stageName} · ${stageLessonDone}/${stageLessonTotal || "?"} lessons`;
+
+  return {
+    started: placementDone || doneCount > 0,
+    placementScore,
+    stageNum,
+    stageName,
+    stageEmoji,
+    stageLessonDone,
+    stageLessonTotal,
+    stagePct,
+    pathwayPct,
+    overall,
+    statusLabel,
+  };
+}
+
+/** @deprecated Prefer subjectProgressSummary — kept for older call sites */
+function subjectOverall(profile, subject) {
+  const s = subjectProgressSummary(profile, subject);
+  return s.overall;
 }
 
 /** Next incomplete skill on the active stage (null if stage path finished) */
