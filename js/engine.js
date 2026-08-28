@@ -27,12 +27,16 @@ function defaultProfile(learnerId) {
     tutorMemory: null, // AI coach memory — see companion.js
     parentNotes: "",
     // Time on Learning Lab (seconds) — synced across Macs
+    // totalSec / days = ACTIVE learning; idleSec / idleDays = sitting idle
     learningTime: {
       totalSec: 0,
+      idleSec: 0,
       todaySec: 0,
+      todayIdleSec: 0,
       todayKey: null,
-      sessions: [], // { id, date, startMs, endMs, sec }
-      days: {}, // { "YYYY-MM-DD": seconds }
+      sessions: [], // { id, date, startMs, endMs, sec, idleSec }
+      days: {}, // active seconds by date
+      idleDays: {}, // idle seconds by date
     },
     // 0 = empty shell — must NOT beat real cloud progress on merge
     updatedAt: 0,
@@ -103,23 +107,32 @@ function normalizeProfile(learnerId, raw) {
 function ensureLearningTime(profile) {
   const base = {
     totalSec: 0,
+    idleSec: 0,
     todaySec: 0,
+    todayIdleSec: 0,
     todayKey: null,
     sessions: [],
     days: {},
+    idleDays: {},
   };
   let lt =
     profile && profile.learningTime && typeof profile.learningTime === "object"
       ? { ...base, ...profile.learningTime }
       : { ...base };
   if (!lt.days || typeof lt.days !== "object" || Array.isArray(lt.days)) lt.days = {};
+  if (!lt.idleDays || typeof lt.idleDays !== "object" || Array.isArray(lt.idleDays)) {
+    lt.idleDays = {};
+  }
   if (!Array.isArray(lt.sessions)) lt.sessions = [];
   lt.totalSec = Math.max(0, Math.floor(Number(lt.totalSec) || 0));
+  lt.idleSec = Math.max(0, Math.floor(Number(lt.idleSec) || 0));
   lt.todaySec = Math.max(0, Math.floor(Number(lt.todaySec) || 0));
+  lt.todayIdleSec = Math.max(0, Math.floor(Number(lt.todayIdleSec) || 0));
   const today = todayKey();
   if (lt.todayKey !== today) {
     lt.todayKey = today;
     lt.todaySec = Math.max(0, Math.floor(Number(lt.days[today]) || 0));
+    lt.todayIdleSec = Math.max(0, Math.floor(Number(lt.idleDays[today]) || 0));
   }
   if (profile) profile.learningTime = lt;
   return lt;
@@ -176,22 +189,31 @@ function formatDayLabel(dateStr) {
 }
 
 /**
- * Add active learning seconds (only call while the child is using the lab).
- * Keeps total / today / by-day rollups and the open session row.
+ * Add learning seconds while the child has the lab open.
+ * kind: "active" (interacting) | "idle" (tab open but not doing anything)
  */
-function addLearningSeconds(profile, seconds, atMs) {
+function addLearningSeconds(profile, seconds, atMs, kind) {
   if (!profile || !(seconds > 0)) return ensureLearningTime(profile);
   const now = typeof atMs === "number" ? atMs : Date.now();
+  const isIdle = kind === "idle";
   const lt = ensureLearningTime(profile);
   const day = todayKey();
   const add = Math.floor(seconds);
-  lt.totalSec += add;
   if (lt.todayKey !== day) {
     lt.todayKey = day;
     lt.todaySec = Math.max(0, Math.floor(Number(lt.days[day]) || 0));
+    lt.todayIdleSec = Math.max(0, Math.floor(Number(lt.idleDays[day]) || 0));
   }
-  lt.todaySec += add;
-  lt.days[day] = Math.max(0, Math.floor(Number(lt.days[day]) || 0)) + add;
+
+  if (isIdle) {
+    lt.idleSec += add;
+    lt.todayIdleSec += add;
+    lt.idleDays[day] = Math.max(0, Math.floor(Number(lt.idleDays[day]) || 0)) + add;
+  } else {
+    lt.totalSec += add;
+    lt.todaySec += add;
+    lt.days[day] = Math.max(0, Math.floor(Number(lt.days[day]) || 0)) + add;
+  }
 
   let open = lt.sessions.find((s) => s && s.open);
   if (!open) {
@@ -201,19 +223,26 @@ function addLearningSeconds(profile, seconds, atMs) {
       startMs: now,
       endMs: now,
       sec: 0,
+      idleSec: 0,
       open: true,
     };
     lt.sessions.push(open);
   }
-  open.sec = Math.max(0, Math.floor(Number(open.sec) || 0)) + add;
+  if (isIdle) {
+    open.idleSec = Math.max(0, Math.floor(Number(open.idleSec) || 0)) + add;
+  } else {
+    open.sec = Math.max(0, Math.floor(Number(open.sec) || 0)) + add;
+  }
   open.endMs = now;
   open.date = open.date || day;
 
-  // Keep last 80 sessions + prune day map to ~60 days
+  // Keep last 80 sessions + prune day maps to ~60 days
   if (lt.sessions.length > 80) lt.sessions = lt.sessions.slice(-80);
-  const dayKeys = Object.keys(lt.days).sort();
-  if (dayKeys.length > 60) {
-    for (const k of dayKeys.slice(0, dayKeys.length - 60)) delete lt.days[k];
+  for (const map of [lt.days, lt.idleDays]) {
+    const dayKeys = Object.keys(map).sort();
+    if (dayKeys.length > 60) {
+      for (const k of dayKeys.slice(0, dayKeys.length - 60)) delete map[k];
+    }
   }
   profile.learningTime = lt;
   profile.updatedAt = Math.max(Number(profile.updatedAt) || 0, now);
@@ -237,6 +266,7 @@ function beginLearningSession(profile) {
     startMs: now,
     endMs: now,
     sec: 0,
+    idleSec: 0,
     open: true,
   };
   lt.sessions.push(sess);
@@ -264,13 +294,18 @@ function mergeLearningTime(a, b) {
   for (const s of [...(A.sessions || []), ...(B.sessions || [])]) {
     if (!s || !s.id) continue;
     const prev = byId.get(s.id);
-    if (!prev || (Number(s.sec) || 0) >= (Number(prev.sec) || 0)) {
+    const active = Math.max(0, Math.floor(Number(s.sec) || 0));
+    const idle = Math.max(0, Math.floor(Number(s.idleSec) || 0));
+    const prevActive = prev ? Math.max(0, Math.floor(Number(prev.sec) || 0)) : -1;
+    const prevIdle = prev ? Math.max(0, Math.floor(Number(prev.idleSec) || 0)) : -1;
+    if (!prev || active + idle >= prevActive + prevIdle) {
       byId.set(s.id, {
         id: s.id,
         date: s.date || "",
         startMs: Number(s.startMs) || 0,
         endMs: Number(s.endMs) || Number(s.startMs) || 0,
-        sec: Math.max(0, Math.floor(Number(s.sec) || 0)),
+        sec: Math.max(active, prevActive, 0),
+        idleSec: Math.max(idle, prevIdle, 0),
         open: false,
       });
     }
@@ -279,14 +314,20 @@ function mergeLearningTime(a, b) {
     (x, y) => (x.startMs || 0) - (y.startMs || 0)
   );
   const days = {};
+  const idleDays = {};
   for (const s of sessions) {
     if (!s.date) continue;
     days[s.date] = (days[s.date] || 0) + (s.sec || 0);
+    idleDays[s.date] = (idleDays[s.date] || 0) + (s.idleSec || 0);
   }
-  // Also keep any day totals that might exceed session sums (legacy)
   for (const src of [A.days, B.days]) {
     for (const [k, v] of Object.entries(src || {})) {
       days[k] = Math.max(days[k] || 0, Math.floor(Number(v) || 0));
+    }
+  }
+  for (const src of [A.idleDays, B.idleDays]) {
+    for (const [k, v] of Object.entries(src || {})) {
+      idleDays[k] = Math.max(idleDays[k] || 0, Math.floor(Number(v) || 0));
     }
   }
   const totalSec = Math.max(
@@ -294,13 +335,21 @@ function mergeLearningTime(a, b) {
     B.totalSec || 0,
     Object.values(days).reduce((n, v) => n + (Number(v) || 0), 0)
   );
+  const idleSec = Math.max(
+    A.idleSec || 0,
+    B.idleSec || 0,
+    Object.values(idleDays).reduce((n, v) => n + (Number(v) || 0), 0)
+  );
   const today = todayKey();
   return {
     totalSec,
+    idleSec,
     todaySec: Math.max(0, Math.floor(Number(days[today]) || 0)),
+    todayIdleSec: Math.max(0, Math.floor(Number(idleDays[today]) || 0)),
     todayKey: today,
     sessions: sessions.slice(-80),
     days,
+    idleDays,
   };
 }
 
@@ -308,15 +357,34 @@ function mergeLearningTime(a, b) {
 function learningTimeSummary(profile) {
   const lt = ensureLearningTime(profile || {});
   const today = todayKey();
-  const dayKeys = Object.keys(lt.days || {})
-    .filter((d) => (lt.days[d] || 0) > 0)
+  const todayActive =
+    lt.todayKey === today ? lt.todaySec : Math.floor(Number(lt.days[today]) || 0);
+  const todayIdle =
+    lt.todayKey === today
+      ? lt.todayIdleSec
+      : Math.floor(Number(lt.idleDays[today]) || 0);
+
+  const dayKeys = [
+    ...new Set([
+      ...Object.keys(lt.days || {}),
+      ...Object.keys(lt.idleDays || {}),
+    ]),
+  ]
+    .filter(
+      (d) => (Number(lt.days[d]) || 0) > 0 || (Number(lt.idleDays[d]) || 0) > 0
+    )
     .sort()
     .reverse()
     .slice(0, 7);
 
   const recentDays = dayKeys.map((date) => {
+    const active = Math.floor(Number(lt.days[date]) || 0);
+    const idle = Math.floor(Number(lt.idleDays[date]) || 0);
     const daySessions = (lt.sessions || [])
-      .filter((s) => s && s.date === date && (s.sec || 0) > 0)
+      .filter(
+        (s) =>
+          s && s.date === date && ((s.sec || 0) > 0 || (s.idleSec || 0) > 0)
+      )
       .sort((a, b) => (a.startMs || 0) - (b.startMs || 0));
     const slots = daySessions.map((s) => {
       const start = formatClockMs(s.startMs);
@@ -325,6 +393,7 @@ function learningTimeSummary(profile) {
         start,
         end,
         sec: s.sec || 0,
+        idleSec: s.idleSec || 0,
         label: start === end ? start : start + "–" + end,
         open: !!s.open,
       };
@@ -332,8 +401,10 @@ function learningTimeSummary(profile) {
     return {
       date,
       label: formatDayLabel(date),
-      sec: Math.floor(Number(lt.days[date]) || 0),
-      dur: formatDuration(lt.days[date]),
+      sec: active,
+      idleSec: idle,
+      dur: formatDuration(active),
+      idleDur: formatDuration(idle),
       slots,
       slotText: slots.map((s) => s.label + (s.open ? " (now)" : "")).join(", "),
     };
@@ -341,11 +412,13 @@ function learningTimeSummary(profile) {
 
   return {
     totalSec: lt.totalSec,
-    todaySec: lt.todayKey === today ? lt.todaySec : Math.floor(Number(lt.days[today]) || 0),
+    idleSec: lt.idleSec,
+    todaySec: todayActive,
+    todayIdleSec: todayIdle,
     totalLabel: formatDuration(lt.totalSec),
-    todayLabel: formatDuration(
-      lt.todayKey === today ? lt.todaySec : Math.floor(Number(lt.days[today]) || 0)
-    ),
+    idleLabel: formatDuration(lt.idleSec),
+    todayLabel: formatDuration(todayActive),
+    todayIdleLabel: formatDuration(todayIdle),
     recentDays,
   };
 }

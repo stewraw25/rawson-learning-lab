@@ -13,7 +13,12 @@ let syncStatus = ""; // parent diagnostics only
 let learningTimeTimer = null;
 let learningTimeLastTick = 0;
 let learningTimeLearnerId = null;
-let learningTimeSessionSec = 0; // live session display only
+let learningTimeSessionActiveSec = 0;
+let learningTimeSessionIdleSec = 0;
+let learningTimeLastActivity = 0;
+let learningTimeActivityBound = false;
+/** No click/key/move for this long → idle (not active learning) */
+const LEARNING_IDLE_AFTER_MS = 60000;
 let autoSyncTimer = null;
 let saveToastTimer = null;
 let debouncedSaveTimer = null;
@@ -32,7 +37,29 @@ function stopParentPoll() {
   }
 }
 
-/** Flush active learning seconds into the kid's profile (and cloud). */
+function markLearningActivity() {
+  if (!learningTimeLearnerId || document.hidden) return;
+  learningTimeLastActivity = Date.now();
+  const pill = document.getElementById("liveTimePill");
+  if (pill && pill.dataset.idle === "1") updateLiveTimePill();
+}
+
+function bindLearningActivityListeners() {
+  if (learningTimeActivityBound) return;
+  learningTimeActivityBound = true;
+  const opts = { capture: true, passive: true };
+  const bump = () => markLearningActivity();
+  ["pointerdown", "keydown", "scroll", "touchstart", "mousemove", "click"].forEach(
+    (evt) => document.addEventListener(evt, bump, opts)
+  );
+}
+
+function isLearningIdleNow(now) {
+  if (!learningTimeLastActivity) return true;
+  return now - learningTimeLastActivity >= LEARNING_IDLE_AFTER_MS;
+}
+
+/** Flush learning seconds (active vs idle) into the kid's profile. */
 function flushLearningTimeTick(forceEnd) {
   if (!learningTimeLearnerId) return;
   const id = learningTimeLearnerId;
@@ -40,18 +67,41 @@ function flushLearningTimeTick(forceEnd) {
   if (!p) return;
   const now = Date.now();
   if (learningTimeLastTick && !document.hidden) {
-    const delta = Math.floor((now - learningTimeLastTick) / 1000);
-    if (delta > 0 && delta < 120) {
-      addLearningSeconds(p, delta, now);
-      learningTimeSessionSec += delta;
+    const from = learningTimeLastTick;
+    const deltaMs = now - from;
+    if (deltaMs >= 1000 && deltaMs < 120000) {
+      // Split this slice at the idle threshold so we don't mis-label active time
+      const idleAt = (learningTimeLastActivity || from) + LEARNING_IDLE_AFTER_MS;
+      let activeMs = 0;
+      let idleMs = 0;
+      if (now <= idleAt) {
+        activeMs = deltaMs;
+      } else if (from >= idleAt) {
+        idleMs = deltaMs;
+      } else {
+        activeMs = Math.max(0, idleAt - from);
+        idleMs = Math.max(0, now - idleAt);
+      }
+      const activeSec = Math.floor(activeMs / 1000);
+      const idleSec = Math.floor(idleMs / 1000);
+      if (activeSec > 0) {
+        addLearningSeconds(p, activeSec, now, "active");
+        learningTimeSessionActiveSec += activeSec;
+      }
+      if (idleSec > 0) {
+        addLearningSeconds(p, idleSec, now, "idle");
+        learningTimeSessionIdleSec += idleSec;
+      }
     }
   }
   learningTimeLastTick = document.hidden ? 0 : now;
   if (forceEnd) {
     endLearningSession(p);
     learningTimeLearnerId = null;
-    learningTimeSessionSec = 0;
+    learningTimeSessionActiveSec = 0;
+    learningTimeSessionIdleSec = 0;
     learningTimeLastTick = 0;
+    learningTimeLastActivity = 0;
   }
   try {
     saveState(state);
@@ -68,7 +118,6 @@ function stopLearningTimeTracker(flush) {
   }
   if (flush && learningTimeLearnerId) flushLearningTimeTick(true);
   else if (learningTimeLearnerId) {
-    // pause without ending session row
     flushLearningTimeTick(false);
     learningTimeLastTick = 0;
   }
@@ -76,6 +125,7 @@ function stopLearningTimeTracker(flush) {
 
 function startLearningTimeTracker(learnerId) {
   if (!learnerId || !LEARNERS[learnerId]) return;
+  bindLearningActivityListeners();
   if (learningTimeLearnerId && learningTimeLearnerId !== learnerId) {
     flushLearningTimeTick(true);
   }
@@ -83,24 +133,29 @@ function startLearningTimeTracker(learnerId) {
   if (!p) return;
   if (learningTimeLearnerId !== learnerId) {
     beginLearningSession(p);
-    learningTimeSessionSec = 0;
+    learningTimeSessionActiveSec = 0;
+    learningTimeSessionIdleSec = 0;
   }
   learningTimeLearnerId = learnerId;
   learningTimeLastTick = Date.now();
+  learningTimeLastActivity = Date.now();
   if (learningTimeTimer) clearInterval(learningTimeTimer);
   learningTimeTimer = setInterval(() => {
     if (!learningTimeLearnerId) return;
     if (document.hidden) {
       learningTimeLastTick = 0;
+      updateLiveTimePill();
       return;
     }
     if (!learningTimeLastTick) learningTimeLastTick = Date.now();
     flushLearningTimeTick(false);
-    // Quiet cloud push every ~minute of active time
-    if (learningTimeSessionSec > 0 && learningTimeSessionSec % 60 < 16) {
+    if (
+      learningTimeSessionActiveSec > 0 &&
+      learningTimeSessionActiveSec % 60 < 16
+    ) {
       save({ quiet: true, learnerId: learningTimeLearnerId }).catch(() => {});
     }
-  }, 15000);
+  }, 10000);
   updateLiveTimePill();
 }
 
@@ -110,11 +165,23 @@ function updateLiveTimePill() {
   const p = state.profiles[state.activeLearner];
   if (!p) return;
   const sum = learningTimeSummary(p);
-  const sessionBit =
-    learningTimeLearnerId === state.activeLearner && learningTimeSessionSec > 0
-      ? ` · this visit ${formatDuration(learningTimeSessionSec)}`
+  const now = Date.now();
+  const idleNow =
+    !!learningTimeLearnerId &&
+    learningTimeLearnerId === state.activeLearner &&
+    !document.hidden &&
+    isLearningIdleNow(now);
+  el.dataset.idle = idleNow ? "1" : "0";
+  const visitBit =
+    learningTimeLearnerId === state.activeLearner
+      ? ` · visit ${formatDuration(learningTimeSessionActiveSec)} active / ${formatDuration(
+          learningTimeSessionIdleSec
+        )} idle`
       : "";
-  el.textContent = `⏱ Today ${sum.todayLabel} · total ${sum.totalLabel}${sessionBit}`;
+  el.textContent = idleNow
+    ? `⏸ Idle · today ${sum.todayLabel} active`
+    : `⏱ Active today ${sum.todayLabel} · idle ${sum.todayIdleLabel}${visitBit}`;
+  el.title = `Active total ${sum.totalLabel} · Idle total ${sum.idleLabel}`;
 }
 
 function learningTimeBoardHtml(id) {
@@ -127,9 +194,14 @@ function learningTimeBoardHtml(id) {
             const times = d.slotText
               ? `<span class="time-slots">${escapeHtml(d.slotText)}</span>`
               : `<span class="time-slots muted">—</span>`;
-            return `<div class="time-day-row">
+            return `<div class="time-day-row time-day-row-split">
               <strong>${escapeHtml(d.label)}</strong>
-              <span class="time-day-dur">${escapeHtml(d.dur)}</span>
+              <span class="time-day-dur" title="Active learning">▶ ${escapeHtml(
+                d.dur
+              )}</span>
+              <span class="time-day-idle" title="Idle / not interacting">⏸ ${escapeHtml(
+                d.idleDur
+              )}</span>
               ${times}
             </div>`;
           })
@@ -139,10 +211,16 @@ function learningTimeBoardHtml(id) {
     <div class="time-board">
       <div class="time-board-head">
         <strong>⏱ Time on Learning Lab</strong>
-        <span>Total <strong>${escapeHtml(sum.totalLabel)}</strong> · Today <strong>${escapeHtml(
-          sum.todayLabel
-        )}</strong></span>
+        <span>
+          Active <strong>${escapeHtml(sum.totalLabel)}</strong>
+          · Idle <strong>${escapeHtml(sum.idleLabel)}</strong>
+        </span>
       </div>
+      <p class="time-board-sub muted">
+        Today: <strong>${escapeHtml(sum.todayLabel)}</strong> active ·
+        <strong>${escapeHtml(sum.todayIdleLabel)}</strong> idle
+        <span class="time-board-hint">(idle = open but not clicking / typing)</span>
+      </p>
       <div class="time-day-list">${days}</div>
     </div>`;
 }
@@ -501,6 +579,8 @@ function go(screen, params = {}, opts = {}) {
     applyLearnerTheme(null);
   } else if (state.activeLearner && LEARNERS[state.activeLearner]) {
     applyLearnerTheme(state.activeLearner);
+    // Navigating counts as activity (stops idle clock)
+    if (learningTimeLearnerId === state.activeLearner) markLearningActivity();
   }
 
   // Browser history: real places get a hash entry; result screens replace

@@ -524,10 +524,21 @@ h2.section-title {
   align-items: baseline;
   justify-content: space-between;
   font-size: 0.82rem;
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.25rem;
 }
 .time-board-head strong {
   color: var(--gold);
+}
+.time-board-sub {
+  margin: 0 0 0.55rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+.time-board-hint {
+  display: inline-block;
+  margin-left: 0.25rem;
+  opacity: 0.85;
+  font-weight: 600;
 }
 .time-day-list {
   display: flex;
@@ -542,8 +553,15 @@ h2.section-title {
   font-size: 0.78rem;
   font-weight: 700;
 }
+.time-day-row-split {
+  grid-template-columns: 5.8rem 3.4rem 3.4rem 1fr;
+}
 .time-day-dur {
   color: var(--gold);
+  font-weight: 800;
+}
+.time-day-idle {
+  color: var(--muted);
   font-weight: 800;
 }
 .time-slots {
@@ -551,6 +569,10 @@ h2.section-title {
   font-weight: 600;
   line-height: 1.35;
   word-break: break-word;
+}
+#liveTimePill[data-idle="1"] {
+  border-color: rgba(255, 213, 79, 0.45);
+  color: #ffe082;
 }
 .home-score-card.bella .time-board {
   border-color: rgba(183, 110, 132, 0.28);
@@ -567,11 +589,16 @@ body.theme-learner-bella .time-board {
   text-overflow: ellipsis;
 }
 @media (max-width: 720px) {
-  .time-day-row {
-    grid-template-columns: 1fr;
-    gap: 0.1rem;
+  .time-day-row,
+  .time-day-row-split {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.15rem 0.5rem;
     padding-bottom: 0.35rem;
     border-bottom: 1px solid var(--line);
+  }
+  .time-day-row strong,
+  .time-day-row-split .time-slots {
+    grid-column: 1 / -1;
   }
   .time-day-row:last-child {
     border-bottom: 0;
