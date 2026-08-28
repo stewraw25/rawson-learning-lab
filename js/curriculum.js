@@ -14,8 +14,8 @@ const LEARNERS = {
     stage: "ks3",
     emoji: "🌸",
     theme: "bella",
-    themeLabel: "Horses",
-    tagline: "Personalised KS3 path toward GCSE",
+    themeLabel: "Black horses & light brown mini poodles",
+    tagline: "Girlie pink paddock · KS3 path toward GCSE",
   },
   george: {
     id: "george",
@@ -63,7 +63,7 @@ const SUBJECTS = {
  * George = F1 & go-karting only (no dogs).
  * Use illustFor(key, learnerId) so each child's hub is personal.
  */
-const ILLUST_V = "62";
+const ILLUST_V = "65";
 
 const ILLUST_SHARED = {
   coach: {
@@ -120,55 +120,67 @@ const ILLUST_LEARNER = {
   bella: {
     coach: {
       src: "assets/illust/bella/coach-avatar.jpg",
-      alt: "Coach — Bella’s AI teacher",
+      alt: "Coach — Bella’s AI teacher with horse & poodle friends",
     },
     mascot: {
       src: "assets/illust/bella/mascot.jpg",
-      alt: "Golden mini poodle with Bella’s glossy black horse",
+      alt: "Light brown miniature poodle with Bella’s glossy black horse",
     },
     welcome: {
       src: "assets/illust/bella/welcome.jpg",
-      alt: "Golden mini poodle and jet-black horse in the paddock at sunset",
+      alt: "Light brown mini poodle and jet-black horse in a pink-rose paddock",
     },
     hero: {
       src: "assets/illust/bella/hero.jpg",
-      alt: "Full view of golden mini poodle and black riding horse in the English countryside",
+      alt: "Light brown miniature poodle and black riding horse together",
     },
     celebrate: {
       src: "assets/illust/bella/celebrate.jpg",
-      alt: "Poodle and black horse celebrating with rose petals",
+      alt: "Light brown mini poodle and black horse celebrating with rose petals",
     },
     pick: {
       src: "assets/illust/bella/pick.jpg",
-      alt: "Bella-Rose theme — golden poodle and black horse in the garden paddock",
+      alt: "Bella-Rose theme — black horses and light brown miniature poodles",
     },
     pathway: {
       src: "assets/illust/bella/pathway.jpg",
-      alt: "Poodle and black horse climbing a paddock path",
+      alt: "Light brown mini poodle and black horse on a pink paddock path",
     },
     teach: {
       src: "assets/illust/bella/teach.jpg",
-      alt: "Poodle teaching at a paddock chalkboard with the black horse watching",
+      alt: "Light brown mini poodle teaching with the black horse watching",
     },
     exam: {
       src: "assets/illust/bella/exam.jpg",
-      alt: "Poodle and black horse at a quiet exam table in the paddock",
+      alt: "Light brown mini poodle and black horse ready for a quiet test",
     },
     unlock: {
       src: "assets/illust/bella/unlock.jpg",
-      alt: "Poodle and black horse at an open paddock gate",
+      alt: "Light brown mini poodle and black horse at an open paddock gate",
+    },
+    wallpaper: {
+      src: "assets/illust/bella/wallpaper.jpg",
+      alt: "Pink wallpaper of black horses and light brown mini poodles",
+    },
+    "poodle-icon": {
+      src: "assets/illust/bella/poodle-icon.jpg",
+      alt: "Light brown miniature poodle",
+    },
+    "horse-icon": {
+      src: "assets/illust/bella/horse-icon.jpg",
+      alt: "Glossy black horse",
     },
     "subject-maths": {
       src: "assets/illust/bella/subject-maths.jpg",
-      alt: "Black horse and poodle with a maths workbook in the paddock",
+      alt: "Black horse and light brown mini poodle learning maths",
     },
     "subject-english": {
       src: "assets/illust/bella/subject-english.jpg",
-      alt: "Black horse and poodle with a storybook in the garden",
+      alt: "Black horse and light brown mini poodle reading together",
     },
     "subject-science": {
       src: "assets/illust/bella/subject-science.jpg",
-      alt: "Black horse and poodle at a greenhouse science table",
+      alt: "Black horse and light brown mini poodle in a greenhouse lab",
     },
   },
   george: {

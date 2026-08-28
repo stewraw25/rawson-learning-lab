@@ -481,17 +481,58 @@ function onHashNavigation() {
 /** Open a kid hub — load cloud first, never get sent back to home by a race */
 function applyLearnerTheme(learnerId) {
   try {
-    document.body.classList.remove("theme-learner-bella", "theme-learner-george");
+    document.body.classList.remove(
+      "theme-bella",
+      "theme-george",
+      "theme-learner-bella",
+      "theme-learner-george"
+    );
     if (learnerId && LEARNERS[learnerId]) {
-      document.body.classList.add(`theme-learner-${learnerId}`);
+      document.body.classList.add(`theme-${learnerId}`, `theme-learner-${learnerId}`);
     }
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
-      meta.setAttribute("content", learnerId === "bella" ? "#24131e" : "#0f1a12");
+      meta.setAttribute("content", learnerId === "bella" ? "#3a1f2c" : "#0f1a12");
     }
   } catch (_) {
     /* ignore */
   }
+}
+
+function bellaStickers(size) {
+  if (state.activeLearner !== "bella") return "";
+  const cls = size === "lg" ? "rb-sticker lg" : "rb-sticker";
+  const horse = illustFor("horse-icon", "bella");
+  const poodle = illustFor("poodle-icon", "bella");
+  return `
+    <div class="rb-stickers" aria-hidden="true">
+      <img class="${cls}" src="${horse.src}" alt="" />
+      <img class="${cls}" src="${poodle.src}" alt="" />
+      <img class="${cls}" src="${horse.src}" alt="" />
+    </div>`;
+}
+
+function bellaFriends() {
+  if (state.activeLearner !== "bella") return "";
+  const horse = illustFor("horse-icon", "bella");
+  const poodle = illustFor("poodle-icon", "bella");
+  return `
+    <div class="rb-friends-row" aria-hidden="true">
+      <img src="${horse.src}" alt="" />
+      <span>💕</span>
+      <img src="${poodle.src}" alt="" />
+    </div>`;
+}
+
+function bellaThemeChip() {
+  const horse = illustFor("horse-icon", "bella");
+  const poodle = illustFor("poodle-icon", "bella");
+  return `
+    <span class="rb-theme-chip">
+      <img src="${horse.src}" alt="" />
+      <img src="${poodle.src}" alt="" />
+      Black horses · light brown mini poodles
+    </span>`;
 }
 
 async function openLearnerHub(learnerId) {
@@ -843,6 +884,7 @@ function scoreBoardCard(id) {
         <div>
           <h3>${escapeHtml(L.fullName)}</h3>
           <p class="muted">Age ${L.age} · Lv ${p.level} · ${p.xp} XP · 🔥 ${p.streak || 0}</p>
+          ${id === "bella" ? bellaThemeChip() : `<span class="rb-theme-chip" style="background:rgba(109,191,138,0.2);border-color:rgba(109,191,138,0.35)">${escapeHtml(L.themeLabel)}</span>`}
         </div>
         <div class="home-avg">
           <span class="home-avg-num">${avg != null ? avg + "%" : "—"}</span>
@@ -851,7 +893,7 @@ function scoreBoardCard(id) {
       </div>
       <div class="home-score-bars">${bars}</div>
       <p class="home-last muted">${escapeHtml(lastLine)}</p>
-      <button class="btn btn-primary btn-block mt-1" type="button" data-pick="${id}">
+      <button class="btn ${id === "bella" ? "btn-bella" : "btn-primary"} btn-block mt-1" type="button" data-pick="${id}">
         Open ${escapeHtml(L.name)}'s hub →
       </button>
     </article>`;
@@ -896,7 +938,7 @@ function renderHome() {
       <div class="home-theme-row">
         <figure class="home-theme-card bella">
           <img src="${illustFor("pick","bella").src}" alt="${escapeHtml(illustFor("pick","bella").alt)}" />
-          <figcaption>🌸 Bella-Rose</figcaption>
+          <figcaption>🌸 Bella-Rose · 🐎 black horses · 🐩 light brown mini poodles</figcaption>
         </figure>
         <figure class="home-theme-card">
           <img src="${illustFor("pick","george").src}" alt="${escapeHtml(illustFor("pick","george").alt)}" />
@@ -1019,6 +1061,7 @@ function renderDashboard() {
   window.__coachGreetSpoken = false; // allow auto-speak greeting this visit
   save({ quiet: true }).catch(() => {});
 
+  const isBella = L.id === "bella";
   appEl.innerHTML = `
     ${topbar()}
     <div class="welcome-banner ${L.theme} welcome-with-art">
@@ -1027,7 +1070,12 @@ function renderDashboard() {
   )}" width="120" height="120" />
       <div class="welcome-copy">
         <h2>Hey ${escapeHtml(L.name)}! ${L.emoji}</h2>
-        <p class="muted" style="margin:0.35rem 0 0">Your path to GCSE A* — Coach is with you</p>
+        <p class="muted" style="margin:0.35rem 0 0">${
+          isBella
+            ? "Your pink paddock is ready — black horses &amp; light brown mini poodles cheering you on 🐎🐩"
+            : "Your path to GCSE A* — Coach is with you"
+        }</p>
+        ${isBella ? bellaThemeChip() : ""}
       </div>
       <div class="xp-ring">
         <div class="lvl">Level ${p.level}</div>
@@ -1035,6 +1083,7 @@ function renderDashboard() {
         <div class="muted" style="font-size:0.75rem;margin-top:0.25rem">${xpInLevel}/100 XP</div>
       </div>
     </div>
+    ${isBella ? bellaStickers("lg") : ""}
 
     ${coachPanelHtml(p, L, nextAct)}
 
@@ -2180,9 +2229,13 @@ function renderSubject({ subject }) {
         <h1 class="subject-top-title">${S.emoji} ${S.name}</h1>
         <p class="muted" style="margin:0.25rem 0 0">For ${escapeHtml(
           kidName
-        )} · ${escapeHtml(learner().yearGroup)}</p>
+        )} · ${escapeHtml(learner().yearGroup)}${
+          state.activeLearner === "bella" ? " · 🐎🐩" : ""
+        }</p>
+        ${state.activeLearner === "bella" ? bellaThemeChip() : ""}
       </div>
     </div>
+    ${bellaStickers()}
 
     ${nextStepHtml}
     ${
@@ -3101,15 +3154,25 @@ function renderLessonResult({
       </button>`;
   }
 
+  const celeb =
+    state.activeLearner === "bella" ? illustFor("celebrate", "bella") : null;
   appEl.innerHTML = `
     ${topbar()}
     <div class="card simple-done-card mb-2">
-      <p class="next-step-label" style="margin:0 0 0.5rem">Lesson finished · saved ✓</p>
+      ${
+        celeb
+          ? `<img class="home-score-art" src="${celeb.src}" alt="${escapeHtml(celeb.alt)}" style="border-radius:14px;margin:0 0 1rem;max-height:180px;object-fit:cover;width:100%" />`
+          : ""
+      }
+      <p class="next-step-label" style="margin:0 0 0.5rem">Lesson finished · saved ✓${
+        state.activeLearner === "bella" ? " · 🐎💕🐩" : ""
+      }</p>
       <h1 class="simple-done-title">${escapeHtml(mod?.title || "Well done!")}</h1>
       <p class="simple-done-score">${scorePct}%</p>
       <p class="muted" style="margin:0 0 1.25rem">${correctCount || 0} of ${
     total || "?"
   } correct</p>
+      ${bellaFriends()}
       ${primaryHtml}
       <div style="margin-top:1.25rem">
         <button class="btn btn-ghost" type="button" data-go="dashboard">Home hub</button>
