@@ -495,6 +495,18 @@ function go(screen, params = {}, opts = {}) {
   }
   currentScreen = screen;
 
+  // Keep pink/green theme stuck to the active child on every navigation click
+  if (
+    screen === "home" ||
+    screen === "parent" ||
+    screen === "sync" ||
+    screen === "aiSettings"
+  ) {
+    applyLearnerTheme(null);
+  } else if (state.activeLearner && LEARNERS[state.activeLearner]) {
+    applyLearnerTheme(state.activeLearner);
+  }
+
   // Browser history: real places get a hash entry; result screens replace
   // so Back returns to the hub/subject instead of a broken empty result.
   const ephemeral = new Set([
@@ -623,18 +635,41 @@ function onHashNavigation() {
 /** Open a kid hub — load cloud first, never get sent back to home by a race */
 function applyLearnerTheme(learnerId) {
   try {
-    document.body.classList.remove(
+    const body = document.body;
+    const root = document.documentElement;
+    body.classList.remove(
+      "theme-bella",
+      "theme-george",
+      "theme-learner-bella",
+      "theme-learner-george"
+    );
+    root.classList.remove(
       "theme-bella",
       "theme-george",
       "theme-learner-bella",
       "theme-learner-george"
     );
     if (learnerId && LEARNERS[learnerId]) {
-      document.body.classList.add(`theme-${learnerId}`, `theme-learner-${learnerId}`);
+      body.classList.add(`theme-${learnerId}`, `theme-learner-${learnerId}`);
+      root.classList.add(`theme-${learnerId}`, `theme-learner-${learnerId}`);
     }
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
-      meta.setAttribute("content", learnerId === "bella" ? "#2a1a22" : "#0f1a12");
+      meta.setAttribute(
+        "content",
+        learnerId === "bella" ? "#2c1a24" : learnerId === "george" ? "#0f1a12" : "#0f1a12"
+      );
+    }
+    // Force page chrome colour so green garden bg cannot flash through
+    if (learnerId === "bella") {
+      root.style.background = "#2c1a24";
+      body.style.background = "#2c1a24";
+    } else if (learnerId === "george") {
+      root.style.background = "";
+      body.style.background = "";
+    } else {
+      root.style.background = "";
+      body.style.background = "";
     }
   } catch (_) {
     /* ignore */
