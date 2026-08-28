@@ -2381,3 +2381,107 @@ body[data-learner="bella"] .parent-progress-bar > i {
     grid-template-columns: 1fr;
   }
 }
+
+/* —— AI progress / tailoring graphs —— */
+.progress-graphs-card {
+  overflow: hidden;
+}
+.pg-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+.pg-subject {
+  padding: 0.75rem;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--line);
+}
+.pg-subject-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+.pg-adapt {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(232, 197, 71, 0.15);
+  color: var(--gold);
+  border: 1px solid rgba(232, 197, 71, 0.3);
+}
+.pg-focus {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  min-height: 2.1em;
+  line-height: 1.35;
+}
+.pg-skills {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.55rem;
+}
+.pg-skill-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 2.4rem;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.pg-skill-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.pg-skill-row.is-weak .pg-skill-name {
+  color: var(--text);
+}
+.pg-skill-bar {
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+.pg-skill-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #66bb6a, #ffd54f);
+}
+.pg-skill-row.is-weak .pg-skill-bar > i {
+  background: linear-gradient(90deg, #e57373, #ffd54f);
+}
+.pg-skill-pct {
+  text-align: right;
+  color: var(--gold);
+  font-size: 0.72rem;
+}
+.pg-spark {
+  color: #81c784;
+  display: block;
+  margin-top: 0.25rem;
+}
+body.theme-learner-bella .pg-spark,
+body[data-learner="bella"] .pg-spark {
+  color: #e8c4cf;
+}
+body.theme-learner-bella .pg-skill-bar > i,
+body[data-learner="bella"] .pg-skill-bar > i {
+  background: linear-gradient(90deg, #b76e84, #ffd54f);
+}
+.pg-spark-caption {
+  margin: 0.15rem 0 0;
+  font-size: 0.68rem;
+}
+@media (max-width: 900px) {
+  .pg-grid {
+    grid-template-columns: 1fr;
+  }
+}

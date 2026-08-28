@@ -420,7 +420,8 @@ function handlePracticeAnswer(session, question, userAnswer) {
         session.adaptLevel = recordAdaptResult(
           prof,
           session.subject,
-          ok ? "correct" : "wrong"
+          ok ? "correct" : "wrong",
+          session.skillId
         );
       }
     }
@@ -458,7 +459,8 @@ function handleDontKnow(session, question) {
         session.adaptLevel = recordAdaptResult(
           prof,
           session.subject,
-          "dontKnow"
+          "dontKnow",
+          session.skillId
         );
       }
     }

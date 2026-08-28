@@ -188,6 +188,110 @@ function updateLiveTimePill() {
   ].join("\n");
 }
 
+/** SVG skill bars + score trend for AI-tailored teaching visibility */
+function progressGraphsHtml(profile, opts) {
+  opts = opts || {};
+  const kidMode = !!opts.kidMode;
+  const subjects = ["maths", "english", "science"].filter((sub) => {
+    if (opts.subject) return sub === opts.subject;
+    const d = profile.diagnostics?.[sub];
+    const log = profile.progressLog?.entries || [];
+    return !!(d && d.completed) || log.some((e) => e && e.subject === sub);
+  });
+  if (!subjects.length) {
+    return `
+      <div class="card progress-graphs-card mb-2">
+        <h3 style="margin:0 0 0.35rem;font-family:var(--display)">${
+          kidMode ? "🎯 Your AI focus" : "📊 Progress graphs"
+        }</h3>
+        <p class="muted" style="margin:0;font-size:0.9rem">
+          ${
+            kidMode
+              ? "Finish a placement test or lesson and your focus chart will appear here."
+              : "Graphs appear after placement tests and lessons — used to tailor the pathway."
+          }
+        </p>
+      </div>`;
+  }
+
+  const blocks = subjects
+    .map((sub) => {
+      const data = progressGraphData(profile, sub);
+      const maxBar = 100;
+      const bars = data.skills
+        .map((sk) => {
+          const live = typeof sk.live === "number" ? sk.live : Math.max(0, Math.min(100, sk.score));
+          const weak = live < 60;
+          return `
+            <div class="pg-skill-row ${weak ? "is-weak" : ""}">
+              <span class="pg-skill-name" title="${escapeHtml(sk.name)}">${escapeHtml(
+                sk.name
+              )}</span>
+              <div class="pg-skill-bar"><i style="width:${Math.max(live, 3)}%"></i></div>
+              <strong class="pg-skill-pct">${Math.round(live)}%</strong>
+            </div>`;
+        })
+        .join("");
+
+      const trend = data.trend.length
+        ? (() => {
+            const w = 220;
+            const h = 56;
+            const pts = data.trend;
+            const step = pts.length > 1 ? w / (pts.length - 1) : w;
+            const coords = pts
+              .map((p, i) => {
+                const x = i * step;
+                const y = h - (Math.max(0, Math.min(100, p.score)) / 100) * (h - 6) - 3;
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+              })
+              .join(" ");
+            return `
+              <svg class="pg-spark" viewBox="0 0 ${w} ${h}" width="100%" height="56" role="img" aria-label="Score trend">
+                <polyline fill="none" stroke="currentColor" stroke-width="2.5" points="${coords}" />
+              </svg>
+              <p class="muted pg-spark-caption">Recent scores (tailored over time)</p>`;
+          })()
+        : `<p class="muted pg-spark-caption">No score history yet</p>`;
+
+      const focusNames = data.focus
+        .map((f) => SKILLS[sub]?.[f.id]?.name || f.id)
+        .join(" · ");
+      const focusLine = focusNames
+        ? kidMode
+          ? `AI is training you on: <strong>${escapeHtml(focusNames)}</strong>`
+          : `Focus (weakest first): <strong>${escapeHtml(focusNames)}</strong>`
+        : "";
+
+      return `
+        <div class="pg-subject">
+          <div class="pg-subject-head">
+            <strong>${SUBJECTS[sub].emoji} ${SUBJECTS[sub].name}</strong>
+            <span class="pg-adapt">${escapeHtml(data.adaptLabel || "Just right")}</span>
+          </div>
+          <p class="pg-focus muted">${focusLine}</p>
+          <div class="pg-skills">${bars}</div>
+          <div class="pg-trend">${trend}</div>
+        </div>`;
+    })
+    .join("");
+
+  return `
+    <div class="card progress-graphs-card mb-2">
+      <h3 style="margin:0 0 0.25rem;font-family:var(--display)">${
+        kidMode ? "🎯 Your AI focus map" : "📊 Tailoring graphs"
+      }</h3>
+      <p class="muted" style="margin:0 0 0.85rem;font-size:0.82rem">
+        ${
+          kidMode
+            ? "Lower bars get extra practice first. As you improve, questions get harder gradually."
+            : "Background log of skills over time. Struggling topics are pulled forward; difficulty rises as scores improve."
+        }
+      </p>
+      <div class="pg-grid">${blocks}</div>
+    </div>`;
+}
+
 function learningTimeBoardHtml(id) {
   const p = normalizeProfile(id, state.profiles[id]);
   try {
@@ -1389,6 +1493,8 @@ function renderDashboard() {
 
     ${coachPanelHtml(p, L, nextAct)}
 
+    ${progressGraphsHtml(p, { kidMode: true })}
+
     ${(() => {
       const g = typeof allGoalsProgress === "function" ? allGoalsProgress(p) : null;
       return g
@@ -1759,6 +1865,16 @@ function renderPower5({ subject }) {
       25 + Math.round(scorePct / 4) + (scorePct === 100 ? 15 : 0),
       { subject, perfect: scorePct === 100 }
     );
+    try {
+      logProgress(prof, {
+        subject,
+        kind: "power5",
+        score: scorePct,
+      });
+      retailorRemainingPath(prof, subject, getActiveStage(prof, subject) || 1);
+    } catch (_) {
+      /* ignore */
+    }
     unlockBadge(prof, "power_blitz");
     if (scorePct === 100) unlockBadge(prof, "power_perfect");
     if (elapsedSec <= targetSec && scorePct >= 60) unlockBadge(prof, "speed_demon");
@@ -4001,6 +4117,7 @@ function parentKid(id) {
       · Week ${mem.weekDone}/${mem.weeklyGoal} · Month ${mem.monthDone}/${mem.monthlyGoal}
       · Updated ${formatTime(p.updatedAt)}</p>
       ${learningTimeBoardHtml(id)}
+      ${progressGraphsHtml(p, { kidMode: false })}
       ${
         nextRec
           ? `<p class="parent-next-rec"><strong>Coach next step:</strong> ${escapeHtml(

@@ -47,6 +47,10 @@ function defaultProfile(learnerId) {
       points: 0,
       claimedActiveMin: 0,
     },
+    // Background progress log for AI tailoring + graphs
+    progressLog: {
+      entries: [], // { at, date, subject, skillId, kind, score, adaptLevel }
+    },
     // 0 = empty shell — must NOT beat real cloud progress on merge
     updatedAt: 0,
   };
@@ -114,7 +118,144 @@ function normalizeProfile(learnerId, raw) {
   if (!p.recentQuestions || typeof p.recentQuestions !== "object") {
     p.recentQuestions = {};
   }
+  p.progressLog = ensureProgressLog(p);
   return p;
+}
+
+function ensureProgressLog(profile) {
+  const base = { entries: [] };
+  let log =
+    profile && profile.progressLog && typeof profile.progressLog === "object"
+      ? { ...base, ...profile.progressLog }
+      : { ...base };
+  if (!Array.isArray(log.entries)) log.entries = [];
+  if (profile) profile.progressLog = log;
+  return log;
+}
+
+/**
+ * Append a progress event for graphs + AI pathway tailoring.
+ * kind: lesson | diagnostic | power5 | exam | dontKnow | wrong | correct
+ */
+function logProgress(profile, opts) {
+  if (!profile || !opts || !opts.subject) return;
+  const log = ensureProgressLog(profile);
+  const entry = {
+    at: Date.now(),
+    date: todayKey(),
+    subject: opts.subject,
+    skillId: opts.skillId || null,
+    kind: opts.kind || "lesson",
+    score: typeof opts.score === "number" ? Math.round(opts.score) : null,
+    adaptLevel:
+      typeof opts.adaptLevel === "number"
+        ? opts.adaptLevel
+        : typeof getAdaptLevel === "function"
+          ? getAdaptLevel(profile, opts.subject)
+          : 0,
+  };
+  log.entries.push(entry);
+  if (log.entries.length > 400) log.entries = log.entries.slice(-400);
+  profile.progressLog = log;
+  profile.updatedAt = Date.now();
+  return entry;
+}
+
+function recentSkillEvents(profile, subject, skillId, limit) {
+  const log = ensureProgressLog(profile);
+  const max = limit || 8;
+  return log.entries
+    .filter(
+      (e) =>
+        e &&
+        e.subject === subject &&
+        (!skillId || e.skillId === skillId)
+    )
+    .slice(-max);
+}
+
+/** Lower = weaker → teach sooner. Uses live skill score + recent struggle log. */
+function skillWeaknessScore(profile, subject, skillId) {
+  const base = profile.diagnostics?.[subject]?.skillScores?.[skillId];
+  let score = typeof base === "number" ? base : 55;
+  const recent = recentSkillEvents(profile, subject, skillId, 10);
+  for (const e of recent) {
+    if (e.kind === "dontKnow") score -= 14;
+    else if (e.kind === "wrong") score -= 8;
+    else if (e.kind === "correct") score += 3;
+    else if (typeof e.score === "number") {
+      if (e.score < 50) score -= 12;
+      else if (e.score < 70) score -= 6;
+      else if (e.score >= 85) score += 4;
+    }
+  }
+  // Adapt level already easy → keep focusing weak areas
+  try {
+    const lv = getAdaptLevel(profile, subject);
+    if (lv <= -2) score -= 5;
+  } catch (_) {
+    /* ignore */
+  }
+  return score;
+}
+
+function rankedSkillsByWeakness(profile, subject) {
+  const ids = Object.keys(SKILLS[subject] || {});
+  return ids
+    .map((id) => ({
+      id,
+      score: skillWeaknessScore(profile, subject, id),
+      live: profile.diagnostics?.[subject]?.skillScores?.[id] ?? null,
+      name: SKILLS[subject][id]?.name || id,
+    }))
+    .sort((a, b) => a.score - b.score);
+}
+
+/** Snapshot for graphs: skill bars + last scores trend */
+function progressGraphData(profile, subject) {
+  const ranked = rankedSkillsByWeakness(profile, subject);
+  const log = ensureProgressLog(profile);
+  const subjectEntries = log.entries.filter(
+    (e) => e && e.subject === subject && typeof e.score === "number"
+  );
+  const trend = subjectEntries.slice(-12).map((e) => ({
+    date: e.date,
+    score: e.score,
+    skillId: e.skillId,
+    kind: e.kind,
+  }));
+  const focus = ranked.slice(0, 2);
+  const strong = ranked.slice(-1);
+  return {
+    subject,
+    skills: ranked,
+    trend,
+    focus,
+    strong,
+    adaptLevel:
+      typeof getAdaptLevel === "function" ? getAdaptLevel(profile, subject) : 0,
+    adaptLabel:
+      typeof adaptLevelLabel === "function"
+        ? adaptLevelLabel(
+            typeof getAdaptLevel === "function"
+              ? getAdaptLevel(profile, subject)
+              : 0
+          )
+        : "",
+  };
+}
+
+function mergeProgressLog(a, b) {
+  const ae = (a && Array.isArray(a.entries) && a.entries) || [];
+  const be = (b && Array.isArray(b.entries) && b.entries) || [];
+  const byKey = new Map();
+  for (const e of [...ae, ...be]) {
+    if (!e || !e.at) continue;
+    const key = [e.at, e.subject, e.skillId || "", e.kind || "", e.score].join("|");
+    byKey.set(key, e);
+  }
+  const entries = [...byKey.values()].sort((x, y) => (x.at || 0) - (y.at || 0));
+  return { entries: entries.slice(-400) };
 }
 
 function ensureTimeBonus(profile) {
@@ -209,8 +350,9 @@ function adaptLevelLabel(level) {
 /**
  * Update difficulty from an answer.
  * result: "correct" | "wrong" | "dontKnow"
+ * skillId optional — stored in progress log for graphs / tailoring
  */
-function recordAdaptResult(profile, subject, result) {
+function recordAdaptResult(profile, subject, result, skillId) {
   if (!profile || !subject) return 0;
   const s = ensureAdaptSubject(profile, subject);
   s.answeredCount++;
@@ -218,7 +360,7 @@ function recordAdaptResult(profile, subject, result) {
     s.correctCount++;
     s.correctStreak++;
     s.missStreak = 0;
-    // Getting loads right → harder
+    // Getting loads right → harder gradually
     if (s.correctStreak >= 5) {
       s.level = Math.min(3, s.level + 1);
       s.correctStreak = 0;
@@ -243,6 +385,17 @@ function recordAdaptResult(profile, subject, result) {
     } else if (s.missStreak >= 2 && s.level > 0) {
       s.level = Math.max(-3, s.level - 1);
     }
+  }
+  try {
+    logProgress(profile, {
+      subject,
+      skillId: skillId || null,
+      kind: result === "dontKnow" ? "dontKnow" : result === "correct" ? "correct" : "wrong",
+      score: result === "correct" ? 100 : result === "dontKnow" ? 0 : 40,
+      adaptLevel: s.level,
+    });
+  } catch (_) {
+    /* ignore */
   }
   profile.updatedAt = Date.now();
   return s.level;
@@ -1117,6 +1270,7 @@ function mergeProfiles(localP, remoteP, learnerId) {
     ];
     out.recentQuestions[sub] = merged.slice(-40);
   }
+  out.progressLog = mergeProgressLog(L.progressLog, R.progressLog);
   return normalizeProfile(learnerId, out);
 }
 
@@ -1313,15 +1467,9 @@ function buildCourse(profile, subject, stageNum) {
   const skillDefs = SKILLS[subject];
   const skillIds = Object.keys(skillDefs);
 
-  let ranked;
-  if (diag && diag.skillScores) {
-    ranked = skillIds
-      .map((id) => ({
-        id,
-        score: diag.skillScores[id] ?? 50,
-      }))
-      .sort((a, b) => a.score - b.score);
-  } else {
+  // Weakest first using live scores + struggle log (AI tailoring)
+  let ranked = rankedSkillsByWeakness(profile, subject);
+  if (!ranked.length) {
     ranked = skillIds.map((id, i) => ({ id, score: 50 - i }));
   }
 
@@ -1481,6 +1629,24 @@ function recordDiagnostic(profile, subject, answers, result) {
 
   buildCourse(profile, subject);
 
+  try {
+    logProgress(profile, {
+      subject,
+      kind: "diagnostic",
+      score: result.score,
+    });
+    for (const [skillId, sc] of Object.entries(result.skillScores || {})) {
+      logProgress(profile, {
+        subject,
+        skillId,
+        kind: "diagnostic",
+        score: sc,
+      });
+    }
+  } catch (_) {
+    /* ignore */
+  }
+
   // GCSE pathway badge
   const avg =
     Object.values(result.skillScores).reduce((a, b) => a + b, 0) /
@@ -1543,6 +1709,16 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
     date: todayKey(),
     stage,
   });
+  try {
+    logProgress(profile, {
+      subject,
+      skillId,
+      kind: "lesson",
+      score: scorePct,
+    });
+  } catch (_) {
+    /* ignore */
+  }
   updateStreak(profile);
   awardXp(profile, stageXpBase(stage) + Math.round(scorePct / 10), {
     subject,
@@ -1554,18 +1730,13 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
   if (lessonCount >= 25) unlockBadge(profile, "lesson_25");
   if (lessonCount >= 50) unlockBadge(profile, "lesson_50");
 
-  const ranked = Object.keys(SKILLS[subject])
-    .map((id) => ({
-      id,
-      score: profile.diagnostics[subject]?.skillScores?.[id] ?? 50,
-    }))
-    .sort((a, b) => a.score - b.score);
+  const ranked = rankedSkillsByWeakness(profile, subject);
   st.focusMessage =
     stage <= 1
       ? makeFocusMessage(subject, ranked, profile.diagnostics[subject])
       : makeStageFocusMessage(subject, ranked, profile.diagnostics[subject], stage);
 
-  // Re-order remaining lessons by live skill scores (AI-style continuous tailoring)
+  // Re-order remaining lessons by weakness log (struggle first, then ease up)
   retailorRemainingPath(profile, subject, stage);
 
   if (isStageComplete(profile, subject, stage)) {
@@ -1591,8 +1762,9 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
 }
 
 /**
- * After each lesson: keep completed skills in order, re-sort remaining
- * by current weakness so the pathway adapts as the student develops.
+ * After each lesson: keep completed skills, re-sort remaining weakest-first
+ * using the progress log (struggles / don't-knows pull a topic forward).
+ * If a skill scored very low, schedule one remediation revisit later in path.
  */
 function retailorRemainingPath(profile, subject, stageNum) {
   try {
@@ -1605,19 +1777,46 @@ function retailorRemainingPath(profile, subject, stageNum) {
     if (!st.completed || typeof st.completed !== "object" || Array.isArray(st.completed)) {
       st.completed = {};
     }
-    const scores = profile.diagnostics?.[subject]?.skillScores || {};
     const done = [];
     const remaining = [];
     for (const id of st.path) {
       if (st.completed[id]) done.push(id);
       else remaining.push(id);
     }
-    remaining.sort((a, b) => (scores[a] ?? 50) - (scores[b] ?? 50));
+    remaining.sort(
+      (a, b) =>
+        skillWeaknessScore(profile, subject, a) -
+        skillWeaknessScore(profile, subject, b)
+    );
+
+    // Remediation: very weak completed skill → one extra practice slot if not already queued
+    const remediate = [];
+    for (const id of done) {
+      const sc = profile.diagnostics?.[subject]?.skillScores?.[id];
+      const last = recentSkillEvents(profile, subject, id, 3);
+      const poorLesson = last.some(
+        (e) => e.kind === "lesson" && typeof e.score === "number" && e.score < 55
+      );
+      const manyIdk =
+        last.filter((e) => e.kind === "dontKnow").length >= 2;
+      if (
+        ((typeof sc === "number" && sc < 55) || poorLesson || manyIdk) &&
+        !remaining.includes(id) &&
+        !(st.remediated && st.remediated[id])
+      ) {
+        remediate.push(id);
+        if (!st.remediated) st.remediated = {};
+        st.remediated[id] = true;
+        // Keep completed tick so bar doesn't drop; remediation is an extra pass
+      }
+    }
+    // Put one remediation skill near the front of remaining (after the weakest new ones)
+    if (remediate.length) {
+      remaining.splice(Math.min(1, remaining.length), 0, remediate[0]);
+    }
+
     st.path = [...done, ...remaining];
-    const ranked = st.path.map((id) => ({
-      id,
-      score: scores[id] ?? 50,
-    }));
+    const ranked = rankedSkillsByWeakness(profile, subject);
     st.focusMessage =
       stage <= 1
         ? makeFocusMessage(subject, ranked, profile.diagnostics?.[subject])
@@ -1627,11 +1826,14 @@ function retailorRemainingPath(profile, subject, stageNum) {
             profile.diagnostics?.[subject],
             stage
           );
-    // Surface adaptation note for coach/UI
     if (remaining.length) {
       const weakest = remaining[0];
       const wName = SKILLS[subject]?.[weakest]?.name || weakest;
-      st.adaptNote = `Pathway updated: next focus is ${wName} (based on how you’re doing).`;
+      const lv =
+        typeof getAdaptLevel === "function" ? getAdaptLevel(profile, subject) : 0;
+      const lvLabel =
+        typeof adaptLevelLabel === "function" ? adaptLevelLabel(lv) : "";
+      st.adaptNote = `AI pathway updated: training ${wName} next (${lvLabel}). Gets harder as you improve.`;
     } else {
       st.adaptNote = `Stage complete — every skill practiced.`;
     }
