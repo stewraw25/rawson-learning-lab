@@ -8,8 +8,8 @@
   --text: #f7f1e3;
   --muted: #b7c4b0;
   --line: rgba(243, 230, 200, 0.12);
-  --bella: #e891a8;
-  --bella-2: #c45c7a;
+  --bella: #ff5fb2;
+  --bella-2: #e91e8c;
   --george: #6dbf8a;
   --george-2: #3d8f6a;
   --maths: #6b9fd4;
@@ -268,6 +268,11 @@ a { color: inherit; }
   color: white;
   box-shadow: 0 8px 24px rgba(46, 125, 50, 0.35);
 }
+.btn-bella {
+  background: linear-gradient(135deg, #ff5fb2, #e91e8c);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(233, 30, 140, 0.4);
+}
 .btn-secondary {
   background: var(--surface-2);
   color: var(--text);
@@ -441,6 +446,12 @@ h2.section-title {
   color: #fff;
   flex-shrink: 0;
 }
+.home-score-card.bella {
+  border-color: rgba(255, 95, 178, 0.45);
+  background:
+    radial-gradient(380px 160px at 50% 0%, rgba(255, 95, 178, 0.16), transparent 70%),
+    var(--surface);
+}
 .home-score-card.bella .avatar {
   background: linear-gradient(145deg, var(--bella), var(--bella-2));
 }
@@ -558,7 +569,12 @@ h2.section-title {
   border: 2px solid transparent;
 }
 .profile-card:hover { transform: translateY(-4px); }
-.profile-card.bella { border-color: rgba(255, 107, 203, 0.45); }
+.profile-card.bella {
+  border-color: rgba(255, 95, 178, 0.7);
+  background:
+    radial-gradient(420px 180px at 50% 0%, rgba(255, 95, 178, 0.22), transparent 70%),
+    var(--surface);
+}
 .profile-card.george { border-color: rgba(61, 214, 198, 0.45); }
 .profile-card .avatar {
   width: 96px;
@@ -573,7 +589,7 @@ h2.section-title {
 }
 .profile-card.bella .avatar {
   background: linear-gradient(145deg, var(--bella), var(--bella-2));
-  box-shadow: 0 12px 30px rgba(255, 107, 203, 0.35);
+  box-shadow: 0 12px 30px rgba(233, 30, 140, 0.45);
 }
 .profile-card.george .avatar {
   background: linear-gradient(145deg, var(--george), var(--george-2));
@@ -620,7 +636,7 @@ h2.section-title {
   border: 1px solid var(--line);
 }
 .welcome-banner.bella {
-  background: linear-gradient(120deg, rgba(255,107,203,0.2), rgba(196,77,255,0.08));
+  background: linear-gradient(120deg, rgba(255, 95, 178, 0.28), rgba(233, 30, 140, 0.12));
 }
 .welcome-banner.george {
   background: linear-gradient(120deg, rgba(61,214,198,0.18), rgba(59,139,255,0.08));
@@ -1869,6 +1885,12 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
   color: var(--text);
   text-align: center;
 }
+.home-theme-card.bella {
+  border-color: rgba(255, 95, 178, 0.45);
+}
+.home-theme-card.bella figcaption {
+  color: #ff5fb2;
+}
 .home-score-art {
   width: 100%;
   height: 200px;
@@ -1885,10 +1907,74 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
 }
 body.theme-bella .welcome-banner,
 body.theme-learner-bella .welcome-banner {
-  border-color: rgba(232, 145, 168, 0.35);
+  border-color: rgba(255, 95, 178, 0.5);
 }
 body.theme-learner-george .welcome-banner {
   border-color: rgba(109, 191, 138, 0.4);
+}
+
+/* —— Bella pink theme (hub, lessons, buttons) —— */
+body.theme-learner-bella {
+  --bg: #24131e;
+  --bg-soft: #331824;
+  --surface: #3d2030;
+  --surface-2: #4c2940;
+  --muted: #e0c4d2;
+  --line: rgba(255, 182, 213, 0.18);
+  --leaf: #ff5fb2;
+  --ok: #ff8cc8;
+  --gold: #ffd0e6;
+  background:
+    radial-gradient(900px 500px at 12% -8%, rgba(255, 95, 178, 0.28), transparent 52%),
+    radial-gradient(800px 480px at 96% 8%, rgba(233, 30, 140, 0.22), transparent 48%),
+    radial-gradient(700px 400px at 50% 110%, rgba(190, 24, 93, 0.22), transparent 42%),
+    linear-gradient(180deg, #2e1624 0%, #24131e 42%, #1a0e16 100%);
+}
+body.theme-learner-bella .topbar {
+  background:
+    linear-gradient(180deg, rgba(36, 19, 30, 0.97) 70%, rgba(36, 19, 30, 0.88));
+  border-bottom-color: rgba(255, 95, 178, 0.18);
+}
+body.theme-learner-bella .btn-primary,
+body.theme-learner-bella .btn-ok,
+body.theme-learner-bella .big-next-btn.btn-primary {
+  background: linear-gradient(135deg, #ff5fb2, #e91e8c);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(233, 30, 140, 0.4);
+}
+body.theme-learner-bella .auto-save-toast {
+  background: linear-gradient(135deg, #e91e8c, #ff5fb2);
+}
+body.theme-learner-bella .home-score-bar > i,
+body.theme-learner-bella .skill-bar > i,
+body.theme-learner-bella .xp-fill {
+  background: linear-gradient(90deg, #ff5fb2, #ffd0e6);
+}
+body.theme-learner-bella .option.selected {
+  border-color: #ff5fb2;
+  background: rgba(255, 95, 178, 0.16);
+}
+body.theme-learner-bella .next-step-primary {
+  border-color: rgba(255, 95, 178, 0.7) !important;
+  background:
+    radial-gradient(500px 200px at 50% 0%, rgba(255, 95, 178, 0.22), transparent 70%),
+    var(--surface) !important;
+}
+body.theme-learner-bella .simple-done-card {
+  border-top-color: #ff5fb2;
+}
+body.theme-learner-bella .ai-bubble {
+  background: linear-gradient(135deg, rgba(255, 95, 178, 0.18), rgba(233, 30, 140, 0.08)) !important;
+  border-color: rgba(255, 95, 178, 0.45) !important;
+}
+body.theme-learner-bella .ai-bubble strong {
+  color: #ffb3d9 !important;
+}
+body.theme-learner-bella .pill strong {
+  color: #ffd0e6;
+}
+body.theme-learner-bella .home-kicker {
+  color: #ffb3d9;
 }
 
 @media (max-width: 720px) {

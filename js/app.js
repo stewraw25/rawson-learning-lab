@@ -485,6 +485,10 @@ function applyLearnerTheme(learnerId) {
     if (learnerId && LEARNERS[learnerId]) {
       document.body.classList.add(`theme-learner-${learnerId}`);
     }
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute("content", learnerId === "bella" ? "#24131e" : "#0f1a12");
+    }
   } catch (_) {
     /* ignore */
   }
@@ -882,7 +886,7 @@ function renderHome() {
         <h2>Homeschooling with <span class="sparkle">AI tutors</span> — so learning fits around life</h2>
         <p class="lead">Personal paths for <strong>Bella-Rose</strong> &amp; <strong>George</strong> · English, Maths &amp; Science · GCSE → A*</p>
         <div class="home-hero-cta">
-          <button class="btn btn-primary btn-lg" type="button" data-pick="bella">Bella-Rose 🌸</button>
+          <button class="btn btn-primary btn-lg btn-bella" type="button" data-pick="bella">Bella-Rose 🌸</button>
           <button class="btn btn-secondary btn-lg" type="button" data-pick="george">George 🍃</button>
         </div>
       </div>
@@ -890,7 +894,7 @@ function renderHome() {
 
     <section class="home-section">
       <div class="home-theme-row">
-        <figure class="home-theme-card">
+        <figure class="home-theme-card bella">
           <img src="${illustFor("pick","bella").src}" alt="${escapeHtml(illustFor("pick","bella").alt)}" />
           <figcaption>🌸 Bella-Rose</figcaption>
         </figure>
