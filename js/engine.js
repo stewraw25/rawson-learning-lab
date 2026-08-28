@@ -38,6 +38,10 @@ function defaultProfile(learnerId) {
       days: {}, // active seconds by date
       idleDays: {}, // idle seconds by date
     },
+    // Adaptive difficulty: -3 easier … 0 … +3 harder (per subject)
+    adapt: {
+      bySubject: {},
+    },
     // 0 = empty shell — must NOT beat real cloud progress on merge
     updatedAt: 0,
   };
@@ -100,7 +104,124 @@ function normalizeProfile(learnerId, raw) {
   if (typeof p.updatedAt !== "number") p.updatedAt = Number(p.updatedAt) || 0;
   if (!p.fullName) p.fullName = base.fullName;
   p.learningTime = ensureLearningTime(p);
+  p.adapt = ensureAdapt(p);
   return p;
+}
+
+/** Per-subject adaptive difficulty (-3 easy … +3 hard) */
+function ensureAdapt(profile) {
+  const base = { bySubject: {} };
+  let a =
+    profile && profile.adapt && typeof profile.adapt === "object"
+      ? { ...base, ...profile.adapt }
+      : { ...base };
+  if (!a.bySubject || typeof a.bySubject !== "object" || Array.isArray(a.bySubject)) {
+    a.bySubject = {};
+  }
+  if (profile) profile.adapt = a;
+  return a;
+}
+
+function ensureAdaptSubject(profile, subject) {
+  const a = ensureAdapt(profile);
+  if (!a.bySubject[subject] || typeof a.bySubject[subject] !== "object") {
+    a.bySubject[subject] = {
+      level: 0,
+      correctStreak: 0,
+      missStreak: 0,
+      dontKnowCount: 0,
+      correctCount: 0,
+      answeredCount: 0,
+    };
+  }
+  const s = a.bySubject[subject];
+  s.level = Math.max(-3, Math.min(3, Math.round(Number(s.level) || 0)));
+  s.correctStreak = Math.max(0, Math.floor(Number(s.correctStreak) || 0));
+  s.missStreak = Math.max(0, Math.floor(Number(s.missStreak) || 0));
+  s.dontKnowCount = Math.max(0, Math.floor(Number(s.dontKnowCount) || 0));
+  s.correctCount = Math.max(0, Math.floor(Number(s.correctCount) || 0));
+  s.answeredCount = Math.max(0, Math.floor(Number(s.answeredCount) || 0));
+  return s;
+}
+
+function getAdaptLevel(profile, subject) {
+  return ensureAdaptSubject(profile, subject).level;
+}
+
+function adaptLevelLabel(level) {
+  const n = Math.max(-3, Math.min(3, Number(level) || 0));
+  if (n <= -2) return "Easier questions";
+  if (n === -1) return "A bit easier";
+  if (n === 0) return "Just right";
+  if (n === 1) return "A bit harder";
+  return "Harder questions";
+}
+
+/**
+ * Update difficulty from an answer.
+ * result: "correct" | "wrong" | "dontKnow"
+ */
+function recordAdaptResult(profile, subject, result) {
+  if (!profile || !subject) return 0;
+  const s = ensureAdaptSubject(profile, subject);
+  s.answeredCount++;
+  if (result === "correct") {
+    s.correctCount++;
+    s.correctStreak++;
+    s.missStreak = 0;
+    // Getting loads right → harder
+    if (s.correctStreak >= 5) {
+      s.level = Math.min(3, s.level + 1);
+      s.correctStreak = 0;
+    } else if (s.correctStreak >= 3 && s.level < 2) {
+      s.level = Math.min(3, s.level + 1);
+      s.correctStreak = 1;
+    }
+  } else if (result === "dontKnow") {
+    s.dontKnowCount++;
+    s.missStreak++;
+    s.correctStreak = 0;
+    // Each "I don't know" eases; repeated ones ease faster
+    const drop = s.missStreak >= 3 ? 2 : 1;
+    s.level = Math.max(-3, s.level - drop);
+  } else {
+    // wrong
+    s.missStreak++;
+    s.correctStreak = 0;
+    if (s.missStreak >= 3) {
+      s.level = Math.max(-3, s.level - 1);
+      s.missStreak = 1;
+    } else if (s.missStreak >= 2 && s.level > 0) {
+      s.level = Math.max(-3, s.level - 1);
+    }
+  }
+  profile.updatedAt = Date.now();
+  return s.level;
+}
+
+function mergeAdapt(a, b) {
+  const out = { bySubject: {} };
+  const A = a && typeof a === "object" ? a : {};
+  const B = b && typeof b === "object" ? b : {};
+  const keys = new Set([
+    ...Object.keys(A.bySubject || {}),
+    ...Object.keys(B.bySubject || {}),
+  ]);
+  for (const sub of keys) {
+    const x = (A.bySubject && A.bySubject[sub]) || {};
+    const y = (B.bySubject && B.bySubject[sub]) || {};
+    out.bySubject[sub] = {
+      level: Math.round(
+        ((Number(x.level) || 0) + (Number(y.level) || 0)) / 2
+      ),
+      correctStreak: Math.max(Number(x.correctStreak) || 0, Number(y.correctStreak) || 0),
+      missStreak: Math.max(Number(x.missStreak) || 0, Number(y.missStreak) || 0),
+      dontKnowCount: Math.max(Number(x.dontKnowCount) || 0, Number(y.dontKnowCount) || 0),
+      correctCount: Math.max(Number(x.correctCount) || 0, Number(y.correctCount) || 0),
+      answeredCount: Math.max(Number(x.answeredCount) || 0, Number(y.answeredCount) || 0),
+    };
+  }
+  return out;
 }
 
 /** Safe learning-time shape + roll “today” if the calendar day changed */
@@ -833,6 +954,7 @@ function mergeProfiles(localP, remoteP, learnerId) {
     out.tutorMemory = { ...(R.tutorMemory || {}), ...(L.tutorMemory || {}) };
   }
   out.learningTime = mergeLearningTime(L.learningTime, R.learningTime);
+  out.adapt = mergeAdapt(L.adapt, R.adapt);
   return normalizeProfile(learnerId, out);
 }
 
@@ -1780,7 +1902,20 @@ function buildPower5Questions(profile, subject) {
     const stage = profile.id && LEARNERS[profile.id] ? LEARNERS[profile.id].stage : "both";
     for (const q of DIAGNOSTICS[subject]) {
       if (q.stage === "both" || q.stage === stage || !q.stage) {
-        pushQ(q, q.skillId || null, 1);
+        pushQ(q, q.skill || q.skillId || null, 1);
+      }
+    }
+  }
+
+  // Adaptive difficulty: easier → prefer struggle-style / earlier items
+  const adaptLv = getAdaptLevel(profile, subject);
+  if (adaptLv <= -1) {
+    // Pull in struggle questions from weak skills
+    for (const skillId of weak.slice(0, 3)) {
+      if (typeof getTeachModule !== "function") break;
+      const mod = getTeachModule(subject, skillId, 1, profile.id);
+      if (mod?.struggle?.practice) {
+        for (const q of mod.struggle.practice) pushQ(q, skillId, 1);
       }
     }
   }
@@ -1789,6 +1924,10 @@ function buildPower5Questions(profile, subject) {
   for (let i = bank.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [bank[i], bank[j]] = [bank[j], bank[i]];
+  }
+  // Harder adapt → take from the back of bank after a second shuffle pass bias
+  if (adaptLv >= 2 && bank.length > 5) {
+    return bank.slice(-5);
   }
   return bank.slice(0, 5);
 }

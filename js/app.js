@@ -1034,6 +1034,26 @@ function learnAboutButtonHtml() {
   return `<button type="button" class="btn-learn-about" id="btnLearnAbout">📖 Learn about this subject</button>`;
 }
 
+function idkButtonHtml() {
+  return `<button type="button" class="btn btn-idk" id="btnIdk" title="It's OK — we'll make the next questions easier">I don't know</button>`;
+}
+
+function adaptHintHtml(subject) {
+  try {
+    const p = profile();
+    if (!p || !subject || typeof getAdaptLevel !== "function") return "";
+    const level = getAdaptLevel(p, subject);
+    const label =
+      typeof adaptLevelLabel === "function" ? adaptLevelLabel(level) : "";
+    if (!label || level === 0) return "";
+    return `<p class="adapt-hint muted">Difficulty: <strong>${escapeHtml(
+      label
+    )}</strong></p>`;
+  } catch (_) {
+    return "";
+  }
+}
+
 function bindLearnAbout(btn, payload) {
   if (!btn) return;
   btn.onclick = () => {
@@ -1547,9 +1567,11 @@ function renderPower5({ subject }) {
         }
         <h3 class="teach-heading">${escapeHtml(q.q)}</h3>
         <div id="qBody"></div>
+        ${adaptHintHtml(subject)}
         <div id="feedback"></div>
         <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
           <button class="btn btn-primary" type="button" id="btnCheck">Check</button>
+          ${idkButtonHtml()}
           <button class="btn btn-ok" type="button" id="btnNext" style="display:none">Next →</button>
         </div>
       </div>
@@ -1615,29 +1637,36 @@ function renderPower5({ subject }) {
       };
     }
 
-    document.getElementById("btnCheck").onclick = () => {
-      if (revealed) return;
-      if (answerVal === null || answerVal === "") {
-        alert("Pick or type an answer first!");
-        return;
-      }
+    function revealP5(ok, fromIdk) {
       revealed = true;
-      const ok = checkAnswer(q, answerVal);
-      answers[index] = { ok, answer: answerVal };
+      answers[index] = { ok, answer: fromIdk ? null : answerVal, dontKnow: !!fromIdk };
+      try {
+        recordAdaptResult(
+          profile(),
+          subject,
+          fromIdk ? "dontKnow" : ok ? "correct" : "wrong"
+        );
+      } catch (_) {
+        /* ignore */
+      }
       const fb = document.getElementById("feedback");
       fb.className = `feedback ${ok ? "good" : "bad"}`;
-      fb.innerHTML = ok
-        ? `✓ ${escapeHtml(q.explain || "Correct!")}`
-        : `Not quite. ${escapeHtml(q.explain || "")}`;
+      fb.innerHTML = fromIdk
+        ? `That's OK — we'll ease the next ones. ${escapeHtml(q.explain || "")}`
+        : ok
+          ? `✓ ${escapeHtml(q.explain || "Correct!")}`
+          : `Not quite. ${escapeHtml(q.explain || "")}`;
       if (q.type === "multi") {
         body.querySelectorAll(".option").forEach((btn) => {
           const i = Number(btn.dataset.i);
           if (i === q.answer) btn.classList.add("correct");
-          if (i === answerVal && !ok) btn.classList.add("wrong");
+          if (!fromIdk && i === answerVal && !ok) btn.classList.add("wrong");
           btn.disabled = true;
         });
       }
       document.getElementById("btnCheck").disabled = true;
+      const idk = document.getElementById("btnIdk");
+      if (idk) idk.disabled = true;
       const nextBtn = document.getElementById("btnNext");
       nextBtn.style.display = "inline-flex";
       nextBtn.focus();
@@ -1650,12 +1679,25 @@ function renderPower5({ subject }) {
           paint();
         }
       };
-      // Auto-advance on correct after short beat (speed)
-      if (ok) {
+      if (ok && !fromIdk) {
         setTimeout(() => {
           if (document.getElementById("btnNext") === nextBtn) nextBtn.click();
         }, 550);
       }
+    }
+
+    document.getElementById("btnIdk").onclick = () => {
+      if (revealed) return;
+      revealP5(false, true);
+    };
+
+    document.getElementById("btnCheck").onclick = () => {
+      if (revealed) return;
+      if (answerVal === null || answerVal === "") {
+        alert("Pick or type an answer first!");
+        return;
+      }
+      revealP5(checkAnswer(q, answerVal), false);
     };
   }
 
@@ -2680,11 +2722,13 @@ function renderDiagnostic({ subject }) {
         <h3>${escapeHtml(q.q)}</h3>
         <div id="qBody"></div>
         ${learnAboutButtonHtml()}
+        ${adaptHintHtml(subject)}
         <div id="feedback"></div>
         <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
           <button class="btn btn-primary" type="button" id="btnCheck" ${
             revealed ? "disabled" : ""
           }>Check answer</button>
+          ${idkButtonHtml()}
           <button class="btn btn-ok" type="button" id="btnNext" style="display:${
             revealed ? "inline-flex" : "none"
           }">${index + 1 >= qs.length ? "See results" : "Next →"}</button>
@@ -2743,33 +2787,35 @@ function renderDiagnostic({ subject }) {
       });
     }
 
-    document.getElementById("btnCheck").onclick = () => {
-      if (revealed) return;
-      if (answers[q.id] === undefined || answers[q.id] === "") {
-        alert("Pick or type an answer first!");
-        return;
-      }
+    function revealDiag(ok, fromIdk) {
       revealed = true;
       if (window.__diagKeyHandler) {
         window.removeEventListener("keydown", window.__diagKeyHandler);
         window.__diagKeyHandler = null;
       }
-      const ok = checkAnswer(q, answers[q.id]);
+      try {
+        recordAdaptResult(profile(), subject, fromIdk ? "dontKnow" : ok ? "correct" : "wrong");
+      } catch (_) {
+        /* ignore */
+      }
       const fb = document.getElementById("feedback");
       fb.className = `feedback ${ok ? "good" : "bad"}`;
-      fb.textContent = (ok ? "✓ Correct! " : "Not quite. ") + q.explain;
+      fb.textContent = fromIdk
+        ? "That's OK — next questions will ease up. " + (q.explain || "")
+        : (ok ? "✓ Correct! " : "Not quite. ") + (q.explain || "");
       if (q.type === "multi") {
         body.querySelectorAll(".option").forEach((btn) => {
           const i = Number(btn.dataset.i);
           if (i === q.answer) btn.classList.add("correct");
-          if (i === answers[q.id] && !ok) btn.classList.add("wrong");
+          if (!fromIdk && i === answers[q.id] && !ok) btn.classList.add("wrong");
           btn.disabled = true;
         });
       }
       document.getElementById("btnCheck").disabled = true;
+      const idk = document.getElementById("btnIdk");
+      if (idk) idk.disabled = true;
       const nextBtn = document.getElementById("btnNext");
       nextBtn.style.display = "inline-flex";
-      // Auto-save progress mid-test (kids never click save)
       try {
         if (!profile().diagnostics) profile().diagnostics = {};
         profile().diagnostics[subject] = {
@@ -2783,13 +2829,30 @@ function renderDiagnostic({ subject }) {
       } catch (_) {
         /* ignore */
       }
-      if (ok) {
+      if (ok && !fromIdk) {
         setTimeout(() => {
           if (document.getElementById("btnNext") === nextBtn) nextBtn.click();
         }, 550);
       } else {
         nextBtn.focus();
       }
+    }
+
+    document.getElementById("btnIdk").onclick = () => {
+      if (revealed) return;
+      // Mark unanswered so scoring treats it as incorrect
+      if (answers[q.id] === undefined) answers[q.id] = "__idk__";
+      revealDiag(false, true);
+    };
+
+    document.getElementById("btnCheck").onclick = () => {
+      if (revealed) return;
+      if (answers[q.id] === undefined || answers[q.id] === "") {
+        alert("Pick or type an answer first!");
+        return;
+      }
+      const ok = checkAnswer(q, answers[q.id]);
+      revealDiag(ok, false);
     };
 
     document.getElementById("btnNext").onclick = () => {
@@ -3012,10 +3075,12 @@ function renderLesson({ subject, skillId, stage }) {
         <h3 class="teach-heading">${escapeHtml(q.q)}</h3>
         <div id="qBody"></div>
         ${learnAboutButtonHtml()}
+        ${adaptHintHtml(subject)}
         <div id="feedback"></div>
         <div id="aiHelpBox"></div>
         <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
           <button class="btn btn-primary" type="button" id="btnCheck">Check</button>
+          ${idkButtonHtml()}
           <button class="btn btn-ok" type="button" id="btnAdvance" style="display:none">Next →</button>
         </div>`;
     }
@@ -3148,6 +3213,74 @@ function renderLesson({ subject, skillId, stage }) {
       };
     }
 
+    function afterAnswerReveal(ok, fromIdk) {
+      if (typeof persistQuizSession === "function") persistQuizSession(session);
+      const fb = document.getElementById("feedback");
+      fb.className = `feedback ${ok ? "good" : "bad"}`;
+      if (fromIdk) {
+        fb.innerHTML = `That's OK — we'll make the next questions easier. ${escapeHtml(
+          q.explain || "Have a look at this tip, then press Next."
+        )}`;
+      } else {
+        fb.innerHTML = ok
+          ? `✓ Nice! ${escapeHtml(q.explain || "Correct!")}`
+          : `Not quite. ${escapeHtml(q.explain || "Read the tip, then press Next.")}`;
+      }
+
+      if (q.type === "multi") {
+        body.querySelectorAll(".option").forEach((btn) => {
+          const i = Number(btn.dataset.i);
+          if (i === q.answer) btn.classList.add("correct");
+          if (!fromIdk && i === answerVal && !ok) btn.classList.add("wrong");
+          btn.disabled = true;
+        });
+      }
+      const checkBtn = document.getElementById("btnCheck");
+      const idkBtn = document.getElementById("btnIdk");
+      if (checkBtn) checkBtn.disabled = true;
+      if (idkBtn) idkBtn.disabled = true;
+      autosaveSoon();
+
+      const advBtn = document.getElementById("btnAdvance");
+      const remaining = session.queue.length - session.practiceIndex - 1;
+      const willInject =
+        !ok &&
+        mod.struggle?.practice?.length &&
+        !session.helpShownForIndex[session.practiceIndex];
+      advBtn.style.display = "inline-flex";
+      advBtn.textContent =
+        remaining <= 0 && !willInject ? "Finish lesson →" : "Next →";
+      advBtn.onclick = () => {
+        const result = advanceAfterAnswer(session, ok);
+        if (typeof persistQuizSession === "function") persistQuizSession(session);
+        if (result.done || session.finished || session.phase === "complete") {
+          finishSession();
+          return;
+        }
+        answerVal = null;
+        revealed = false;
+        paint();
+      };
+      if (ok && !fromIdk) {
+        setTimeout(() => {
+          if (document.getElementById("btnAdvance") === advBtn) advBtn.click();
+        }, 550);
+      } else {
+        advBtn.focus();
+      }
+    }
+
+    document.getElementById("btnIdk").onclick = () => {
+      if (revealed) return;
+      revealed = true;
+      if (session._keyHandler) {
+        window.removeEventListener("keydown", session._keyHandler);
+        session._keyHandler = null;
+      }
+      handleDontKnow(session, q);
+      afterAnswerReveal(false, true);
+    };
+
     document.getElementById("btnCheck").onclick = async () => {
       if (revealed) return;
       if (answerVal === null || answerVal === "") {
@@ -3160,23 +3293,7 @@ function renderLesson({ subject, skillId, stage }) {
         session._keyHandler = null;
       }
       const ok = handlePracticeAnswer(session, q, answerVal);
-      if (typeof persistQuizSession === "function") persistQuizSession(session);
-      const fb = document.getElementById("feedback");
-      fb.className = `feedback ${ok ? "good" : "bad"}`;
-      fb.innerHTML = ok
-        ? `✓ Nice! ${escapeHtml(q.explain || "Correct!")}`
-        : `Not quite. ${escapeHtml(q.explain || "Read the tip, then press Next.")}`;
-
-      if (q.type === "multi") {
-        body.querySelectorAll(".option").forEach((btn) => {
-          const i = Number(btn.dataset.i);
-          if (i === q.answer) btn.classList.add("correct");
-          if (i === answerVal && !ok) btn.classList.add("wrong");
-          btn.disabled = true;
-        });
-      }
-      document.getElementById("btnCheck").disabled = true;
-      autosaveSoon();
+      afterAnswerReveal(ok, false);
 
       if (!ok && isAiConfigured()) {
         const box = document.getElementById("aiHelpBox");
@@ -3199,35 +3316,6 @@ function renderLesson({ subject, skillId, stage }) {
             box.innerHTML = "";
           }
         }
-      }
-
-      const advBtn = document.getElementById("btnAdvance");
-      const remaining = session.queue.length - session.practiceIndex - 1;
-      const willInject =
-        !ok &&
-        mod.struggle?.practice?.length &&
-        !session.helpShownForIndex[session.practiceIndex];
-      advBtn.style.display = "inline-flex";
-      advBtn.textContent =
-        remaining <= 0 && !willInject ? "Finish lesson →" : "Next →";
-      advBtn.onclick = () => {
-        const result = advanceAfterAnswer(session, ok);
-        if (typeof persistQuizSession === "function") persistQuizSession(session);
-        if (result.done || session.finished || session.phase === "complete") {
-          finishSession();
-          return;
-        }
-        answerVal = null;
-        revealed = false;
-        paint();
-      };
-      // Auto-advance when correct (fast loop) — still goes Next, never restarts
-      if (ok) {
-        setTimeout(() => {
-          if (document.getElementById("btnAdvance") === advBtn) advBtn.click();
-        }, 550);
-      } else {
-        advBtn.focus();
       }
     };
   }

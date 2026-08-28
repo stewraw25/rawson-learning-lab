@@ -291,6 +291,34 @@ a { color: inherit; }
   background: linear-gradient(135deg, #22c55e, #14b8a6);
   color: white;
 }
+.btn-idk {
+  background: transparent;
+  color: var(--muted);
+  border: 1.5px dashed rgba(255, 213, 79, 0.45);
+  font-weight: 800;
+}
+.btn-idk:hover {
+  color: var(--text);
+  border-color: rgba(255, 213, 79, 0.75);
+  background: rgba(255, 213, 79, 0.08);
+}
+.btn-idk:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.adapt-hint {
+  margin: 0.35rem 0 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.adapt-hint strong {
+  color: var(--gold);
+}
+body.theme-learner-bella .btn-idk,
+body[data-learner="bella"] .btn-idk {
+  border-color: rgba(232, 196, 207, 0.5);
+  color: #e8c4cf;
+}
 .btn-block { width: 100%; }
 .btn-lg { padding: 0.95rem 1.4rem; font-size: 1.05rem; }
 
