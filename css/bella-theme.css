@@ -1,47 +1,35 @@
-/* Bella-Rose — refined dusty-rose theme (13+)
-   Black horse + light brown miniature poodles
-   Pink instead of garden green — polished, not babyish */
+/* Bella-Rose — original art + dusty-rose UI (13+)
+   Replaces garden green with soft pink when her hub is open */
 
 body.theme-bella,
 body.theme-learner-bella {
-  --bg: #2a1a22;
-  --bg-soft: #352028;
-  --surface: #3d2832;
-  --surface-2: #4a3340;
-  --parchment: #f5e6ec;
-  --text: #f8f0f3;
-  --muted: #c9a8b6;
-  --line: rgba(212, 165, 180, 0.2);
+  --bg: #2c1a24;
+  --bg-soft: #3a2430;
+  --surface: #422833;
+  --surface-2: #523440;
+  --parchment: #f5e8ee;
+  --text: #faf4f7;
+  --muted: #cbb0bc;
+  --line: rgba(212, 165, 180, 0.22);
   --bella: #d4a5b4;
   --bella-2: #b76e84;
   --leaf: #c98b9e;
   --ok: #c98b9e;
   --gold: #e8c4cf;
   --bark: #a88978;
-  --maths: #9e8bb0;
-  --english: #c9a06a;
-  --science: #8f9e8b;
 
+  /* Side / full-page background: pink instead of garden green */
   background:
-    radial-gradient(880px 480px at 12% -6%, rgba(183, 110, 132, 0.22), transparent 55%),
-    radial-gradient(760px 440px at 96% 6%, rgba(212, 165, 180, 0.14), transparent 50%),
-    radial-gradient(640px 380px at 50% 110%, rgba(90, 50, 65, 0.35), transparent 45%),
-    linear-gradient(180deg, #322028 0%, #2a1a22 45%, #1f1419 100%) !important;
+    radial-gradient(900px 500px at 12% -8%, rgba(183, 110, 132, 0.28), transparent 55%),
+    radial-gradient(780px 460px at 98% 8%, rgba(212, 165, 180, 0.16), transparent 50%),
+    radial-gradient(680px 400px at 50% 110%, rgba(90, 45, 65, 0.4), transparent 45%),
+    linear-gradient(180deg, #3a2430 0%, #2c1a24 42%, #21141c 100%) !important;
   color: var(--text);
 }
 
-body.theme-bella::before,
-body.theme-learner-bella::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.08;
-  background-image: url("../assets/illust/bella/wallpaper.jpg?v=66");
-  background-size: cover;
-  background-position: center;
-  mix-blend-mode: soft-light;
+html:has(body.theme-learner-bella),
+html:has(body.theme-bella) {
+  background: #2c1a24 !important;
 }
 
 body.theme-bella #app,
@@ -52,25 +40,68 @@ body.theme-learner-bella #app {
 
 body.theme-bella .topbar,
 body.theme-learner-bella .topbar {
-  background: linear-gradient(180deg, rgba(42, 26, 34, 0.97) 70%, rgba(42, 26, 34, 0.9)) !important;
-  border-bottom: 1px solid rgba(212, 165, 180, 0.18) !important;
+  background: linear-gradient(180deg, rgba(44, 26, 36, 0.97) 70%, rgba(44, 26, 36, 0.9)) !important;
+  border-bottom: 1px solid rgba(212, 165, 180, 0.2) !important;
 }
 
 body.theme-bella .card,
 body.theme-learner-bella .card,
 body.theme-bella .welcome-banner,
 body.theme-learner-bella .welcome-banner {
-  background: linear-gradient(165deg, rgba(70, 45, 58, 0.96), rgba(50, 32, 42, 0.98)) !important;
-  border: 1px solid rgba(212, 165, 180, 0.22) !important;
-  box-shadow: 0 12px 28px rgba(20, 8, 14, 0.32);
+  background: linear-gradient(165deg, rgba(78, 48, 62, 0.96), rgba(55, 34, 46, 0.98)) !important;
+  border: 1px solid rgba(212, 165, 180, 0.24) !important;
+  box-shadow: 0 12px 28px rgba(20, 8, 14, 0.3);
 }
 
 body.theme-bella .welcome-banner.bella,
 body.theme-learner-bella .welcome-banner.bella {
+  border-color: rgba(183, 110, 132, 0.45) !important;
+  background:
+    radial-gradient(400px 160px at 15% 0%, rgba(183, 110, 132, 0.2), transparent 70%),
+    linear-gradient(165deg, rgba(78, 48, 62, 0.98), rgba(52, 32, 44, 0.98)) !important;
+}
+
+/* Coach / AI teacher panel — soft pink chrome, keep original avatar art */
+body.theme-bella .coach-panel,
+body.theme-learner-bella .coach-panel {
   border-color: rgba(183, 110, 132, 0.4) !important;
   background:
-    radial-gradient(400px 160px at 15% 0%, rgba(183, 110, 132, 0.18), transparent 70%),
-    linear-gradient(165deg, rgba(72, 46, 58, 0.98), rgba(48, 30, 40, 0.98)) !important;
+    radial-gradient(420px 180px at 0% 0%, rgba(183, 110, 132, 0.18), transparent 65%),
+    linear-gradient(165deg, rgba(78, 48, 62, 0.98), rgba(55, 34, 46, 0.98)) !important;
+}
+body.theme-bella .coach-avatar,
+body.theme-learner-bella .coach-avatar {
+  border-color: rgba(232, 196, 207, 0.55) !important;
+  box-shadow: 0 8px 20px rgba(158, 86, 112, 0.35);
+}
+body.theme-bella .speech-bubble,
+body.theme-learner-bella .speech-bubble {
+  background: rgba(255, 236, 244, 0.1) !important;
+  border-color: rgba(212, 165, 180, 0.3) !important;
+}
+body.theme-bella .speech-bubble::before,
+body.theme-learner-bella .speech-bubble::before {
+  border-right-color: rgba(212, 165, 180, 0.3) !important;
+}
+body.theme-bella .coach-chip,
+body.theme-learner-bella .coach-chip {
+  background: rgba(183, 110, 132, 0.16) !important;
+  border-color: rgba(212, 165, 180, 0.3) !important;
+  color: var(--text) !important;
+}
+body.theme-bella .coach-chip:hover,
+body.theme-learner-bella .coach-chip:hover {
+  background: rgba(183, 110, 132, 0.28) !important;
+  border-color: rgba(232, 196, 207, 0.45) !important;
+}
+body.theme-bella .coach-online,
+body.theme-learner-bella .coach-online {
+  background: #c98b9e !important;
+  color: #2c1a24 !important;
+}
+body.theme-bella .coach-name,
+body.theme-learner-bella .coach-name {
+  color: #e8c4cf !important;
 }
 
 body.theme-bella .btn-primary,
@@ -88,9 +119,7 @@ body.theme-learner-bella .big-next-btn.btn-primary {
 }
 
 body.theme-bella .btn-primary:hover,
-body.theme-learner-bella .btn-primary:hover,
-body.theme-bella .btn-bella:hover,
-body.theme-learner-bella .btn-bella:hover {
+body.theme-learner-bella .btn-primary:hover {
   filter: brightness(1.06);
 }
 
@@ -121,7 +150,7 @@ body.theme-learner-bella .next-step-primary {
   border-color: rgba(183, 110, 132, 0.55) !important;
   background:
     radial-gradient(480px 180px at 50% 0%, rgba(183, 110, 132, 0.16), transparent 70%),
-    linear-gradient(165deg, rgba(70, 45, 58, 0.98), rgba(50, 32, 42, 0.98)) !important;
+    linear-gradient(165deg, rgba(78, 48, 62, 0.98), rgba(55, 34, 46, 0.98)) !important;
 }
 
 body.theme-bella .simple-done-card,
@@ -156,31 +185,33 @@ body.theme-learner-bella .lesson-row.is-next {
   background: rgba(183, 110, 132, 0.1);
 }
 
-body.theme-bella .lesson-row.is-done,
-body.theme-learner-bella .lesson-row.is-done {
-  border-color: rgba(201, 139, 158, 0.35);
+body.theme-bella .quick-act,
+body.theme-learner-bella .quick-act {
+  background: rgba(183, 110, 132, 0.12) !important;
+  border-color: rgba(212, 165, 180, 0.28) !important;
 }
 
-/* Home cards */
+body.theme-bella .goals-bar,
+body.theme-learner-bella .goals-bar {
+  background: rgba(183, 110, 132, 0.12) !important;
+  border-color: rgba(212, 165, 180, 0.25) !important;
+}
+
+/* Home cards for Bella */
 .home-score-card.bella {
   border-color: rgba(183, 110, 132, 0.4) !important;
   background:
     radial-gradient(380px 150px at 50% 0%, rgba(183, 110, 132, 0.16), transparent 70%),
-    linear-gradient(165deg, rgba(70, 45, 58, 0.5), transparent),
-    var(--surface, #3d2832) !important;
+    var(--surface, #422833) !important;
 }
 .home-score-card.bella .avatar {
   background: linear-gradient(145deg, #c98b9e, #9e5670) !important;
-  box-shadow: 0 0 0 2px rgba(232, 196, 207, 0.25);
 }
 .home-theme-card.bella {
   border-color: rgba(183, 110, 132, 0.4) !important;
 }
 .home-theme-card.bella figcaption {
   color: #e8c4cf !important;
-}
-.profile-card.bella {
-  border-color: rgba(183, 110, 132, 0.4) !important;
 }
 .btn-bella {
   background: linear-gradient(135deg, #c98b9e, #9e5670) !important;
@@ -196,7 +227,6 @@ body.theme-learner-bella .lesson-row.is-done {
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
   background: rgba(183, 110, 132, 0.18);
   border: 1px solid rgba(212, 165, 180, 0.28);
   color: #e8c4cf;
@@ -205,11 +235,4 @@ body.theme-learner-bella .lesson-row.is-done {
 body.theme-bella .site-powered,
 body.theme-learner-bella .site-powered {
   border-top-color: rgba(212, 165, 180, 0.15);
-}
-
-/* Soften neon pink leftovers from older styles.css */
-body.theme-learner-bella {
-  --leaf: #c98b9e;
-  --ok: #c98b9e;
-  --gold: #e8c4cf;
 }

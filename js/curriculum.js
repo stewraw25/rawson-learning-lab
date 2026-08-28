@@ -63,7 +63,7 @@ const SUBJECTS = {
  * George = F1 & go-karting only (no dogs).
  * Use illustFor(key, learnerId) so each child's hub is personal.
  */
-const ILLUST_V = "66";
+const ILLUST_V = "67";
 
 const ILLUST_SHARED = {
   coach: {
@@ -120,23 +120,23 @@ const ILLUST_LEARNER = {
   bella: {
     coach: {
       src: "assets/illust/bella/coach-avatar.jpg",
-      alt: "Bella’s coach — black horse and miniature poodle",
+      alt: "Coach — Bella’s AI teacher",
     },
     mascot: {
       src: "assets/illust/bella/mascot.jpg",
-      alt: "Glossy black horse with a light brown miniature poodle",
+      alt: "Golden mini poodle with Bella’s glossy black horse",
     },
     welcome: {
       src: "assets/illust/bella/welcome.jpg",
-      alt: "Black horse and light brown mini poodle in an English paddock",
+      alt: "Golden mini poodle and jet-black horse in the paddock",
     },
     hero: {
       src: "assets/illust/bella/hero.jpg",
-      alt: "Black riding horse and light brown miniature poodle",
+      alt: "Golden mini poodle and black riding horse",
     },
     celebrate: {
       src: "assets/illust/bella/celebrate.jpg",
-      alt: "Black horse and light brown mini poodle after a lesson",
+      alt: "Poodle and black horse celebrating",
     },
     pick: {
       src: "assets/illust/bella/pick.jpg",
@@ -144,43 +144,31 @@ const ILLUST_LEARNER = {
     },
     pathway: {
       src: "assets/illust/bella/pathway.jpg",
-      alt: "Black horse and mini poodle on a countryside path",
+      alt: "Poodle and black horse on the pathway",
     },
     teach: {
       src: "assets/illust/bella/teach.jpg",
-      alt: "Black horse and mini poodle studying together",
+      alt: "Poodle teaching with the black horse watching",
     },
     exam: {
       src: "assets/illust/bella/exam.jpg",
-      alt: "Black horse and mini poodle ready for a test",
+      alt: "Poodle and black horse ready for a test",
     },
     unlock: {
       src: "assets/illust/bella/unlock.jpg",
-      alt: "Black horse and mini poodle at an open paddock gate",
-    },
-    wallpaper: {
-      src: "assets/illust/bella/wallpaper.jpg",
-      alt: "Dusty rose backdrop with horse and poodle silhouettes",
-    },
-    "poodle-icon": {
-      src: "assets/illust/bella/poodle-icon.jpg",
-      alt: "Light brown miniature poodle",
-    },
-    "horse-icon": {
-      src: "assets/illust/bella/horse-icon.jpg",
-      alt: "Glossy black horse",
+      alt: "Poodle and black horse at an open paddock gate",
     },
     "subject-maths": {
       src: "assets/illust/bella/subject-maths.jpg",
-      alt: "Black horse and mini poodle with maths study notes",
+      alt: "Black horse and poodle maths study",
     },
     "subject-english": {
       src: "assets/illust/bella/subject-english.jpg",
-      alt: "Black horse and mini poodle with a book",
+      alt: "Black horse and poodle reading",
     },
     "subject-science": {
       src: "assets/illust/bella/subject-science.jpg",
-      alt: "Black horse and mini poodle at a science table",
+      alt: "Black horse and poodle science table",
     },
   },
   george: {
