@@ -491,6 +491,8 @@ function hashFor(screen, params = {}) {
     return `#/lesson/${params.subject}/${params.skillId}/${params.stage || 1}`;
   if (screen === "lessonResult")
     return `#/lesson/${params.subject}/${params.skillId || "done"}/${params.stage || 1}/done`;
+  if (screen === "levelComplete")
+    return `#/level-complete/${params.subject || "maths"}/${params.stage || 1}`;
   if (screen === "diagnosticResult")
     return `#/subject/${params.subject || "maths"}`;
   if (screen === "exam")
@@ -541,6 +543,7 @@ function go(screen, params = {}, opts = {}) {
     diagnosticResult: 1,
     lesson: 1,
     lessonResult: 1,
+    levelComplete: 1,
     exam: 1,
     examResult: 1,
     power5: 1,
@@ -607,6 +610,7 @@ function go(screen, params = {}, opts = {}) {
     "diagnosticResult",
     "lessonResult",
     "examResult",
+    "levelComplete",
   ]);
   if (!opts.fromHash) {
     const nextHash = hashFor(screen, params);
@@ -632,6 +636,7 @@ function go(screen, params = {}, opts = {}) {
     diagnosticResult: renderDiagnosticResult,
     lesson: renderLesson,
     lessonResult: renderLessonResult,
+    levelComplete: renderLevelComplete,
     exam: renderExam,
     examResult: renderExamResult,
     parent: renderParent,
@@ -2382,27 +2387,28 @@ function renderSubject({ subject }) {
       </div>`;
   } else if (nextStageNum && stageComplete) {
     nextStepHtml = `
-      <div class="card next-step-card next-step-unlock mb-2">
-        <p class="next-step-label">🎉 Level complete!</p>
-        <h2 class="next-step-title">${stageMeta.emoji} ${escapeHtml(
-      stageMeta.name
-    )} finished</h2>
-        <p class="next-step-desc">Brilliant work, ${escapeHtml(
+      <div class="card level-complete-card next-step-unlock mb-2">
+        <p class="level-complete-kicker">Progress bar full · 100%</p>
+        <div class="level-complete-badge">${stageMeta.emoji}</div>
+        <h2 class="level-complete-title" style="font-size:clamp(1.6rem,4vw,2.2rem)">Level complete!</h2>
+        <p class="level-complete-stage">${escapeHtml(stageMeta.name)} finished</p>
+        <p class="level-complete-msg">Brilliant work, <strong>${escapeHtml(
           kidName
-        )}! Unlock the next level: <strong>${escapeHtml(
-      nextStageMeta.name
-    )}</strong>.</p>
-        <button class="btn btn-primary btn-xl" type="button" id="startNextStage" data-next-stage="${nextStageNum}">
+        )}</strong>! Unlock the next level:</p>
+        <div class="level-complete-bar" aria-hidden="true"><i style="width:100%"></i></div>
+        <button class="btn btn-primary btn-xl level-complete-cta" type="button" id="startNextStage" data-next-stage="${nextStageNum}">
           ${nextStageMeta.emoji} Unlock ${escapeHtml(nextStageMeta.name)} →
         </button>
+        <p class="muted level-complete-hint">Tap the big button to continue</p>
       </div>`;
   } else if (stageComplete && activeStage >= MAX_COURSE_STAGE) {
     nextStepHtml = `
-      <div class="card next-step-card next-step-done mb-2">
-        <p class="next-step-label">⭐ Amazing!</p>
-        <h2 class="next-step-title">A* path complete for ${S.name}</h2>
-        <p class="next-step-desc">You can revise any lesson below, blitz a Power 5, or try exam workouts to stay sharp.</p>
-        <button class="btn btn-primary btn-xl" type="button" id="btnSubjectPower5">
+      <div class="card level-complete-card next-step-done mb-2">
+        <p class="level-complete-kicker">Progress bar full · 100%</p>
+        <div class="level-complete-badge">⭐</div>
+        <h2 class="level-complete-title" style="font-size:clamp(1.6rem,4vw,2.2rem)">A* path complete!</h2>
+        <p class="level-complete-msg">${S.name} mastery finished — revise, or blitz a Power 5.</p>
+        <button class="btn btn-primary btn-xl level-complete-cta" type="button" id="btnSubjectPower5">
           ⚡ Power 5 ${S.name} →
         </button>
       </div>`;
@@ -3436,7 +3442,18 @@ function renderLesson({ subject, skillId, stage }) {
     } catch (_) {
       /* ignore */
     }
-    autoProgressStages(profile(), subject);
+    // If this lesson finished the whole level, celebrate FIRST — don't silently skip ahead
+    const stageDoneNow = isStageComplete(profile(), subject, stageNum);
+    if (stageDoneNow) {
+      go("levelComplete", {
+        subject,
+        stage: stageNum,
+        skillId,
+        scorePct,
+      });
+      return;
+    }
+
     const nextSkill = nextLesson(profile(), subject, stageNum, skillId);
     go("lessonResult", {
       subject,
@@ -3452,6 +3469,82 @@ function renderLesson({ subject, skillId, stage }) {
 
   if (liveLesson && liveLesson.key === liveKey) liveLesson.paint = paint;
   paint();
+}
+
+/**
+ * Big celebration when a stage/level bar hits 100%.
+ * One clear button unlocks the next level (or sends them back if A* done).
+ */
+function renderLevelComplete({ subject, stage, skillId, scorePct }) {
+  if (!state.activeLearner || !SUBJECTS[subject]) return go("dashboard");
+  const p = profile();
+  const L = learner();
+  const stageNum = Number(stage) || getActiveStage(p, subject) || 1;
+  const stageMeta = COURSE_STAGES[stageNum] || COURSE_STAGES[1];
+  const nextStage = stageNum < MAX_COURSE_STAGE ? stageNum + 1 : null;
+  const nextMeta = nextStage ? COURSE_STAGES[nextStage] : null;
+  const celeb =
+    state.activeLearner === "bella"
+      ? illustFor("celebrate", "bella")
+      : state.activeLearner === "george"
+        ? illustFor("celebrate", "george")
+        : illustFor("celebrate");
+
+  appEl.innerHTML = `
+    ${topbar()}
+    <div class="level-complete-screen">
+      <div class="card level-complete-card">
+        ${
+          celeb
+            ? `<img class="level-complete-art" src="${celeb.src}" alt="${escapeHtml(
+                celeb.alt || ""
+              )}" />`
+            : ""
+        }
+        <p class="level-complete-kicker">Progress bar full · 100%</p>
+        <div class="level-complete-badge">${stageMeta.emoji || "🎉"}</div>
+        <h1 class="level-complete-title">Level complete!</h1>
+        <h2 class="level-complete-stage">${escapeHtml(stageMeta.name)} · ${
+    SUBJECTS[subject].emoji
+  } ${escapeHtml(SUBJECTS[subject].name)}</h2>
+        <p class="level-complete-msg">
+          Brilliant work, <strong>${escapeHtml(L.name)}</strong> —
+          you finished every lesson in this level${
+            scorePct != null ? ` (last lesson ${scorePct}%)` : ""
+          }.
+        </p>
+        <div class="level-complete-bar" aria-hidden="true"><i style="width:100%"></i></div>
+        ${
+          nextMeta
+            ? `<button type="button" class="btn btn-primary btn-xl level-complete-cta" id="btnUnlockLevel">
+                 ${nextMeta.emoji} Unlock ${escapeHtml(nextMeta.name)} →
+               </button>
+               <p class="muted level-complete-hint">Tap the big button to start the next level</p>`
+            : `<button type="button" class="btn btn-primary btn-xl level-complete-cta" id="btnUnlockLevel">
+                 ⭐ A* path complete — back to ${escapeHtml(SUBJECTS[subject].name)} →
+               </button>
+               <p class="muted level-complete-hint">You can revise lessons or try Power 5 next</p>`
+        }
+        <button type="button" class="btn btn-ghost mt-1" data-go="dashboard">Home hub</button>
+      </div>
+    </div>
+  `;
+  bindShell();
+  if (typeof fireConfetti === "function") fireConfetti();
+
+  document.getElementById("btnUnlockLevel")?.addEventListener("click", async () => {
+    if (nextStage && nextMeta) {
+      startCourseStage(p, subject, nextStage);
+      if (!p.courses[subject].stages[nextStage]?.path?.length) {
+        buildCourse(p, subject, nextStage);
+      }
+      await save({ quiet: false });
+      go("subject", { subject });
+    } else {
+      await save({ quiet: true });
+      go("subject", { subject });
+    }
+  });
 }
 
 function renderLessonResult({
@@ -3490,10 +3583,16 @@ function renderLessonResult({
     console.warn(e);
   }
 
-  const stageJustDone = isStageComplete(p, subject, stageNum);
-  const nextStage = stageJustDone && stageNum < MAX_COURSE_STAGE ? stageNum + 1 : null;
-  const canUnlockStage = nextStage && canAccessStage(p, subject, nextStage);
-  const nextMeta = nextStage ? COURSE_STAGES[nextStage] : null;
+  // If the bar hit 100% on this lesson, always use the big Level Complete screen
+  if (isStageComplete(p, subject, stageNum)) {
+    return go("levelComplete", {
+      subject,
+      stage: stageNum,
+      skillId,
+      scorePct,
+    });
+  }
+
   const mod = getTeachModule(subject, skillId, stageNum, state.activeLearner);
   const nextTitle =
     nextId && typeof getLessonMeta === "function"
@@ -3502,12 +3601,7 @@ function renderLessonResult({
 
   // ONE clear action for kids — no clutter
   let primaryHtml = "";
-  if (canUnlockStage && nextMeta) {
-    primaryHtml = `
-      <button class="btn btn-primary btn-xl big-next-btn" type="button" id="unlockNext">
-        🎉 Level done! Unlock ${escapeHtml(nextMeta.name)} →
-      </button>`;
-  } else if (nextId && nextId !== skillId) {
+  if (nextId && nextId !== skillId) {
     primaryHtml = `
       <button class="btn btn-primary btn-xl big-next-btn" type="button" id="btnNextSkill">
         ✅ Next: ${escapeHtml(nextTitle || "continue")} →
@@ -3564,15 +3658,9 @@ function renderLessonResult({
     clearAuto();
     go("lesson", { subject, skillId: nextId, stage: stageNum });
   });
-  document.getElementById("unlockNext")?.addEventListener("click", async () => {
-    clearAuto();
-    startCourseStage(p, subject, nextStage);
-    await save({ quiet: true });
-    go("subject", { subject });
-  });
 
   // Auto-start next lesson so kids aren't stuck choosing
-  if (nextId && nextId !== skillId && !canUnlockStage) {
+  if (nextId && nextId !== skillId) {
     let n = 3;
     const countEl = document.getElementById("autoNextCount");
     countTimer = setInterval(() => {

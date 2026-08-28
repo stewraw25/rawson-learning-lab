@@ -2203,3 +2203,97 @@ body.theme-learner-bella .home-kicker {
   }
   .path-pct { text-align: left; }
 }
+
+/* —— Level complete celebration (100% bar) —— */
+.level-complete-screen {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0 1.5rem;
+}
+.level-complete-card {
+  text-align: center;
+  max-width: 34rem;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.75rem 1.35rem 1.5rem !important;
+  border: 2px solid rgba(232, 197, 71, 0.45) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  background:
+    radial-gradient(500px 220px at 50% 0%, rgba(232, 197, 71, 0.22), transparent 70%),
+    linear-gradient(165deg, rgba(60, 80, 50, 0.98), rgba(30, 45, 35, 0.98)) !important;
+}
+body.theme-learner-bella .level-complete-card,
+body[data-learner="bella"] .level-complete-card {
+  background:
+    radial-gradient(500px 220px at 50% 0%, rgba(232, 196, 207, 0.28), transparent 70%),
+    linear-gradient(165deg, rgba(90, 50, 70, 0.98), rgba(50, 30, 42, 0.98)) !important;
+  border-color: rgba(232, 196, 207, 0.5) !important;
+}
+.level-complete-art {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 16px;
+  margin: 0 0 1rem;
+}
+.level-complete-kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.level-complete-badge {
+  font-size: 3rem;
+  line-height: 1;
+  margin: 0.25rem 0 0.35rem;
+}
+.level-complete-title {
+  font-family: var(--display);
+  font-size: clamp(2rem, 6vw, 2.8rem);
+  margin: 0 0 0.35rem;
+  color: var(--gold);
+}
+.level-complete-stage {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+.level-complete-msg {
+  margin: 0 auto 1rem;
+  max-width: 28rem;
+  line-height: 1.45;
+  font-size: 1.02rem;
+}
+.level-complete-bar {
+  height: 14px;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  margin: 0 auto 1.25rem;
+  max-width: 22rem;
+}
+.level-complete-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #66bb6a, #ffd54f, #81c784);
+}
+body.theme-learner-bella .level-complete-bar > i,
+body[data-learner="bella"] .level-complete-bar > i {
+  background: linear-gradient(90deg, #b76e84, #ffd54f, #e8c4cf);
+}
+.level-complete-cta {
+  width: 100%;
+  max-width: 26rem;
+  margin: 0 auto;
+  padding: 1.05rem 1.25rem !important;
+  font-size: 1.15rem !important;
+}
+.level-complete-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+}

@@ -1223,14 +1223,8 @@ function ensureCourseReady(profile, subject) {
         `Your ${SUBJECTS[subject].name} lessons are ready — start at the top!`,
     };
   }
-  if (!profile._autoProgressing) {
-    profile._autoProgressing = true;
-    try {
-      autoProgressStages(profile, subject);
-    } finally {
-      profile._autoProgressing = false;
-    }
-  }
+  // Do NOT auto-skip to the next stage here — kids need a clear "Level complete!" moment.
+  // Unlock happens from the Level Complete screen / subject unlock button.
   return c.stages[c.activeStage] || c.stages[stage];
 }
 
