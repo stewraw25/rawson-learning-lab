@@ -495,13 +495,9 @@ function go(screen, params = {}, opts = {}) {
   }
   currentScreen = screen;
 
-  // Keep pink/green theme stuck to the active child on every navigation click
-  if (
-    screen === "home" ||
-    screen === "parent" ||
-    screen === "sync" ||
-    screen === "aiSettings"
-  ) {
+  // Keep Bella pink for her whole session (hub, lessons, parent, settings).
+  // Only the shared home screen goes back to garden green.
+  if (screen === "home") {
     applyLearnerTheme(null);
   } else if (state.activeLearner && LEARNERS[state.activeLearner]) {
     applyLearnerTheme(state.activeLearner);
@@ -637,39 +633,50 @@ function applyLearnerTheme(learnerId) {
   try {
     const body = document.body;
     const root = document.documentElement;
-    body.classList.remove(
-      "theme-bella",
-      "theme-george",
-      "theme-learner-bella",
-      "theme-learner-george"
-    );
-    root.classList.remove(
-      "theme-bella",
-      "theme-george",
-      "theme-learner-bella",
-      "theme-learner-george"
-    );
-    if (learnerId && LEARNERS[learnerId]) {
-      body.classList.add(`theme-${learnerId}`, `theme-learner-${learnerId}`);
-      root.classList.add(`theme-${learnerId}`, `theme-learner-${learnerId}`);
+    const next = learnerId && LEARNERS[learnerId] ? learnerId : null;
+
+    // Toggle only — never strip all themes first (that flashed garden green)
+    for (const id of Object.keys(LEARNERS)) {
+      const on = next === id;
+      body.classList.toggle(`theme-${id}`, on);
+      body.classList.toggle(`theme-learner-${id}`, on);
+      root.classList.toggle(`theme-${id}`, on);
+      root.classList.toggle(`theme-learner-${id}`, on);
     }
+    if (next) {
+      body.setAttribute("data-learner", next);
+      root.setAttribute("data-learner", next);
+    } else {
+      body.removeAttribute("data-learner");
+      root.removeAttribute("data-learner");
+    }
+
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
-      meta.setAttribute(
-        "content",
-        learnerId === "bella" ? "#2c1a24" : learnerId === "george" ? "#0f1a12" : "#0f1a12"
-      );
+      meta.setAttribute("content", next === "bella" ? "#2c1a24" : "#0f1a12");
     }
-    // Force page chrome colour so green garden bg cannot flash through
-    if (learnerId === "bella") {
-      root.style.background = "#2c1a24";
-      body.style.background = "#2c1a24";
-    } else if (learnerId === "george") {
-      root.style.background = "";
-      body.style.background = "";
+
+    // Drive page chrome via CSS variables (no green flash between class swaps)
+    if (next === "bella") {
+      const pink =
+        "radial-gradient(900px 500px at 12% -8%, rgba(183, 110, 132, 0.32), transparent 55%)," +
+        "radial-gradient(780px 460px at 98% 8%, rgba(212, 165, 180, 0.18), transparent 50%)," +
+        "radial-gradient(680px 400px at 50% 110%, rgba(90, 45, 65, 0.45), transparent 45%)," +
+        "linear-gradient(180deg, #3a2430 0%, #2c1a24 42%, #21141c 100%)";
+      root.style.setProperty("--page-bg-color", "#2c1a24");
+      root.style.setProperty("--page-bg", pink);
+      root.style.setProperty(
+        "--topbar-bg",
+        "linear-gradient(180deg, rgba(44, 26, 36, 0.98) 70%, rgba(44, 26, 36, 0.92))"
+      );
+      root.style.setProperty("background-color", "#2c1a24", "important");
+      body.style.setProperty("background-color", "#2c1a24", "important");
     } else {
-      root.style.background = "";
-      body.style.background = "";
+      root.style.removeProperty("--page-bg-color");
+      root.style.removeProperty("--page-bg");
+      root.style.removeProperty("--topbar-bg");
+      root.style.removeProperty("background-color");
+      body.style.removeProperty("background-color");
     }
   } catch (_) {
     /* ignore */

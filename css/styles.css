@@ -31,11 +31,16 @@ html, body {
   margin: 0;
   min-height: 100%;
   font-family: var(--font);
-  background:
+  /* --page-bg swaps to pink for Bella without fighting this rule */
+  --page-bg-color: #15251a;
+  --page-bg:
     radial-gradient(900px 500px at 15% -5%, rgba(255, 213, 79, 0.12), transparent 50%),
     radial-gradient(800px 480px at 95% 10%, rgba(102, 187, 106, 0.18), transparent 45%),
     radial-gradient(700px 400px at 50% 110%, rgba(141, 110, 99, 0.2), transparent 40%),
     linear-gradient(180deg, #1e3324 0%, #1a2e1f 40%, #15251a 100%);
+  --topbar-bg: linear-gradient(180deg, rgba(15, 26, 18, 0.97) 70%, rgba(15, 26, 18, 0.88));
+  background: var(--page-bg);
+  background-color: var(--page-bg-color);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
@@ -65,8 +70,7 @@ a { color: inherit; }
   padding: 0.55rem 0.15rem 0.65rem;
   margin-left: -0.15rem;
   margin-right: -0.15rem;
-  background:
-    linear-gradient(180deg, rgba(15, 26, 18, 0.97) 70%, rgba(15, 26, 18, 0.88));
+  background: var(--topbar-bg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
