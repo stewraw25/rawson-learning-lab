@@ -506,6 +506,74 @@ h2.section-title {
   border-radius: 99px;
   background: linear-gradient(90deg, #66bb6a, #ffd54f);
 }
+.time-board {
+  margin: 0.85rem 0 0.35rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--line);
+}
+.time-board-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  margin-bottom: 0.45rem;
+}
+.time-board-head strong {
+  color: var(--gold);
+}
+.time-day-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.time-day-row {
+  display: grid;
+  grid-template-columns: 6.5rem 3.2rem 1fr;
+  gap: 0.4rem;
+  align-items: start;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.time-day-dur {
+  color: var(--gold);
+  font-weight: 800;
+}
+.time-slots {
+  color: var(--muted);
+  font-weight: 600;
+  line-height: 1.35;
+  word-break: break-word;
+}
+.home-score-card.bella .time-board {
+  border-color: rgba(183, 110, 132, 0.28);
+  background: rgba(183, 110, 132, 0.1);
+}
+body.theme-learner-bella .time-board {
+  border-color: rgba(183, 110, 132, 0.28);
+  background: rgba(183, 110, 132, 0.1);
+}
+#liveTimePill {
+  max-width: 18rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 720px) {
+  .time-day-row {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .time-day-row:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+}
 .home-last {
   font-size: 0.8rem;
   margin: 0.65rem 0 0;

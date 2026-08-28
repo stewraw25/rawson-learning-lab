@@ -10,6 +10,10 @@ function getAppEl() {
 let appEl = getAppEl();
 let parentPollTimer = null;
 let syncStatus = ""; // parent diagnostics only
+let learningTimeTimer = null;
+let learningTimeLastTick = 0;
+let learningTimeLearnerId = null;
+let learningTimeSessionSec = 0; // live session display only
 let autoSyncTimer = null;
 let saveToastTimer = null;
 let debouncedSaveTimer = null;
@@ -26,6 +30,121 @@ function stopParentPoll() {
     clearInterval(parentPollTimer);
     parentPollTimer = null;
   }
+}
+
+/** Flush active learning seconds into the kid's profile (and cloud). */
+function flushLearningTimeTick(forceEnd) {
+  if (!learningTimeLearnerId) return;
+  const id = learningTimeLearnerId;
+  const p = state.profiles[id];
+  if (!p) return;
+  const now = Date.now();
+  if (learningTimeLastTick && !document.hidden) {
+    const delta = Math.floor((now - learningTimeLastTick) / 1000);
+    if (delta > 0 && delta < 120) {
+      addLearningSeconds(p, delta, now);
+      learningTimeSessionSec += delta;
+    }
+  }
+  learningTimeLastTick = document.hidden ? 0 : now;
+  if (forceEnd) {
+    endLearningSession(p);
+    learningTimeLearnerId = null;
+    learningTimeSessionSec = 0;
+    learningTimeLastTick = 0;
+  }
+  try {
+    saveState(state);
+  } catch (_) {
+    /* ignore */
+  }
+  updateLiveTimePill();
+}
+
+function stopLearningTimeTracker(flush) {
+  if (learningTimeTimer) {
+    clearInterval(learningTimeTimer);
+    learningTimeTimer = null;
+  }
+  if (flush && learningTimeLearnerId) flushLearningTimeTick(true);
+  else if (learningTimeLearnerId) {
+    // pause without ending session row
+    flushLearningTimeTick(false);
+    learningTimeLastTick = 0;
+  }
+}
+
+function startLearningTimeTracker(learnerId) {
+  if (!learnerId || !LEARNERS[learnerId]) return;
+  if (learningTimeLearnerId && learningTimeLearnerId !== learnerId) {
+    flushLearningTimeTick(true);
+  }
+  const p = state.profiles[learnerId];
+  if (!p) return;
+  if (learningTimeLearnerId !== learnerId) {
+    beginLearningSession(p);
+    learningTimeSessionSec = 0;
+  }
+  learningTimeLearnerId = learnerId;
+  learningTimeLastTick = Date.now();
+  if (learningTimeTimer) clearInterval(learningTimeTimer);
+  learningTimeTimer = setInterval(() => {
+    if (!learningTimeLearnerId) return;
+    if (document.hidden) {
+      learningTimeLastTick = 0;
+      return;
+    }
+    if (!learningTimeLastTick) learningTimeLastTick = Date.now();
+    flushLearningTimeTick(false);
+    // Quiet cloud push every ~minute of active time
+    if (learningTimeSessionSec > 0 && learningTimeSessionSec % 60 < 16) {
+      save({ quiet: true, learnerId: learningTimeLearnerId }).catch(() => {});
+    }
+  }, 15000);
+  updateLiveTimePill();
+}
+
+function updateLiveTimePill() {
+  const el = document.getElementById("liveTimePill");
+  if (!el || !state.activeLearner) return;
+  const p = state.profiles[state.activeLearner];
+  if (!p) return;
+  const sum = learningTimeSummary(p);
+  const sessionBit =
+    learningTimeLearnerId === state.activeLearner && learningTimeSessionSec > 0
+      ? ` · this visit ${formatDuration(learningTimeSessionSec)}`
+      : "";
+  el.textContent = `⏱ Today ${sum.todayLabel} · total ${sum.totalLabel}${sessionBit}`;
+}
+
+function learningTimeBoardHtml(id) {
+  const p = normalizeProfile(id, state.profiles[id]);
+  const sum = learningTimeSummary(p);
+  const days =
+    sum.recentDays.length > 0
+      ? sum.recentDays
+          .map((d) => {
+            const times = d.slotText
+              ? `<span class="time-slots">${escapeHtml(d.slotText)}</span>`
+              : `<span class="time-slots muted">—</span>`;
+            return `<div class="time-day-row">
+              <strong>${escapeHtml(d.label)}</strong>
+              <span class="time-day-dur">${escapeHtml(d.dur)}</span>
+              ${times}
+            </div>`;
+          })
+          .join("")
+      : `<p class="muted" style="margin:0.35rem 0 0;font-size:0.82rem">No learning time recorded yet.</p>`;
+  return `
+    <div class="time-board">
+      <div class="time-board-head">
+        <strong>⏱ Time on Learning Lab</strong>
+        <span>Total <strong>${escapeHtml(sum.totalLabel)}</strong> · Today <strong>${escapeHtml(
+          sum.todayLabel
+        )}</strong></span>
+      </div>
+      <div class="time-day-list">${days}</div>
+    </div>`;
 }
 
 /** Tiny kid-friendly toast — no buttons, just reassurance */
@@ -165,9 +284,13 @@ function startAutoSync() {
 
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
+      if (learningTimeLearnerId) learningTimeLastTick = Date.now();
       refreshFromCloud({ silent: true }).catch(() => {});
+      updateLiveTimePill();
     } else {
-      // Tab hidden — flush save
+      // Tab hidden — pause timer + flush save
+      flushLearningTimeTick(false);
+      learningTimeLastTick = 0;
       try {
         saveState(state);
       } catch (_) {
@@ -182,6 +305,7 @@ function startAutoSync() {
   });
 
   window.addEventListener("pagehide", () => {
+    flushLearningTimeTick(true);
     try {
       saveState(state);
     } catch (_) {
@@ -312,6 +436,24 @@ function go(screen, params = {}, opts = {}) {
     window.scrollTo(0, 0);
   } catch (_) {
     /* ignore */
+  }
+  // Time tracking: stop when leaving a child's screens; keep ticking on kid screens
+  const kidScreens = {
+    dashboard: 1,
+    subject: 1,
+    diagnostic: 1,
+    diagnosticResult: 1,
+    lesson: 1,
+    lessonResult: 1,
+    exam: 1,
+    examResult: 1,
+    power5: 1,
+  };
+  if (!kidScreens[screen]) {
+    if (learningTimeLearnerId) flushLearningTimeTick(true);
+    stopLearningTimeTracker(false);
+  } else if (state.activeLearner) {
+    startLearningTimeTracker(state.activeLearner);
   }
   // Leaving home — cancel any pending home repaint from cloud load
   if (screen !== "home") {
@@ -537,6 +679,9 @@ async function openLearnerHub(learnerId) {
   // Push quietly in background — never block opening hub
   save({ quiet: true, learnerId }).catch(() => {});
 
+  // Start counting time on the Learning Lab for this child
+  startLearningTimeTracker(learnerId);
+
   // Instant hub — never wait on network for the kid's first paint
   go("dashboard");
 }
@@ -664,10 +809,10 @@ function topbar(extraRight = "") {
       <div class="topbar-main">
         <div class="logo" role="button" tabindex="0" data-go="home">
           <img class="logo-mark" src="assets/logo.svg" width="46" height="46" alt="Rawson Learning Lab" />
-          <span class="sr-only">Rawson Learning Lab v63</span>
+          <span class="sr-only">Rawson Learning Lab v68</span>
           <div>
             <h1>Rawson Learning Lab</h1>
-            <p>AI tutors · v63 · learning that fits around life</p>
+            <p>AI tutors · v68 · learning that fits around life</p>
           </div>
         </div>
         <div class="pill-row">
@@ -678,6 +823,7 @@ function topbar(extraRight = "") {
                 )}</strong></span>
                  <span class="pill">⚡ Lv <strong>${p.level}</strong></span>
                  <span class="pill">🔥 <strong>${p.streak || 0}</strong> day streak</span>
+                 <span class="pill" id="liveTimePill">⏱ …</span>
                  <button class="btn btn-ghost" data-go="dashboard" type="button">My hub</button>
                  <button class="btn btn-ghost" data-switch type="button">Switch kid</button>`
               : ""
@@ -727,12 +873,15 @@ function bindShell() {
   const sw = appEl.querySelector("[data-switch]");
   if (sw) {
     sw.addEventListener("click", () => {
+      flushLearningTimeTick(true);
+      stopLearningTimeTracker(false);
       state.activeLearner = null;
       applyLearnerTheme(null);
       save({ quiet: true }).catch(function () {});
       go("home");
     });
   }
+  updateLiveTimePill();
   // External brand links (Grok) — never swallowed by SPA handlers
   appEl.querySelectorAll("a.brand-grok, a[href^='http']").forEach((a) => {
     a.addEventListener("click", (e) => {
@@ -860,6 +1009,7 @@ function scoreBoardCard(id) {
         </div>
       </div>
       <div class="home-score-bars">${bars}</div>
+      ${learningTimeBoardHtml(id)}
       <p class="home-last muted">${escapeHtml(lastLine)}</p>
       <button class="btn ${id === "bella" ? "btn-bella" : "btn-primary"} btn-block mt-1" type="button" data-pick="${id}">
         Open ${escapeHtml(L.name)}'s hub →
@@ -869,6 +1019,8 @@ function scoreBoardCard(id) {
 
 function renderHome() {
   const myGen = ++homePaintGeneration;
+  if (learningTimeLearnerId) flushLearningTimeTick(true);
+  stopLearningTimeTracker(false);
   state.activeLearner = null; // home = no kid selected
   applyLearnerTheme(null);
 
@@ -913,8 +1065,8 @@ function renderHome() {
           <figcaption>🍃 George</figcaption>
         </figure>
       </div>
-      <h2 class="section-title">Recent scores</h2>
-      <p class="lead">How each student is doing right now (updates automatically).</p>
+      <h2 class="section-title">Recent scores &amp; time on Lab</h2>
+      <p class="lead">Scores plus how long each child has been learning — days and times update automatically.</p>
       <div class="grid-2">
         ${scoreBoardCard("bella")}
         ${scoreBoardCard("george")}
@@ -3496,6 +3648,7 @@ function parentKid(id) {
       · Today ${dailyProgress(p).done}/${dailyProgress(p).goal} goal
       · Week ${mem.weekDone}/${mem.weeklyGoal} · Month ${mem.monthDone}/${mem.monthlyGoal}
       · Updated ${formatTime(p.updatedAt)}</p>
+      ${learningTimeBoardHtml(id)}
       ${
         nextRec
           ? `<p class="parent-next-rec"><strong>Coach next step:</strong> ${escapeHtml(

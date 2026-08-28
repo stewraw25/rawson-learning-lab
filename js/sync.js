@@ -117,6 +117,15 @@ function progressScore(p) {
   }
   score += Number(p.xp) || 0;
   score += (p.badges || []).length * 20;
+  // Time on lab (minutes) so longer sessions don't lose a cloud merge
+  try {
+    const lt = p.learningTime;
+    if (lt && typeof lt === "object") {
+      score += Math.floor((Number(lt.totalSec) || 0) / 60);
+    }
+  } catch (_) {
+    /* ignore */
+  }
   // completed lesson keys in courses (legacy flat + staged)
   for (const c of Object.values(p.courses || {})) {
     if (!c || typeof c !== "object") continue;
