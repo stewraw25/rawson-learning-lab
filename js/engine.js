@@ -42,6 +42,11 @@ function defaultProfile(learnerId) {
     adapt: {
       bySubject: {},
     },
+    // Time Bonus — separate from XP; earned from ACTIVE learning minutes
+    timeBonus: {
+      points: 0,
+      claimedActiveMin: 0,
+    },
     // 0 = empty shell — must NOT beat real cloud progress on merge
     updatedAt: 0,
   };
@@ -105,7 +110,48 @@ function normalizeProfile(learnerId, raw) {
   if (!p.fullName) p.fullName = base.fullName;
   p.learningTime = ensureLearningTime(p);
   p.adapt = ensureAdapt(p);
+  p.timeBonus = ensureTimeBonus(p);
   return p;
+}
+
+function ensureTimeBonus(profile) {
+  const base = { points: 0, claimedActiveMin: 0 };
+  let tb =
+    profile && profile.timeBonus && typeof profile.timeBonus === "object"
+      ? { ...base, ...profile.timeBonus }
+      : { ...base };
+  tb.points = Math.max(0, Math.floor(Number(tb.points) || 0));
+  tb.claimedActiveMin = Math.max(0, Math.floor(Number(tb.claimedActiveMin) || 0));
+  if (profile) profile.timeBonus = tb;
+  return tb;
+}
+
+/**
+ * Award Time Bonus from active learning minutes (1 point per active minute).
+ * Idle time does not count. Separate from XP / levels.
+ */
+function syncTimeBonus(profile) {
+  if (!profile) return ensureTimeBonus(profile || {});
+  const lt = ensureLearningTime(profile);
+  const tb = ensureTimeBonus(profile);
+  const activeMin = Math.floor((Number(lt.totalSec) || 0) / 60);
+  const delta = activeMin - tb.claimedActiveMin;
+  if (delta > 0) {
+    tb.points += delta;
+    tb.claimedActiveMin = activeMin;
+    profile.updatedAt = Date.now();
+  }
+  profile.timeBonus = tb;
+  return tb;
+}
+
+function mergeTimeBonus(a, b) {
+  const A = ensureTimeBonus({ timeBonus: a || {} });
+  const B = ensureTimeBonus({ timeBonus: b || {} });
+  return {
+    points: Math.max(A.points, B.points),
+    claimedActiveMin: Math.max(A.claimedActiveMin, B.claimedActiveMin),
+  };
 }
 
 /** Per-subject adaptive difficulty (-3 easy … +3 hard) */
@@ -334,6 +380,11 @@ function addLearningSeconds(profile, seconds, atMs, kind) {
     lt.totalSec += add;
     lt.todaySec += add;
     lt.days[day] = Math.max(0, Math.floor(Number(lt.days[day]) || 0)) + add;
+    try {
+      syncTimeBonus(profile);
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   let open = lt.sessions.find((s) => s && s.open);
@@ -640,9 +691,47 @@ function updateStreak(profile) {
 }
 
 function addXp(profile, amount) {
-  profile.xp += amount;
+  profile.xp = (Number(profile.xp) || 0) + Math.max(0, Math.round(Number(amount) || 0));
   const newLevel = 1 + Math.floor(profile.xp / 100);
   profile.level = newLevel;
+}
+
+/** Harder adaptive level → more XP; easier → a bit less (still fair). */
+function xpMultiplierForAdapt(level) {
+  const n = Math.max(-3, Math.min(3, Number(level) || 0));
+  const table = {
+    "-3": 0.7,
+    "-2": 0.8,
+    "-1": 0.9,
+    "0": 1,
+    "1": 1.15,
+    "2": 1.35,
+    "3": 1.55,
+  };
+  return table[String(n)] || 1;
+}
+
+/**
+ * Award XP scaled by subject difficulty (and optional question difficulty).
+ * questionDiff: 0 = help/easy, 1 = normal, 2 = stretch
+ * Returns actual XP added.
+ */
+function awardXp(profile, baseAmount, opts) {
+  opts = opts || {};
+  let amount = Math.max(0, Number(baseAmount) || 0);
+  if (!amount) return 0;
+  let mult = 1;
+  if (opts.subject && typeof getAdaptLevel === "function") {
+    mult *= xpMultiplierForAdapt(getAdaptLevel(profile, opts.subject));
+  }
+  if (typeof opts.questionDiff === "number") {
+    if (opts.questionDiff <= 0) mult *= 0.75;
+    else if (opts.questionDiff >= 2) mult *= 1.25;
+  }
+  if (opts.perfect) mult *= 1.1;
+  const gained = Math.max(1, Math.round(amount * mult));
+  addXp(profile, gained);
+  return gained;
 }
 
 function unlockBadge(profile, badgeId) {
@@ -955,6 +1044,7 @@ function mergeProfiles(localP, remoteP, learnerId) {
   }
   out.learningTime = mergeLearningTime(L.learningTime, R.learningTime);
   out.adapt = mergeAdapt(L.adapt, R.adapt);
+  out.timeBonus = mergeTimeBonus(L.timeBonus, R.timeBonus);
   return normalizeProfile(learnerId, out);
 }
 
@@ -1304,7 +1394,10 @@ function recordDiagnostic(profile, subject, answers, result) {
     answers,
   };
   updateStreak(profile);
-  addXp(profile, 40 + Math.round(result.score / 5));
+  awardXp(profile, 40 + Math.round(result.score / 5), {
+    subject,
+    perfect: result.score >= 100,
+  });
   unlockBadge(profile, "first_steps");
   if (result.score >= 70) {
     if (subject === "maths") unlockBadge(profile, "maths_star");
@@ -1385,7 +1478,10 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
     stage,
   });
   updateStreak(profile);
-  addXp(profile, stageXpBase(stage) + Math.round(scorePct / 10));
+  awardXp(profile, stageXpBase(stage) + Math.round(scorePct / 10), {
+    subject,
+    perfect: scorePct >= 100,
+  });
   unlockBadge(profile, "lesson_1");
   const lessonCount = profile.lessonHistory.length;
   if (lessonCount >= 5) unlockBadge(profile, "lesson_5");

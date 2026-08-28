@@ -164,7 +164,13 @@ function updateLiveTimePill() {
   if (!el || !state.activeLearner) return;
   const p = state.profiles[state.activeLearner];
   if (!p) return;
+  try {
+    syncTimeBonus(p);
+  } catch (_) {
+    /* ignore */
+  }
   const sum = learningTimeSummary(p);
+  const bonus = ensureTimeBonus(p).points;
   const now = Date.now();
   const idleNow =
     !!learningTimeLearnerId &&
@@ -172,55 +178,67 @@ function updateLiveTimePill() {
     !document.hidden &&
     isLearningIdleNow(now);
   el.dataset.idle = idleNow ? "1" : "0";
-  const visitBit =
-    learningTimeLearnerId === state.activeLearner
-      ? ` · visit ${formatDuration(learningTimeSessionActiveSec)} active / ${formatDuration(
-          learningTimeSessionIdleSec
-        )} idle`
-      : "";
   el.textContent = idleNow
-    ? `⏸ Idle · today ${sum.todayLabel} active`
-    : `⏱ Active today ${sum.todayLabel} · idle ${sum.todayIdleLabel}${visitBit}`;
-  el.title = `Active total ${sum.totalLabel} · Idle total ${sum.idleLabel}`;
+    ? `⏸ Idle · ${sum.todayLabel} today`
+    : `⏱ ${sum.todayLabel} today · ★${bonus}`;
+  el.title = [
+    `Active today ${sum.todayLabel} · Idle today ${sum.todayIdleLabel}`,
+    `Active total ${sum.totalLabel} · Idle total ${sum.idleLabel}`,
+    `Time Bonus ★${bonus} (from active minutes, separate from XP)`,
+  ].join("\n");
 }
 
 function learningTimeBoardHtml(id) {
   const p = normalizeProfile(id, state.profiles[id]);
+  try {
+    syncTimeBonus(p);
+  } catch (_) {
+    /* ignore */
+  }
   const sum = learningTimeSummary(p);
+  const bonus = ensureTimeBonus(p).points;
   const days =
     sum.recentDays.length > 0
       ? sum.recentDays
+          .slice(0, 5)
           .map((d) => {
-            const times = d.slotText
-              ? `<span class="time-slots">${escapeHtml(d.slotText)}</span>`
-              : `<span class="time-slots muted">—</span>`;
-            return `<div class="time-day-row time-day-row-split">
-              <strong>${escapeHtml(d.label)}</strong>
-              <span class="time-day-dur" title="Active learning">▶ ${escapeHtml(
-                d.dur
-              )}</span>
-              <span class="time-day-idle" title="Idle / not interacting">⏸ ${escapeHtml(
-                d.idleDur
-              )}</span>
-              ${times}
+            const slot =
+              d.slots && d.slots.length
+                ? d.slots
+                    .slice(0, 3)
+                    .map((s) => s.label)
+                    .join(", ") + (d.slots.length > 3 ? "…" : "")
+                : "";
+            return `<div class="time-day-row">
+              <span class="time-day-name">${escapeHtml(d.label)}</span>
+              <span class="time-day-dur">${escapeHtml(d.dur)}</span>
+              <span class="time-day-idle">idle ${escapeHtml(d.idleDur)}</span>
+              <span class="time-slots">${escapeHtml(slot || "—")}</span>
             </div>`;
           })
           .join("")
-      : `<p class="muted" style="margin:0.35rem 0 0;font-size:0.82rem">No learning time recorded yet.</p>`;
+      : `<p class="muted time-empty">No sessions yet</p>`;
   return `
     <div class="time-board">
-      <div class="time-board-head">
-        <strong>⏱ Time on Learning Lab</strong>
-        <span>
-          Active <strong>${escapeHtml(sum.totalLabel)}</strong>
-          · Idle <strong>${escapeHtml(sum.idleLabel)}</strong>
-        </span>
+      <div class="time-stats">
+        <div class="time-stat">
+          <span class="time-stat-label">Active</span>
+          <strong>${escapeHtml(sum.totalLabel)}</strong>
+        </div>
+        <div class="time-stat">
+          <span class="time-stat-label">Today</span>
+          <strong>${escapeHtml(sum.todayLabel)}</strong>
+        </div>
+        <div class="time-stat">
+          <span class="time-stat-label">Idle</span>
+          <strong>${escapeHtml(sum.idleLabel)}</strong>
+        </div>
+        <div class="time-stat time-stat-bonus">
+          <span class="time-stat-label">Time Bonus</span>
+          <strong>★ ${bonus}</strong>
+        </div>
       </div>
-      <p class="time-board-sub muted">
-        Today: <strong>${escapeHtml(sum.todayLabel)}</strong> active ·
-        <strong>${escapeHtml(sum.todayIdleLabel)}</strong> idle
-        <span class="time-board-hint">(idle = open but not clicking / typing)</span>
-      </p>
+      <p class="time-board-note muted">Time Bonus grows with <em>active</em> minutes — not idle. Separate from XP.</p>
       <div class="time-day-list">${days}</div>
     </div>`;
 }
@@ -1142,7 +1160,9 @@ function scoreBoardCard(id) {
         <div class="avatar mini">${L.emoji}</div>
         <div>
           <h3>${escapeHtml(L.fullName)}</h3>
-          <p class="muted">Age ${L.age} · Lv ${p.level} · ${p.xp} XP · 🔥 ${p.streak || 0}</p>
+          <p class="muted">Age ${L.age} · Lv ${p.level} · ${p.xp} XP · ★ ${
+            ensureTimeBonus(p).points
+          } Time Bonus · 🔥 ${p.streak || 0}</p>
           ${id === "bella" ? bellaThemeChip() : `<span class="rb-theme-chip" style="background:rgba(109,191,138,0.2);border-color:rgba(109,191,138,0.35)">${escapeHtml(L.themeLabel)}</span>`}
         </div>
         <div class="home-avg">
@@ -1318,6 +1338,12 @@ function renderDashboard() {
     return go("home");
   }
   const xpInLevel = (p.xp || 0) % 100;
+  try {
+    syncTimeBonus(p);
+  } catch (_) {
+    /* ignore */
+  }
+  const timeBonusPts = ensureTimeBonus(p).points;
   const nextAct = findNextAction(p);
   touchTutorVisit(p);
   window.__coachGreetSpoken = false; // allow auto-speak greeting this visit
@@ -1343,6 +1369,7 @@ function renderDashboard() {
         <div class="lvl">Level ${p.level}</div>
         <div class="xp-bar"><div class="xp-fill" style="width:${xpInLevel}%"></div></div>
         <div class="muted" style="font-size:0.75rem;margin-top:0.25rem">${xpInLevel}/100 XP</div>
+        <div class="time-bonus-chip" title="From active learning minutes — separate from XP">★ ${timeBonusPts} Time Bonus</div>
       </div>
     </div>
 
@@ -1713,7 +1740,11 @@ function renderPower5({ subject }) {
     if (typeof ensureTutorMemory === "function") {
       ensureTutorMemory(prof).lastSubject = subject;
     }
-    addXp(prof, 25 + Math.round(scorePct / 4) + (scorePct === 100 ? 15 : 0));
+    awardXp(
+      prof,
+      25 + Math.round(scorePct / 4) + (scorePct === 100 ? 15 : 0),
+      { subject, perfect: scorePct === 100 }
+    );
     unlockBadge(prof, "power_blitz");
     if (scorePct === 100) unlockBadge(prof, "power_perfect");
     if (elapsedSec <= targetSec && scorePct >= 60) unlockBadge(prof, "speed_demon");
@@ -2160,7 +2191,11 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
     recordDailyActivity(p, "exam");
     if (typeof bumpWeekMonth === "function") bumpWeekMonth(p);
     const xpBonus = isTimed ? 20 : isRevision ? 10 : 0;
-    addXp(p, 40 + Math.round(scorePct / 5) + (packStage || 0) * 5 + xpBonus);
+    awardXp(
+      p,
+      40 + Math.round(scorePct / 5) + (packStage || 0) * 5 + xpBonus,
+      { subject, perfect: scorePct >= 100 }
+    );
     if (scorePct >= 80) unlockBadge(p, "exam_star");
     if (scorePct >= 90 && packStage >= 6) unlockBadge(p, "exam_astar");
     if (isTimed) unlockBadge(p, "timed_mock");
@@ -3854,7 +3889,9 @@ function parentKid(id) {
   )}</h3>
       <p class="muted">Age ${L.age} · ${L.yearGroup} · Level ${p.level} · ${
     p.xp
-  } XP · Streak ${p.streak} days · ${p.badges.length} badges
+  } XP · ★ ${ensureTimeBonus(p).points} Time Bonus · Streak ${p.streak} days · ${
+    p.badges.length
+  } badges
       · Today ${dailyProgress(p).done}/${dailyProgress(p).goal} goal
       · Week ${mem.weekDone}/${mem.weeklyGoal} · Month ${mem.monthDone}/${mem.monthlyGoal}
       · Updated ${formatTime(p.updatedAt)}</p>
