@@ -431,8 +431,81 @@ function handlePracticeAnswer(session, question, userAnswer) {
   return ok;
 }
 
+function _qFp(q) {
+  return typeof questionFingerprint === "function"
+    ? questionFingerprint(q)
+    : String((q && q.q) || "")
+        .trim()
+        .toLowerCase();
+}
+
 /**
- * "I don't know" — honest skip that eases future questions and unlocks help.
+ * Rebuild EVERYTHING still ahead in this lesson to be easier.
+ * Called immediately on "I don't know" so the next tap is actually easier.
+ */
+function easeRemainingQueue(session, mod) {
+  if (!session || !mod) return false;
+  const idx = Math.max(0, Number(session.practiceIndex) || 0);
+  const kept = (session.queue || []).slice(0, idx + 1);
+  const seen = new Set(kept.map((q) => _qFp(q)).filter(Boolean));
+
+  const shuffle =
+    typeof shuffleArray === "function"
+      ? shuffleArray
+      : (arr) => arr.slice().sort(() => Math.random() - 0.5);
+
+  let easy = (mod.struggle?.practice || []).map((q, i) => ({
+    ...q,
+    _src: "help",
+    _i: i,
+    _diff: 0,
+  }));
+  let main = (mod.practice || []).map((q, i) => ({
+    ...q,
+    _src: "main",
+    _i: i,
+    _diff: 1,
+  }));
+
+  easy = shuffle(easy.filter((q) => {
+    const fp = _qFp(q);
+    return fp && !seen.has(fp);
+  }));
+  main = shuffle(main.filter((q) => {
+    const fp = _qFp(q);
+    return fp && !seen.has(fp);
+  }));
+
+  // Prefer help/easy first; only a soft slice of main
+  const softCount = Math.max(1, Math.min(3, Math.ceil(main.length * 0.4)));
+  let tail = [...easy, ...main.slice(0, softCount)];
+
+  // If help bank exhausted, still demote remaining original items that were help
+  if (!tail.length) {
+    const oldTail = (session.queue || []).slice(idx + 1);
+    tail = oldTail.filter((q) => q && (q._src === "help" || q._diff === 0));
+    if (!tail.length) tail = oldTail.slice(0, Math.min(3, oldTail.length));
+  }
+
+  const dedup = [];
+  const seenTail = new Set(seen);
+  for (const q of tail) {
+    const fp = _qFp(q);
+    if (!fp || seenTail.has(fp)) continue;
+    seenTail.add(fp);
+    dedup.push(q);
+  }
+
+  if (!dedup.length) return false;
+  session.queue = [...kept, ...dedup.slice(0, 6)];
+  session.easedAfterIdk = true;
+  session.helpShownForIndex = session.helpShownForIndex || {};
+  session.helpShownForIndex[idx] = true;
+  return true;
+}
+
+/**
+ * "I don't know" — lowers adapt level AND swaps remaining questions to easier ones now.
  */
 function handleDontKnow(session, question) {
   session.practiceTotal++;
@@ -467,6 +540,18 @@ function handleDontKnow(session, question) {
   } catch (_) {
     /* ignore */
   }
+
+  try {
+    const mod = getTeachModule(
+      session.subject,
+      session.skillId,
+      session.stage || 1,
+      session.learnerId
+    );
+    easeRemainingQueue(session, mod);
+  } catch (_) {
+    /* ignore */
+  }
   return false;
 }
 
@@ -484,46 +569,50 @@ function advanceAfterAnswer(session, wasCorrect) {
   const idx = session.practiceIndex;
   const queue = session.queue || [];
   const level = Number(session.adaptLevel) || 0;
+  const lastWasIdk = !!(
+    session.history &&
+    session.history.length &&
+    session.history[session.history.length - 1] &&
+    session.history[session.history.length - 1].dontKnow
+  );
 
-  // High difficulty: only inject help after a short wrong streak
-  const allowHelp =
-    !wasCorrect &&
-    mod?.struggle?.practice?.length &&
-    !session.helpShownForIndex[idx] &&
-    (level < 2 || session.wrongStreak >= 2 || (session.dontKnowCount || 0) > 0);
+  // If they just said "I don't know", remaining queue was already rebuilt —
+  // just advance. For normal wrongs, inject help.
+  if (lastWasIdk) {
+    // Ensure ease ran (in case older callers skipped handleDontKnow path)
+    if (!session.easedAfterIdk) easeRemainingQueue(session, mod);
+  } else {
+    const allowHelp =
+      !wasCorrect &&
+      mod?.struggle?.practice?.length &&
+      !session.helpShownForIndex[idx] &&
+      (level < 2 || session.wrongStreak >= 2 || (session.dontKnowCount || 0) > 0);
 
-  if (allowHelp) {
-    session.helpShownForIndex[idx] = true;
-    const already = new Set(
-      (session.queue || []).map((q) =>
-        typeof questionFingerprint === "function"
-          ? questionFingerprint(q)
-          : String(q.q || "")
-      )
-    );
-    let easier = (mod.struggle.practice || [])
-      .map((q, i) => ({
-        ...q,
-        _src: "help",
-        _i: i,
-        _diff: 0,
-      }))
-      .filter((q) => {
-        const fp =
-          typeof questionFingerprint === "function"
-            ? questionFingerprint(q)
-            : String(q.q || "");
-        return fp && !already.has(fp);
-      });
-    if (typeof shuffleArray === "function") easier = shuffleArray(easier);
-    // Inject one fresh help question (or two if very easy)
-    easier = easier.slice(0, level <= -2 ? 2 : 1);
-    if (easier.length) {
-      session.queue = [
-        ...queue.slice(0, idx + 1),
-        ...easier,
-        ...queue.slice(idx + 1),
-      ];
+    if (allowHelp) {
+      session.helpShownForIndex[idx] = true;
+      const already = new Set(
+        (session.queue || []).map((q) => _qFp(q)).filter(Boolean)
+      );
+      let easier = (mod.struggle.practice || [])
+        .map((q, i) => ({
+          ...q,
+          _src: "help",
+          _i: i,
+          _diff: 0,
+        }))
+        .filter((q) => {
+          const fp = _qFp(q);
+          return fp && !already.has(fp);
+        });
+      if (typeof shuffleArray === "function") easier = shuffleArray(easier);
+      easier = easier.slice(0, level <= -2 ? 2 : 1);
+      if (easier.length) {
+        session.queue = [
+          ...queue.slice(0, idx + 1),
+          ...easier,
+          ...queue.slice(idx + 1),
+        ];
+      }
     }
   }
 

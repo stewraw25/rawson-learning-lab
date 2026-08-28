@@ -3230,9 +3230,19 @@ function renderLesson({ subject, skillId, stage }) {
         finishSession();
         return;
       }
-      const isHelp = q._src === "help";
+      const isHelp = q._src === "help" || q._diff === 0;
+      const eased = !!session.easedAfterIdk;
       bodyHtml = `
-        <div class="phase-pill">${isHelp ? "🛟 Extra practice" : "🎯 Practice"}</div>
+        <div class="phase-pill">${
+          isHelp || eased
+            ? "🛟 Easier question"
+            : "🎯 Practice"
+        }</div>
+        ${
+          eased && isHelp
+            ? `<p class="adapt-hint muted">Because you said “I don’t know”, the next ones are easier.</p>`
+            : ""
+        }
         ${
           q.passage
             ? `<blockquote class="passage">${escapeHtml(q.passage)}</blockquote>`
@@ -3384,7 +3394,18 @@ function renderLesson({ subject, skillId, stage }) {
       const fb = document.getElementById("feedback");
       fb.className = `feedback ${ok ? "good" : "bad"}`;
       if (fromIdk) {
-        fb.innerHTML = `That's OK — we'll make the next questions easier. ${escapeHtml(
+        const lv =
+          typeof adaptLevelLabel === "function"
+            ? adaptLevelLabel(session.adaptLevel)
+            : "easier";
+        const nextIsEasy =
+          session.queue &&
+          session.queue[session.practiceIndex + 1] &&
+          (session.queue[session.practiceIndex + 1]._src === "help" ||
+            session.queue[session.practiceIndex + 1]._diff === 0);
+        fb.innerHTML = `That's OK — next questions are easier now (${escapeHtml(
+          lv
+        )})${nextIsEasy ? " · 🛟 help question coming up" : ""}. ${escapeHtml(
           q.explain || "Have a look at this tip, then press Next."
         )}`;
       } else {
