@@ -111,6 +111,9 @@ function normalizeProfile(learnerId, raw) {
   p.learningTime = ensureLearningTime(p);
   p.adapt = ensureAdapt(p);
   p.timeBonus = ensureTimeBonus(p);
+  if (!p.recentQuestions || typeof p.recentQuestions !== "object") {
+    p.recentQuestions = {};
+  }
   return p;
 }
 
@@ -243,6 +246,62 @@ function recordAdaptResult(profile, subject, result) {
   }
   profile.updatedAt = Date.now();
   return s.level;
+}
+
+/** Fingerprint a question so we can avoid repeats */
+function questionFingerprint(q) {
+  if (!q) return "";
+  return String(q.q || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .slice(0, 120);
+}
+
+function ensureRecentQuestions(profile, subject) {
+  if (!profile.recentQuestions || typeof profile.recentQuestions !== "object") {
+    profile.recentQuestions = {};
+  }
+  if (!Array.isArray(profile.recentQuestions[subject])) {
+    profile.recentQuestions[subject] = [];
+  }
+  return profile.recentQuestions[subject];
+}
+
+/** Remember questions just asked (keep last ~40 per subject) */
+function rememberAskedQuestions(profile, subject, questions) {
+  if (!profile || !subject || !questions || !questions.length) return;
+  const list = ensureRecentQuestions(profile, subject);
+  for (const q of questions) {
+    const fp = questionFingerprint(q);
+    if (!fp) continue;
+    const idx = list.indexOf(fp);
+    if (idx >= 0) list.splice(idx, 1);
+    list.push(fp);
+  }
+  while (list.length > 40) list.shift();
+  profile.updatedAt = Date.now();
+}
+
+function shuffleArray(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/**
+ * Prefer questions not asked recently. Falls back to full pool if filtered empty.
+ */
+function preferFreshQuestions(pool, profile, subject) {
+  if (!pool || !pool.length) return [];
+  const recent = new Set(
+    profile && subject ? ensureRecentQuestions(profile, subject) : []
+  );
+  const fresh = pool.filter((q) => !recent.has(questionFingerprint(q)));
+  return fresh.length ? fresh : pool.slice();
 }
 
 function mergeAdapt(a, b) {
@@ -1045,6 +1104,19 @@ function mergeProfiles(localP, remoteP, learnerId) {
   out.learningTime = mergeLearningTime(L.learningTime, R.learningTime);
   out.adapt = mergeAdapt(L.adapt, R.adapt);
   out.timeBonus = mergeTimeBonus(L.timeBonus, R.timeBonus);
+  out.recentQuestions = {};
+  for (const sub of new Set([
+    ...Object.keys(L.recentQuestions || {}),
+    ...Object.keys(R.recentQuestions || {}),
+  ])) {
+    const merged = [
+      ...new Set([
+        ...((L.recentQuestions && L.recentQuestions[sub]) || []),
+        ...((R.recentQuestions && R.recentQuestions[sub]) || []),
+      ]),
+    ];
+    out.recentQuestions[sub] = merged.slice(-40);
+  }
   return normalizeProfile(learnerId, out);
 }
 
@@ -2016,16 +2088,13 @@ function buildPower5Questions(profile, subject) {
     }
   }
 
-  // Shuffle
-  for (let i = bank.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [bank[i], bank[j]] = [bank[j], bank[i]];
+  // Prefer not-recently-asked, then shuffle
+  let pool = preferFreshQuestions(bank, profile, subject);
+  pool = shuffleArray(pool);
+  if (adaptLv >= 2 && pool.length > 5) {
+    return pool.slice(0, 5);
   }
-  // Harder adapt → take from the back of bank after a second shuffle pass bias
-  if (adaptLv >= 2 && bank.length > 5) {
-    return bank.slice(-5);
-  }
-  return bank.slice(0, 5);
+  return pool.slice(0, 5);
 }
 
 /** Estimate seconds remaining for a snappy Power 5 (for UI only) */

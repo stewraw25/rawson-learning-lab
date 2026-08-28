@@ -3364,6 +3364,13 @@ function renderLesson({ subject, skillId, stage }) {
     if (typeof clearQuizSession === "function") {
       clearQuizSession(state.activeLearner, subject, skillId, stageNum);
     }
+    try {
+      if (typeof rememberAskedQuestions === "function") {
+        rememberAskedQuestions(profile(), subject, session.queue || []);
+      }
+    } catch (_) {
+      /* ignore */
+    }
     if (session._keyHandler) {
       window.removeEventListener("keydown", session._keyHandler);
       session._keyHandler = null;

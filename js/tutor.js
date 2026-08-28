@@ -200,7 +200,8 @@ The student got this wrong. Explain gently why, teach the idea in 3 short steps,
  * @param {number} [stageNum=1]
  */
 function quizPersistKey(learnerId, subject, skillId, stage) {
-  return `rawson-live-quiz-v1:${learnerId || "x"}:${subject}:${skillId}:${stage}`;
+  // v2: clears sticky old Science queues that only had 3 questions
+  return `rawson-live-quiz-v2:${learnerId || "x"}:${subject}:${skillId}:${stage}`;
 }
 
 function persistQuizSession(session) {
@@ -240,43 +241,68 @@ function clearQuizSession(learnerId, subject, skillId, stage) {
 
 /**
  * Build practice queue shaped by adaptive difficulty.
- * Easier level → lead with struggle/help questions.
- * Harder level → keep main set, prefer later (often tougher) items first.
+ * Always shuffles and prefers questions not asked recently (stops Science loops).
  */
 function buildAdaptivePracticeQueue(mod, profile, subject) {
-  const main = (mod.practice || []).map((q, i) => ({
+  const shuffle =
+    typeof shuffleArray === "function"
+      ? shuffleArray
+      : (arr) => arr.slice().sort(() => Math.random() - 0.5);
+  const freshen =
+    typeof preferFreshQuestions === "function"
+      ? (pool) => preferFreshQuestions(pool, profile, subject)
+      : (pool) => pool.slice();
+
+  let main = (mod.practice || []).map((q, i) => ({
     ...q,
     _src: "main",
     _i: i,
     _diff: 1,
   }));
-  const easy = (mod.struggle?.practice || []).map((q, i) => ({
+  let easy = (mod.struggle?.practice || []).map((q, i) => ({
     ...q,
     _src: "help",
     _i: i,
     _diff: 0,
   }));
+
+  main = shuffle(freshen(main));
+  easy = shuffle(freshen(easy));
+
   const level =
     profile && typeof getAdaptLevel === "function"
       ? getAdaptLevel(profile, subject)
       : 0;
 
+  let queue;
   if (level <= -2) {
-    // Much easier: easy questions first, then only the first main items
-    const softMain = main.slice(0, Math.max(1, Math.ceil(main.length * 0.6)));
-    return [...easy, ...softMain];
+    const softMain = main.slice(0, Math.max(2, Math.ceil(main.length * 0.7)));
+    queue = [...easy, ...softMain];
+  } else if (level === -1) {
+    queue = easy.length
+      ? [...easy.slice(0, Math.min(2, easy.length)), ...main]
+      : main;
+  } else if (level >= 2) {
+    queue = main; // already shuffled; no forced reverse (that caused repeats)
+  } else {
+    queue = main;
   }
-  if (level === -1) {
-    return easy.length ? [...easy.slice(0, Math.min(2, easy.length)), ...main] : main.slice();
-  }
-  if (level >= 2) {
-    // Harder: reverse main (later items tend to be stretch) and skip easy lead-in
-    return main.slice().reverse();
-  }
-  if (level === 1) {
-    return main.slice();
-  }
-  return main.slice();
+
+  // De-dupe by question text inside this queue
+  const seen = new Set();
+  queue = queue.filter((q) => {
+    const fp =
+      typeof questionFingerprint === "function"
+        ? questionFingerprint(q)
+        : String(q.q || "");
+    if (!fp || seen.has(fp)) return false;
+    seen.add(fp);
+    return true;
+  });
+
+  // Cap length but keep variety
+  if (queue.length > 8) queue = queue.slice(0, 8);
+  return queue;
 }
 
 function createTutorSession(subject, skillId, learnerId, stageNum) {
@@ -466,19 +492,37 @@ function advanceAfterAnswer(session, wasCorrect) {
 
   if (allowHelp) {
     session.helpShownForIndex[idx] = true;
-    let easier = mod.struggle.practice.map((q, i) => ({
-      ...q,
-      _src: "help",
-      _i: i,
-      _diff: 0,
-    }));
-    // Very easy adapt level → inject all help questions
-    if (level > -2) easier = easier.slice(0, 1);
-    session.queue = [
-      ...queue.slice(0, idx + 1),
-      ...easier,
-      ...queue.slice(idx + 1),
-    ];
+    const already = new Set(
+      (session.queue || []).map((q) =>
+        typeof questionFingerprint === "function"
+          ? questionFingerprint(q)
+          : String(q.q || "")
+      )
+    );
+    let easier = (mod.struggle.practice || [])
+      .map((q, i) => ({
+        ...q,
+        _src: "help",
+        _i: i,
+        _diff: 0,
+      }))
+      .filter((q) => {
+        const fp =
+          typeof questionFingerprint === "function"
+            ? questionFingerprint(q)
+            : String(q.q || "");
+        return fp && !already.has(fp);
+      });
+    if (typeof shuffleArray === "function") easier = shuffleArray(easier);
+    // Inject one fresh help question (or two if very easy)
+    easier = easier.slice(0, level <= -2 ? 2 : 1);
+    if (easier.length) {
+      session.queue = [
+        ...queue.slice(0, idx + 1),
+        ...easier,
+        ...queue.slice(idx + 1),
+      ];
+    }
   }
 
   session.practiceIndex++;
