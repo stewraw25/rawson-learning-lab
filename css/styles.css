@@ -60,30 +60,39 @@ a { color: inherit; }
 }
 
 /* —— Shared —— */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .topbar {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.65rem;
-  margin-bottom: 1.15rem;
-  /* Stay visible while scrolling lessons / subject lists */
+  gap: 0.55rem;
+  margin-bottom: 1.1rem;
   position: sticky;
   top: 0;
   z-index: 40;
-  padding: 0.55rem 0.15rem 0.65rem;
-  margin-left: -0.15rem;
-  margin-right: -0.15rem;
+  padding: 0.5rem 0.2rem 0.6rem;
+  margin-left: -0.2rem;
+  margin-right: -0.2rem;
   background: var(--topbar-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
 }
 .topbar-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
 }
 /* Always-on Daily / Weekly / Monthly goals */
 .goals-bar {
@@ -101,6 +110,16 @@ a { color: inherit; }
   }
   .goals-bar:has(.goal-triple) {
     grid-template-columns: 1fr 1fr;
+  }
+  .topbar-main {
+    flex-wrap: wrap;
+  }
+  .logo h1 {
+    white-space: normal;
+  }
+  .pill-row {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 .goal-chip {
@@ -203,8 +222,9 @@ a { color: inherit; }
 .logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
   cursor: pointer;
+  min-width: 0;
 }
 .logo:focus-visible {
   outline: 2px solid var(--gold);
@@ -213,48 +233,69 @@ a { color: inherit; }
 }
 
 .logo-mark {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
   display: block;
   object-fit: cover;
-  box-shadow: 0 8px 22px rgba(46, 125, 50, 0.4);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
   flex-shrink: 0;
   background: transparent;
-  border: 1px solid rgba(243, 230, 200, 0.25);
+  border: 1px solid var(--line);
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
 }
 
 .logo h1 {
   margin: 0;
   font-family: var(--display);
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 .logo p {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
+  font-weight: 700;
   color: var(--muted);
+  letter-spacing: 0.01em;
+  line-height: 1.2;
 }
 
 .pill-row {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.4rem;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.75rem;
+  gap: 0.3rem;
+  padding: 0.32rem 0.65rem;
   border-radius: 999px;
   background: var(--surface);
   border: 1px solid var(--line);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--muted);
+  line-height: 1.2;
+}
+
+.topbar .btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.78rem;
+  border-radius: 10px;
 }
 
 .pill strong { color: var(--gold); font-weight: 800; }

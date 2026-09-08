@@ -1063,12 +1063,11 @@ function topbar(extraRight = "") {
   return `
     <header class="topbar">
       <div class="topbar-main">
-        <div class="logo" role="button" tabindex="0" data-go="home">
-          <img class="logo-mark" src="assets/logo.svg" width="46" height="46" alt="Rawson Learning Lab" />
-          <span class="sr-only">Rawson Learning Lab v68</span>
-          <div>
+        <div class="logo" role="button" tabindex="0" data-go="home" title="Rawson Learning Lab">
+          <img class="logo-mark" src="assets/logo.svg" width="40" height="40" alt="" />
+          <div class="logo-text">
             <h1>Rawson Learning Lab</h1>
-            <p>AI tutors · v68 · learning that fits around life</p>
+            <p>AI tutors</p>
           </div>
         </div>
         <div class="pill-row">
@@ -1077,11 +1076,11 @@ function topbar(extraRight = "") {
               ? `<span class="pill">${L.emoji} <strong>${escapeHtml(
                   L.name
                 )}</strong></span>
-                 <span class="pill">⚡ Lv <strong>${p.level}</strong></span>
-                 <span class="pill">🔥 <strong>${p.streak || 0}</strong> day streak</span>
+                 <span class="pill">Lv <strong>${p.level}</strong></span>
+                 <span class="pill">🔥 <strong>${p.streak || 0}</strong></span>
                  <span class="pill" id="liveTimePill">⏱ …</span>
-                 <button class="btn btn-ghost" data-go="dashboard" type="button">My hub</button>
-                 <button class="btn btn-ghost" data-switch type="button">Switch kid</button>`
+                 <button class="btn btn-ghost" data-go="dashboard" type="button">Hub</button>
+                 <button class="btn btn-ghost" data-switch type="button">Switch</button>`
               : ""
           }
           ${extraRight}
