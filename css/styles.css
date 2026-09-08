@@ -15,6 +15,8 @@
   --maths: #6b9fd4;
   --english: #d4a017;
   --science: #7cb342;
+  --karting: #ff8a3d;
+  --horses: #e8c547;
   --gold: #e8c547;
   --leaf: #66bb6a;
   --bark: #8d6e63;
@@ -686,6 +688,8 @@ h2.section-title {
 .subject-card.maths .icon { background: rgba(107, 159, 212, 0.25); }
 .subject-card.english .icon { background: rgba(255, 140, 90, 0.2); }
 .subject-card.science .icon { background: rgba(74, 222, 128, 0.2); }
+.subject-card.karting .icon { background: rgba(255, 138, 61, 0.25); }
+.subject-card.horses .icon { background: rgba(232, 197, 71, 0.25); }
 .subject-card h3 {
   margin: 0 0 0.35rem;
   font-family: var(--display);
@@ -704,6 +708,8 @@ h2.section-title {
 .subject-card.maths .skill-fill { background: var(--maths); }
 .subject-card.english .skill-fill { background: var(--english); }
 .subject-card.science .skill-fill { background: var(--science); }
+.subject-card.karting .skill-fill { background: var(--karting); }
+.subject-card.horses .skill-fill { background: var(--horses); }
 
 .badge-list {
   display: flex;

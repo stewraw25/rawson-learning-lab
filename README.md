@@ -51,3 +51,5 @@ Open `index.html` in a browser, or serve the folder with any static server.
 ## Curriculum note
 
 Stage 1 starts at Year 2–4 (George is 10 and Bella-Rose is 12, both catching up at home). Later stages still climb toward GCSE. Progress bars count **lessons finished**, not the placement-test score.
+
+Fun extras (not GCSE): **Go-karting** for George, **Horses** (care + history) for Bella-Rose.

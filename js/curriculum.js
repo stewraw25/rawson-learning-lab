@@ -56,7 +56,40 @@ const SUBJECTS = {
     illust: "assets/illust/shared/subject-science.jpg",
     illustAlt: "Golden miniature poodle scientist in a greenhouse lab",
   },
+  karting: {
+    id: "karting",
+    name: "Go-karting",
+    emoji: "🏎️",
+    colour: "karting",
+    fun: true,
+    forLearner: "george",
+    illust: "assets/illust/george/hero.jpg",
+    illustAlt: "Go-kart racing on track",
+  },
+  horses: {
+    id: "horses",
+    name: "Horses",
+    emoji: "🐴",
+    colour: "horses",
+    fun: true,
+    forLearner: "bella",
+    illust: "assets/illust/bella/hero.jpg",
+    illustAlt: "Golden mini poodle and black horse in the countryside",
+  },
 };
+
+const CORE_SUBJECTS = ["maths", "english", "science"];
+
+function subjectsForLearner(learnerId) {
+  const extra = Object.keys(SUBJECTS).filter(
+    (id) => SUBJECTS[id].forLearner === learnerId
+  );
+  return [...CORE_SUBJECTS, ...extra];
+}
+
+function isFunSubject(subjectId) {
+  return !!(SUBJECTS[subjectId] && SUBJECTS[subjectId].fun);
+}
 
 /**
  * Illustrations: Bella = garden / poodles / horses.
@@ -170,6 +203,10 @@ const ILLUST_LEARNER = {
       src: "assets/illust/bella/subject-science.jpg",
       alt: "Black horse and poodle at a greenhouse science table",
     },
+    "subject-horses": {
+      src: "assets/illust/bella/hero.jpg",
+      alt: "Golden mini poodle and black horse — Bella’s horse subject",
+    },
   },
   george: {
     coach: {
@@ -223,6 +260,10 @@ const ILLUST_LEARNER = {
     "subject-science": {
       src: "assets/illust/george/subject-science.jpg",
       alt: "Race engineering workshop for science",
+    },
+    "subject-karting": {
+      src: "assets/illust/george/hero.jpg",
+      alt: "Go-kart on track — George’s karting subject",
     },
   },
 };
@@ -281,6 +322,18 @@ const SKILLS = {
     chemistry: { name: "Chemistry (materials)", gcse: "Chemistry" },
     physics: { name: "Physics (forces & energy)", gcse: "Physics" },
     method: { name: "Working scientifically", gcse: "Working scientifically" },
+  },
+  karting: {
+    safety: { name: "Track safety", gcse: "Fun" },
+    kart: { name: "The kart", gcse: "Fun" },
+    racing: { name: "Race day", gcse: "Fun" },
+    driving: { name: "How to drive", gcse: "Fun" },
+  },
+  horses: {
+    care: { name: "Looking after a horse", gcse: "Fun" },
+    feeding: { name: "Feeding", gcse: "Fun" },
+    riding: { name: "Riding basics", gcse: "Fun" },
+    history: { name: "History of horses", gcse: "Fun" },
   },
 };
 
@@ -681,6 +734,130 @@ const DIAGNOSTICS = {
       ],
       answer: 1,
       explain: "A hypothesis is a testable idea about what might happen and why.",
+    },
+  ],
+  karting: [
+    {
+      id: "k1",
+      skill: "safety",
+      stage: "both",
+      q: "What must you wear on your head before you drive a kart?",
+      type: "multi",
+      options: ["A hat", "A helmet", "Sunglasses only", "Nothing"],
+      answer: 1,
+      explain: "A helmet protects your head. No helmet, no driving.",
+    },
+    {
+      id: "k2",
+      skill: "safety",
+      stage: "both",
+      q: "A red flag on track means…",
+      type: "multi",
+      options: ["Go faster", "Stop racing — there is a problem", "You won", "Ignore it"],
+      answer: 1,
+      explain: "Red flag = stop. Something is wrong on the track.",
+    },
+    {
+      id: "k3",
+      skill: "kart",
+      stage: "both",
+      q: "Which pedal makes the kart go slower?",
+      type: "multi",
+      options: ["The right (go) pedal", "The left (brake) pedal", "The steering wheel", "The seat"],
+      answer: 1,
+      explain: "The brake pedal slows you down.",
+    },
+    {
+      id: "k4",
+      skill: "kart",
+      stage: "both",
+      q: "What does the steering wheel do?",
+      type: "multi",
+      options: ["Makes you faster", "Turns the kart left and right", "Stops the engine", "Plays music"],
+      answer: 1,
+      explain: "Steering turns the front wheels.",
+    },
+    {
+      id: "k5",
+      skill: "racing",
+      stage: "both",
+      q: "The chequered flag (black and white squares) means…",
+      type: "multi",
+      options: ["Start", "The race is finished", "Rain", "Pit stop only"],
+      answer: 1,
+      explain: "Chequered flag = the race is over.",
+    },
+    {
+      id: "k6",
+      skill: "driving",
+      stage: "both",
+      q: "In a corner you should…",
+      type: "multi",
+      options: ["Speed up as much as you can", "Slow down, then steer", "Close your eyes", "Stand up"],
+      answer: 1,
+      explain: "Slow in, then steer. Fast corners come later.",
+    },
+  ],
+  horses: [
+    {
+      id: "h1",
+      skill: "care",
+      stage: "both",
+      q: "A horse needs fresh water…",
+      type: "multi",
+      options: ["once a month", "every day", "never", "only in winter"],
+      answer: 1,
+      explain: "Horses drink a lot. Fresh water every day.",
+    },
+    {
+      id: "h2",
+      skill: "care",
+      stage: "both",
+      q: "Grooming a horse means…",
+      type: "multi",
+      options: ["brushing their coat", "shouting at them", "racing them", "painting them"],
+      answer: 0,
+      explain: "Grooming is brushing to keep the coat clean.",
+    },
+    {
+      id: "h3",
+      skill: "feeding",
+      stage: "both",
+      q: "What do horses eat a lot of?",
+      type: "multi",
+      options: ["Chocolate", "Hay and grass", "Chips", "Ice cream"],
+      answer: 1,
+      explain: "Hay and grass are the main food.",
+    },
+    {
+      id: "h4",
+      skill: "riding",
+      stage: "both",
+      q: "Before you ride you should wear…",
+      type: "multi",
+      options: ["A riding hat / helmet", "Flip-flops", "No hat", "A swimming cap"],
+      answer: 0,
+      explain: "A riding hat protects your head.",
+    },
+    {
+      id: "h5",
+      skill: "history",
+      stage: "both",
+      q: "Long ago, before cars, horses helped people…",
+      type: "multi",
+      options: ["send emails", "travel and farm", "fly planes", "make plastic"],
+      answer: 1,
+      explain: "People used horses to travel, farm and carry loads.",
+    },
+    {
+      id: "h6",
+      skill: "history",
+      stage: "both",
+      q: "Knights in the past often rode…",
+      type: "multi",
+      options: ["bicycles", "horses", "skateboards", "trains"],
+      answer: 1,
+      explain: "Knights rode horses into battle and at tournaments.",
     },
   ],
 };
@@ -1137,6 +1314,114 @@ const LESSONS = {
           ],
           answer: 0,
           explain: "Bar charts suit discrete/categories.",
+        },
+      ],
+    },
+  },
+  karting: {
+    safety: {
+      title: "Track safety",
+      blurb: "Helmet on. Flags mean something. Stay safe.",
+      items: [
+        {
+          q: "What goes on your head?",
+          type: "multi",
+          options: ["Helmet", "Scarf only", "Nothing"],
+          answer: 0,
+          explain: "Helmet every time.",
+        },
+      ],
+    },
+    kart: {
+      title: "The kart",
+      blurb: "Steering, pedals, tyres.",
+      items: [
+        {
+          q: "The brake pedal…",
+          type: "multi",
+          options: ["makes you faster", "slows you down", "turns the lights on"],
+          answer: 1,
+          explain: "Brake = slower.",
+        },
+      ],
+    },
+    racing: {
+      title: "Race day",
+      blurb: "Flags, laps and the finish.",
+      items: [
+        {
+          q: "Chequered flag means…",
+          type: "multi",
+          options: ["start", "finish", "rain"],
+          answer: 1,
+          explain: "The race is finished.",
+        },
+      ],
+    },
+    driving: {
+      title: "How to drive",
+      blurb: "Look ahead. Slow for corners.",
+      items: [
+        {
+          q: "Before a corner…",
+          type: "multi",
+          options: ["speed up", "slow down", "jump out"],
+          answer: 1,
+          explain: "Slow down, then turn.",
+        },
+      ],
+    },
+  },
+  horses: {
+    care: {
+      title: "Looking after a horse",
+      blurb: "Water, grooming, a clean stable.",
+      items: [
+        {
+          q: "Horses need water…",
+          type: "multi",
+          options: ["every day", "once a year"],
+          answer: 0,
+          explain: "Every day.",
+        },
+      ],
+    },
+    feeding: {
+      title: "Feeding",
+      blurb: "Hay and grass, not sweets.",
+      items: [
+        {
+          q: "A good horse food is…",
+          type: "multi",
+          options: ["hay", "chocolate"],
+          answer: 0,
+          explain: "Hay and grass.",
+        },
+      ],
+    },
+    riding: {
+      title: "Riding basics",
+      blurb: "Hat on. Be kind. Walk first.",
+      items: [
+        {
+          q: "Wear a…",
+          type: "multi",
+          options: ["riding hat", "no hat"],
+          answer: 0,
+          explain: "Hat on every ride.",
+        },
+      ],
+    },
+    history: {
+      title: "History of horses",
+      blurb: "How horses helped people long ago.",
+      items: [
+        {
+          q: "Before cars, horses helped people…",
+          type: "multi",
+          options: ["travel", "use the internet"],
+          answer: 0,
+          explain: "Travel, farm and carry things.",
         },
       ],
     },

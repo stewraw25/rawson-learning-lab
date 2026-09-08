@@ -674,6 +674,9 @@ function isStageComplete(profile, subject, stageNum) {
 function canAccessStage(profile, subject, stageNum) {
   const stage = Number(stageNum) || 1;
   if (stage < 1 || stage > MAX_COURSE_STAGE) return false;
+  if (typeof isFunSubject === "function" && isFunSubject(subject) && stage > 1) {
+    return false;
+  }
   if (stage === 1) return !!(profile.diagnostics?.[subject]?.completed);
   return isStageComplete(profile, subject, stage - 1);
 }
@@ -980,7 +983,7 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
       unlockBadge(profile, `astar_complete_${subject}`);
     }
     // All 3 subjects at stage 6
-    const allAstar = ["maths", "english", "science"].every((sub) =>
+    const allAstar = CORE_SUBJECTS.every((sub) =>
       isStageComplete(profile, sub, 6)
     );
     if (allAstar) unlockBadge(profile, "triple_astar");
@@ -1307,7 +1310,10 @@ function recordDailyActivity(profile, kind) {
  */
 function findNextAction(profile) {
   if (!profile) return null;
-  const subjects = ["maths", "english", "science"];
+  const subjects =
+    typeof subjectsForLearner === "function"
+      ? subjectsForLearner(profile.id)
+      : CORE_SUBJECTS;
   const mem =
     typeof ensureTutorMemory === "function" ? ensureTutorMemory(profile) : null;
 

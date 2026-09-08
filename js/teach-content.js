@@ -1122,6 +1122,488 @@ const TEACH_MODULES = {
       },
     },
   },
+  karting: {
+    safety: {
+      title: "Track safety",
+      blurb: "Helmet on. Watch the flags. Look after yourself and others.",
+      videoKey: "forces",
+      teach: {
+        points: [
+          "A helmet goes on before you sit in the kart. No helmet, no driving.",
+          "A red flag means stop — something is wrong on the track.",
+          "Keep your hands on the wheel and your feet on the pedals.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "You walk to the kart.",
+          "Put the helmet on and do it up.",
+          "Then you may sit down and wait for the marshal.",
+        ],
+      },
+      practice: [
+        {
+          q: "What must you wear on your head?",
+          type: "multi",
+          options: ["A helmet", "A baseball cap", "Nothing"],
+          answer: 0,
+          explain: "A proper helmet every time.",
+        },
+        {
+          q: "A red flag means…",
+          type: "multi",
+          options: ["Go faster", "Stop", "You won"],
+          answer: 1,
+          explain: "Red = stop. There is a problem.",
+        },
+        {
+          q: "Who helps keep the track safe?",
+          type: "multi",
+          options: ["Marshals", "The ice-cream van", "Nobody"],
+          answer: 0,
+          explain: "Marshals watch the track and wave flags.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Think of a bike helmet — same idea, but for a kart.",
+          "Flags are like traffic lights for racing.",
+        ],
+        practice: [
+          {
+            q: "True or false: you can drive without a helmet.",
+            type: "multi",
+            options: ["True", "False"],
+            answer: 1,
+            explain: "False. Helmet first.",
+          },
+          {
+            q: "Red flag = …",
+            type: "multi",
+            options: ["stop", "speed up"],
+            answer: 0,
+            explain: "Stop.",
+          },
+        ],
+      },
+    },
+    kart: {
+      title: "The kart",
+      blurb: "Steering wheel, two pedals, four tyres.",
+      videoKey: "forces",
+      teach: {
+        points: [
+          "The steering wheel turns the kart left and right.",
+          "One pedal makes you go. The other is the brake — it slows you down.",
+          "Tyres grip the track. If they are bald or flat, tell a marshal.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Want to go? Press the go pedal gently.",
+          "Want to slow? Take your foot off go and press the brake.",
+          "Want to turn? Turn the wheel a little, not a huge yank.",
+        ],
+      },
+      practice: [
+        {
+          q: "The brake pedal…",
+          type: "multi",
+          options: ["makes you faster", "slows you down", "plays music"],
+          answer: 1,
+          explain: "Brake = slower.",
+        },
+        {
+          q: "The steering wheel…",
+          type: "multi",
+          options: ["turns the kart", "opens the engine", "is only for sitting"],
+          answer: 0,
+          explain: "It turns left and right.",
+        },
+        {
+          q: "How many tyres does a kart usually have?",
+          type: "typed",
+          answer: "4",
+          explain: "Four tyres, like a tiny car.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Go pedal = faster. Brake pedal = slower. Wheel = turn.",
+          "Gentle feet. Don’t stamp.",
+        ],
+        practice: [
+          {
+            q: "To slow down you use the…",
+            type: "multi",
+            options: ["brake", "horn", "seat"],
+            answer: 0,
+            explain: "The brake.",
+          },
+        ],
+      },
+    },
+    racing: {
+      title: "Race day",
+      blurb: "Start, laps, flags, finish.",
+      videoKey: "forces",
+      teach: {
+        points: [
+          "A lap is one time all the way round the track.",
+          "The chequered flag (black and white squares) means the race is finished.",
+          "A green flag often means the track is clear — you may go.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Lights go out or green flag: start.",
+          "You drive round and round — each loop is a lap.",
+          "Chequered flag: slow down and head to the pits. You finished!",
+        ],
+      },
+      practice: [
+        {
+          q: "The chequered flag means…",
+          type: "multi",
+          options: ["start", "the race is finished", "rain"],
+          answer: 1,
+          explain: "Black and white squares = finished.",
+        },
+        {
+          q: "One time all the way round the track is a…",
+          type: "multi",
+          options: ["lap", "goal", "chapter"],
+          answer: 0,
+          explain: "A lap.",
+        },
+        {
+          q: "You should wait for the marshal before you…",
+          type: "multi",
+          options: ["leave the pits", "eat lunch only", "go home without asking"],
+          answer: 0,
+          explain: "Marshals say when it is safe to go.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Start → drive laps → chequered flag → stop.",
+          "Watch the people at the side with flags.",
+        ],
+        practice: [
+          {
+            q: "Chequered flag = …",
+            type: "multi",
+            options: ["finish", "start"],
+            answer: 0,
+            explain: "Finish.",
+          },
+        ],
+      },
+    },
+    driving: {
+      title: "How to drive",
+      blurb: "Look where you want to go. Slow for corners.",
+      videoKey: "forces",
+      teach: {
+        points: [
+          "Look ahead, not at your feet.",
+          "Slow down before a corner, then steer, then speed up a little on the straight.",
+          "Leave a gap. Do not bump other karts on purpose.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Straight: look far down the track.",
+          "Corner coming: ease off, press the brake a bit.",
+          "Turn the wheel smoothly. Then go again.",
+        ],
+      },
+      practice: [
+        {
+          q: "Before a corner you should…",
+          type: "multi",
+          options: ["slow down", "speed up as much as you can", "close your eyes"],
+          answer: 0,
+          explain: "Slow in, then turn.",
+        },
+        {
+          q: "Look…",
+          type: "multi",
+          options: ["at your feet", "ahead down the track", "behind you the whole time"],
+          answer: 1,
+          explain: "Look where you want to go.",
+        },
+        {
+          q: "Bumping other karts on purpose is…",
+          type: "multi",
+          options: ["clever", "not allowed", "the way to win"],
+          answer: 1,
+          explain: "Leave a gap. Be fair.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Slow → turn → go. That is the pattern.",
+          "Eyes up.",
+        ],
+        practice: [
+          {
+            q: "Slow down for a…",
+            type: "multi",
+            options: ["corner", "straight with no one on it"],
+            answer: 0,
+            explain: "Corners need less speed.",
+          },
+        ],
+      },
+    },
+  },
+  horses: {
+    care: {
+      title: "Looking after a horse",
+      blurb: "Water, a clean stable, and gentle hands.",
+      videoKey: "scientific",
+      teach: {
+        points: [
+          "A horse needs fresh water every day.",
+          "Grooming means brushing the coat so it is clean and you can check for sore bits.",
+          "Speak softly. Horses notice if you rush or shout.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Check the water bucket is full and clean.",
+          "Brush from neck to tail, the way the hair grows.",
+          "Look at the hooves. Tell an adult if something looks sore.",
+        ],
+      },
+      practice: [
+        {
+          q: "Horses need fresh water…",
+          type: "multi",
+          options: ["every day", "once a year", "never"],
+          answer: 0,
+          explain: "Every day. They drink a lot.",
+        },
+        {
+          q: "Grooming means…",
+          type: "multi",
+          options: ["brushing the coat", "shouting", "racing"],
+          answer: 0,
+          explain: "Brushing and checking the horse.",
+        },
+        {
+          q: "Around a horse you should be…",
+          type: "multi",
+          options: ["calm and kind", "as loud as possible", "running in circles"],
+          answer: 0,
+          explain: "Calm voices, slow moves.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Water, food, shelter, kindness — the same four things you need.",
+          "Brush the way the hair grows.",
+        ],
+        practice: [
+          {
+            q: "A horse’s water should be…",
+            type: "multi",
+            options: ["fresh", "empty"],
+            answer: 0,
+            explain: "Fresh, every day.",
+          },
+        ],
+      },
+    },
+    feeding: {
+      title: "Feeding",
+      blurb: "Hay and grass. Not chocolate.",
+      videoKey: "scientific",
+      teach: {
+        points: [
+          "Horses eat grass and hay most of the time.",
+          "They can have some pony nuts or mix — an adult will measure this.",
+          "Chocolate, onions and lots of human snacks can make a horse very ill.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "In the field: grass.",
+          "In the stable: a hay net, so they can nibble slowly.",
+          "Treats: a carrot or apple slice, not a whole bag of sweets.",
+        ],
+      },
+      practice: [
+        {
+          q: "A horse’s main food is…",
+          type: "multi",
+          options: ["hay and grass", "chocolate", "chips"],
+          answer: 0,
+          explain: "Hay and grass.",
+        },
+        {
+          q: "A safe treat is often…",
+          type: "multi",
+          options: ["a carrot", "a chocolate bar", "an onion"],
+          answer: 0,
+          explain: "Carrot or apple — not chocolate.",
+        },
+        {
+          q: "Who should measure hard feed (pony nuts)?",
+          type: "multi",
+          options: ["An adult who knows the horse", "Anyone, as much as they like"],
+          answer: 0,
+          explain: "Too much hard feed is not kind.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Grass and hay = yes. Chocolate = no.",
+          "Small treats. Not a feast.",
+        ],
+        practice: [
+          {
+            q: "Chocolate for horses?",
+            type: "multi",
+            options: ["No", "Yes, lots"],
+            answer: 0,
+            explain: "No.",
+          },
+        ],
+      },
+    },
+    riding: {
+      title: "Riding basics",
+      blurb: "Hat on. Mount calmly. Walk first.",
+      videoKey: "scientific",
+      teach: {
+        points: [
+          "A riding hat / helmet every time you sit on a horse.",
+          "Walk is the slow pace. Trot is bouncier. Canter is faster — later.",
+          "Hold the reins gently. The horse feels your hands.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Hat on. Check the girth with an adult.",
+          "Mount from the left, using a block if you have one.",
+          "Walk a circle. Sit tall. Smile — you are riding!",
+        ],
+      },
+      practice: [
+        {
+          q: "Before you ride, wear a…",
+          type: "multi",
+          options: ["riding hat", "flip-flops", "no hat"],
+          answer: 0,
+          explain: "Hat on. Every ride.",
+        },
+        {
+          q: "The slowest pace is…",
+          type: "multi",
+          options: ["walk", "canter", "gallop"],
+          answer: 0,
+          explain: "Walk first.",
+        },
+        {
+          q: "Hands on the reins should be…",
+          type: "multi",
+          options: ["gentle", "as hard as you can yank"],
+          answer: 0,
+          explain: "Soft hands. The horse feels everything.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Hat. Walk. Kind hands.",
+          "An instructor helps you mount.",
+        ],
+        practice: [
+          {
+            q: "Walk is…",
+            type: "multi",
+            options: ["slow", "the fastest pace"],
+            answer: 0,
+            explain: "Slow and steady.",
+          },
+        ],
+      },
+    },
+    history: {
+      title: "History of horses",
+      blurb: "How horses helped people long before cars.",
+      videoKey: "reading",
+      teach: {
+        points: [
+          "For thousands of years horses helped people travel, farm and carry loads.",
+          "Knights rode horses. So did messengers and farmers.",
+          "Today we still ride for sport and fun, and some horses still work on farms and with police.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Before cars: a horse and cart took you to market.",
+          "In war and tournaments: knights sat on horses.",
+          "Now: riding schools, racing, and police horses in towns.",
+        ],
+      },
+      practice: [
+        {
+          q: "Before cars, horses helped people…",
+          type: "multi",
+          options: ["travel and farm", "send emails", "charge phones"],
+          answer: 0,
+          explain: "Travel, farm, carry things.",
+        },
+        {
+          q: "Knights often rode…",
+          type: "multi",
+          options: ["horses", "bicycles", "trains"],
+          answer: 0,
+          explain: "Horses.",
+        },
+        {
+          q: "Today you might see a police horse…",
+          type: "multi",
+          options: ["in a town or at a crowd", "only on the moon"],
+          answer: 0,
+          explain: "Police horses still work with people.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Old job: travel and farm. New job: sport, riding schools, police.",
+          "People and horses have been a team for a very long time.",
+        ],
+        practice: [
+          {
+            q: "A horse and cart was used…",
+            type: "multi",
+            options: ["before cars were common", "only in space"],
+            answer: 0,
+            explain: "To travel and carry goods.",
+          },
+        ],
+      },
+    },
+  },
 };
 
 /**

@@ -789,7 +789,11 @@ function questionLearnPayload(subject, skillId, q) {
 function recentScoresSummary(id) {
   const p = state.profiles[id] || defaultProfile(id);
   const L = LEARNERS[id];
-  const subjects = ["maths", "english", "science"].map((sub) => {
+  const subjects = (
+    typeof subjectsForLearner === "function"
+      ? subjectsForLearner(id)
+      : CORE_SUBJECTS
+  ).map((sub) => {
     const d = p.diagnostics?.[sub];
     const work = typeof subjectWorkStats === "function" ? subjectWorkStats(p, sub) : null;
     const overall = subjectOverall(p, sub);
@@ -1097,14 +1101,25 @@ function renderDashboard() {
         <span class="qa-emoji">⚡</span>
         <span class="qa-label">Power 5 Science</span>
       </button>
+      ${
+        L.id === "george"
+          ? `<button type="button" class="quick-act" id="btnPower5Fun" title="5 quick Go-karting questions">
+        <span class="qa-emoji">🏎️</span>
+        <span class="qa-label">Power 5 Karting</span>
+      </button>`
+          : `<button type="button" class="quick-act" id="btnPower5Fun" title="5 quick Horses questions">
+        <span class="qa-emoji">🐴</span>
+        <span class="qa-label">Power 5 Horses</span>
+      </button>`
+      }
     </div>
 
     <h2 class="section-title">Your subjects</h2>
-    <p class="lead">Short lessons. Clear next steps. All the way to <strong>GCSE A*</strong>.</p>
+    <p class="lead">Maths, English and Science — plus a fun subject just for you.</p>
     <div class="grid-3 mb-2">
-      ${subjectDashCard("maths")}
-      ${subjectDashCard("english")}
-      ${subjectDashCard("science")}
+      ${subjectsForLearner(L.id)
+        .map((sub) => subjectDashCard(sub))
+        .join("")}
     </div>
 
     ${stageLegendHtml()}
@@ -1173,6 +1188,9 @@ function renderDashboard() {
   );
   document.getElementById("btnPower5Science")?.addEventListener("click", () =>
     go("power5", { subject: "science" })
+  );
+  document.getElementById("btnPower5Fun")?.addEventListener("click", () =>
+    go("power5", { subject: L.id === "george" ? "karting" : "horses" })
   );
 }
 
@@ -1931,7 +1949,7 @@ function renderExamResult({
 function pathwayMapHtml(p) {
   const stages = [];
   for (let s = 1; s <= MAX_COURSE_STAGE; s++) stages.push(COURSE_STAGES[s]);
-  const subjectRows = Object.keys(SUBJECTS)
+  const subjectRows = CORE_SUBJECTS
     .map((sub) => {
       const pct = pathwayProgressPct(p, sub);
       const cells = stages
@@ -2073,9 +2091,10 @@ function renderSubject({ subject }) {
   }
 
   // Stage progress chips (simple for kids)
+  const stageCount = isFunSubject(subject) ? 1 : MAX_COURSE_STAGE;
   const stageChips = diag?.completed
     ? `<div class="stage-chip-row" role="list">
-        ${Array.from({ length: MAX_COURSE_STAGE }, (_, i) => i + 1)
+        ${Array.from({ length: stageCount }, (_, i) => i + 1)
           .map((s) => {
             const meta = COURSE_STAGES[s];
             const unlocked = s === 1 ? true : canAccessStage(p, subject, s);
@@ -2092,9 +2111,12 @@ function renderSubject({ subject }) {
           .join("")}
       </div>
       <p class="stage-chip-caption muted">
-        ${escapeHtml(stageMeta.emoji + " " + stageMeta.name)} · ${doneCount} of ${
-        path.length
-      } lessons done · whole path to A* <strong style="color:var(--gold)">${pathPct}%</strong>
+        ${escapeHtml((isFunSubject(subject) ? "Fun track" : stageMeta.emoji + " " + stageMeta.name) + " · " + doneCount + " of " + path.length + " lessons done")}
+        ${
+          isFunSubject(subject)
+            ? ""
+            : ` · whole path to A* <strong style="color:var(--gold)">${pathPct}%</strong>`
+        }
       </p>`
     : "";
 
@@ -3462,7 +3484,7 @@ function parentKid(id) {
   const p = state.profiles[id];
   const mem = ensureTutorMemory(p);
   const struggles = topStruggles(p, 3);
-  const rows = Object.keys(SUBJECTS)
+  const rows = subjectsForLearner(id)
     .map((sub) => {
       const d = p.diagnostics[sub];
       let lessonsDone = 0;
