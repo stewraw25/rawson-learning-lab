@@ -10,6 +10,15 @@ function getAppEl() {
 let appEl = getAppEl();
 let parentPollTimer = null;
 let syncStatus = ""; // parent diagnostics only
+let learningTimeTimer = null;
+let learningTimeLastTick = 0;
+let learningTimeLearnerId = null;
+let learningTimeSessionActiveSec = 0;
+let learningTimeSessionIdleSec = 0;
+let learningTimeLastActivity = 0;
+let learningTimeActivityBound = false;
+/** No click/key/move for this long → idle (not active learning) */
+const LEARNING_IDLE_AFTER_MS = 60000;
 let autoSyncTimer = null;
 let saveToastTimer = null;
 let debouncedSaveTimer = null;
@@ -26,6 +35,321 @@ function stopParentPoll() {
     clearInterval(parentPollTimer);
     parentPollTimer = null;
   }
+}
+
+function markLearningActivity() {
+  if (!learningTimeLearnerId || document.hidden) return;
+  learningTimeLastActivity = Date.now();
+  const pill = document.getElementById("liveTimePill");
+  if (pill && pill.dataset.idle === "1") updateLiveTimePill();
+}
+
+function bindLearningActivityListeners() {
+  if (learningTimeActivityBound) return;
+  learningTimeActivityBound = true;
+  const opts = { capture: true, passive: true };
+  const bump = () => markLearningActivity();
+  ["pointerdown", "keydown", "scroll", "touchstart", "mousemove", "click"].forEach(
+    (evt) => document.addEventListener(evt, bump, opts)
+  );
+}
+
+function isLearningIdleNow(now) {
+  if (!learningTimeLastActivity) return true;
+  return now - learningTimeLastActivity >= LEARNING_IDLE_AFTER_MS;
+}
+
+/** Flush learning seconds (active vs idle) into the kid's profile. */
+function flushLearningTimeTick(forceEnd) {
+  if (!learningTimeLearnerId) return;
+  const id = learningTimeLearnerId;
+  const p = state.profiles[id];
+  if (!p) return;
+  const now = Date.now();
+  if (learningTimeLastTick && !document.hidden) {
+    const from = learningTimeLastTick;
+    const deltaMs = now - from;
+    if (deltaMs >= 1000 && deltaMs < 120000) {
+      // Split this slice at the idle threshold so we don't mis-label active time
+      const idleAt = (learningTimeLastActivity || from) + LEARNING_IDLE_AFTER_MS;
+      let activeMs = 0;
+      let idleMs = 0;
+      if (now <= idleAt) {
+        activeMs = deltaMs;
+      } else if (from >= idleAt) {
+        idleMs = deltaMs;
+      } else {
+        activeMs = Math.max(0, idleAt - from);
+        idleMs = Math.max(0, now - idleAt);
+      }
+      const activeSec = Math.floor(activeMs / 1000);
+      const idleSec = Math.floor(idleMs / 1000);
+      if (activeSec > 0) {
+        addLearningSeconds(p, activeSec, now, "active");
+        learningTimeSessionActiveSec += activeSec;
+      }
+      if (idleSec > 0) {
+        addLearningSeconds(p, idleSec, now, "idle");
+        learningTimeSessionIdleSec += idleSec;
+      }
+    }
+  }
+  learningTimeLastTick = document.hidden ? 0 : now;
+  if (forceEnd) {
+    endLearningSession(p);
+    learningTimeLearnerId = null;
+    learningTimeSessionActiveSec = 0;
+    learningTimeSessionIdleSec = 0;
+    learningTimeLastTick = 0;
+    learningTimeLastActivity = 0;
+  }
+  try {
+    saveState(state);
+  } catch (_) {
+    /* ignore */
+  }
+  updateLiveTimePill();
+}
+
+function stopLearningTimeTracker(flush) {
+  if (learningTimeTimer) {
+    clearInterval(learningTimeTimer);
+    learningTimeTimer = null;
+  }
+  if (flush && learningTimeLearnerId) flushLearningTimeTick(true);
+  else if (learningTimeLearnerId) {
+    flushLearningTimeTick(false);
+    learningTimeLastTick = 0;
+  }
+}
+
+function startLearningTimeTracker(learnerId) {
+  if (!learnerId || !LEARNERS[learnerId]) return;
+  bindLearningActivityListeners();
+  if (learningTimeLearnerId && learningTimeLearnerId !== learnerId) {
+    flushLearningTimeTick(true);
+  }
+  const p = state.profiles[learnerId];
+  if (!p) return;
+  if (learningTimeLearnerId !== learnerId) {
+    beginLearningSession(p);
+    learningTimeSessionActiveSec = 0;
+    learningTimeSessionIdleSec = 0;
+  }
+  learningTimeLearnerId = learnerId;
+  learningTimeLastTick = Date.now();
+  learningTimeLastActivity = Date.now();
+  if (learningTimeTimer) clearInterval(learningTimeTimer);
+  learningTimeTimer = setInterval(() => {
+    if (!learningTimeLearnerId) return;
+    if (document.hidden) {
+      learningTimeLastTick = 0;
+      updateLiveTimePill();
+      return;
+    }
+    if (!learningTimeLastTick) learningTimeLastTick = Date.now();
+    flushLearningTimeTick(false);
+    if (
+      learningTimeSessionActiveSec > 0 &&
+      learningTimeSessionActiveSec % 60 < 16
+    ) {
+      save({ quiet: true, learnerId: learningTimeLearnerId }).catch(() => {});
+    }
+  }, 10000);
+  updateLiveTimePill();
+}
+
+function updateLiveTimePill() {
+  const el = document.getElementById("liveTimePill");
+  if (!el || !state.activeLearner) return;
+  const p = state.profiles[state.activeLearner];
+  if (!p) return;
+  try {
+    syncTimeBonus(p);
+  } catch (_) {
+    /* ignore */
+  }
+  const sum = learningTimeSummary(p);
+  const bonus = ensureTimeBonus(p).points;
+  const now = Date.now();
+  const idleNow =
+    !!learningTimeLearnerId &&
+    learningTimeLearnerId === state.activeLearner &&
+    !document.hidden &&
+    isLearningIdleNow(now);
+  el.dataset.idle = idleNow ? "1" : "0";
+  el.textContent = idleNow
+    ? `⏸ Idle · ${sum.todayLabel} today`
+    : `⏱ ${sum.todayLabel} today · ★${bonus}`;
+  el.title = [
+    `Active today ${sum.todayLabel} · Idle today ${sum.todayIdleLabel}`,
+    `Active total ${sum.totalLabel} · Idle total ${sum.idleLabel}`,
+    `Time Bonus ★${bonus} (from active minutes, separate from XP)`,
+  ].join("\n");
+}
+
+/**
+ * Honest Zero → A* climb. Never uses placement/quiz % as “finished”.
+ * One bar per core subject = share of the six-level path, not a 100% skill score.
+ */
+function climbNextFor(profile, subject) {
+  const s =
+    typeof subjectProgressSummary === "function"
+      ? subjectProgressSummary(profile, subject)
+      : { started: false };
+  if (!s.started) {
+    return { type: "diagnostic", subject, label: "Start here — short placement" };
+  }
+  if (
+    s.stagePct >= 100 &&
+    s.stageNum < MAX_COURSE_STAGE &&
+    !(typeof isFunSubject === "function" && isFunSubject(subject))
+  ) {
+    const nxt = COURSE_STAGES[s.stageNum + 1];
+    return {
+      type: "unlock",
+      subject,
+      stage: s.stageNum + 1,
+      label: nxt ? `Unlock ${nxt.name}` : "Unlock next level",
+    };
+  }
+  try {
+    const stage = getActiveStage(profile, subject) || s.stageNum || 1;
+    const next = nextLesson(profile, subject, stage);
+    if (next) {
+      const meta = getLessonMeta(subject, next, stage);
+      return {
+        type: "lesson",
+        subject,
+        skillId: next,
+        stage,
+        label: "Keep going: " + (meta?.title || next),
+      };
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return { type: "subject", subject, label: "Open " + (SUBJECTS[subject]?.name || subject) };
+}
+
+function progressGraphsHtml(profile, opts) {
+  opts = opts || {};
+  const kidMode = !!opts.kidMode;
+  const subjects = (CORE_SUBJECTS || ["maths", "english", "science"]).filter((sub) => {
+    if (opts.subject) return sub === opts.subject;
+    return !!SUBJECTS[sub];
+  });
+
+  const rows = subjects
+    .map((sub) => {
+      const s = subjectProgressSummary(profile, sub);
+      const next = climbNextFor(profile, sub);
+      const climbPct = s.started ? s.pathwayPct : 0;
+      const levelNow = s.started ? s.stageNum : 0;
+      const chips = Array.from({ length: MAX_COURSE_STAGE }, (_, i) => {
+        const n = i + 1;
+        const meta = COURSE_STAGES[n];
+        let cls = "climb-chip is-locked";
+        if (s.started && n < levelNow) cls = "climb-chip is-done";
+        else if (s.started && n === levelNow) cls = "climb-chip is-here";
+        return `<span class="${cls}" title="${escapeHtml(
+          (meta && meta.name) || "Level " + n
+        )}">${n === 6 ? "A*" : n}</span>`;
+      }).join("");
+      const where = !s.started
+        ? "Not started — still at the bottom"
+        : s.stageNum >= MAX_COURSE_STAGE && s.stagePct >= 100
+          ? "A* path complete — revise to stay sharp"
+          : `Level ${s.stageNum} of ${MAX_COURSE_STAGE} · ${s.stageName} · ${climbPct}% of the way to A*`;
+      return `
+        <article class="climb-row" data-subject="${sub}">
+          <div class="climb-row-head">
+            <strong>${SUBJECTS[sub].emoji} ${SUBJECTS[sub].name}</strong>
+            <span class="climb-where muted">${escapeHtml(where)}</span>
+          </div>
+          <div class="climb-chips" aria-hidden="true">${chips}</div>
+          <div class="climb-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${climbPct}">
+            <i style="width:${s.started ? Math.max(climbPct, climbPct === 0 ? 4 : 0) : 0}%"></i>
+          </div>
+          <button type="button" class="climb-next" data-climb-type="${next.type}" data-subject="${sub}"
+            ${next.skillId ? `data-skill="${next.skillId}"` : ""}
+            ${next.stage ? `data-stage="${next.stage}"` : ""}>
+            ${escapeHtml(next.label)} →
+          </button>
+        </article>`;
+    })
+    .join("");
+
+  return `
+    <div class="card progress-graphs-card climb-card mb-2">
+      <h3 style="margin:0 0 0.25rem;font-family:var(--display)">${
+        kidMode ? "⛰️ Your climb to A*" : "Path to A* (honest progress)"
+      }</h3>
+      <p class="muted" style="margin:0 0 0.85rem;font-size:0.9rem">
+        ${
+          kidMode
+            ? "You start at zero. Each level you finish unlocks the next. A high quiz mark is not the whole GCSE — keep climbing."
+            : "Bars are the six-level path (First steps → A*), not placement-test scores. 100% here only means that subject’s A* path is finished."
+        }
+      </p>
+      <div class="climb-list">${rows}</div>
+      <p class="muted climb-legend">1 First steps · 2 Intermediate · 3 Secure · 4 GCSE Core · 5 Higher · A*</p>
+    </div>`;
+}
+
+function learningTimeBoardHtml(id) {
+  const p = normalizeProfile(id, state.profiles[id]);
+  try {
+    syncTimeBonus(p);
+  } catch (_) {
+    /* ignore */
+  }
+  const sum = learningTimeSummary(p);
+  const bonus = ensureTimeBonus(p).points;
+  const days =
+    sum.recentDays.length > 0
+      ? sum.recentDays
+          .slice(0, 5)
+          .map((d) => {
+            const slot =
+              d.slots && d.slots.length
+                ? d.slots
+                    .slice(0, 3)
+                    .map((s) => s.label)
+                    .join(", ") + (d.slots.length > 3 ? "…" : "")
+                : "";
+            return `<div class="time-day-row">
+              <span class="time-day-name">${escapeHtml(d.label)}</span>
+              <span class="time-day-dur">${escapeHtml(d.dur)}</span>
+              <span class="time-day-idle">idle ${escapeHtml(d.idleDur)}</span>
+              <span class="time-slots">${escapeHtml(slot || "—")}</span>
+            </div>`;
+          })
+          .join("")
+      : `<p class="muted time-empty">No sessions yet</p>`;
+  return `
+    <div class="time-board">
+      <div class="time-stats">
+        <div class="time-stat">
+          <span class="time-stat-label">Active</span>
+          <strong>${escapeHtml(sum.totalLabel)}</strong>
+        </div>
+        <div class="time-stat">
+          <span class="time-stat-label">Today</span>
+          <strong>${escapeHtml(sum.todayLabel)}</strong>
+        </div>
+        <div class="time-stat">
+          <span class="time-stat-label">Idle</span>
+          <strong>${escapeHtml(sum.idleLabel)}</strong>
+        </div>
+        <div class="time-stat time-stat-bonus">
+          <span class="time-stat-label">Time Bonus</span>
+          <strong>★ ${bonus}</strong>
+        </div>
+      </div>
+      <p class="time-board-note muted">Time Bonus grows with <em>active</em> minutes — not idle. Separate from XP.</p>
+      <div class="time-day-list">${days}</div>
+    </div>`;
 }
 
 /** Tiny kid-friendly toast — no buttons, just reassurance */
@@ -165,9 +489,13 @@ function startAutoSync() {
 
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
+      if (learningTimeLearnerId) learningTimeLastTick = Date.now();
       refreshFromCloud({ silent: true }).catch(() => {});
+      updateLiveTimePill();
     } else {
-      // Tab hidden — flush save
+      // Tab hidden — pause timer + flush save
+      flushLearningTimeTick(false);
+      learningTimeLastTick = 0;
       try {
         saveState(state);
       } catch (_) {
@@ -182,6 +510,7 @@ function startAutoSync() {
   });
 
   window.addEventListener("pagehide", () => {
+    flushLearningTimeTick(true);
     try {
       saveState(state);
     } catch (_) {
@@ -271,6 +600,8 @@ function hashFor(screen, params = {}) {
     return `#/lesson/${params.subject}/${params.skillId}/${params.stage || 1}`;
   if (screen === "lessonResult")
     return `#/lesson/${params.subject}/${params.skillId || "done"}/${params.stage || 1}/done`;
+  if (screen === "levelComplete")
+    return `#/level-complete/${params.subject || "maths"}/${params.stage || 1}`;
   if (screen === "diagnosticResult")
     return `#/subject/${params.subject || "maths"}`;
   if (screen === "exam")
@@ -314,6 +645,25 @@ function go(screen, params = {}, opts = {}) {
   } catch (_) {
     /* ignore */
   }
+  // Time tracking: stop when leaving a child's screens; keep ticking on kid screens
+  const kidScreens = {
+    dashboard: 1,
+    subject: 1,
+    diagnostic: 1,
+    diagnosticResult: 1,
+    lesson: 1,
+    lessonResult: 1,
+    levelComplete: 1,
+    exam: 1,
+    examResult: 1,
+    power5: 1,
+  };
+  if (!kidScreens[screen]) {
+    if (learningTimeLearnerId) flushLearningTimeTick(true);
+    stopLearningTimeTracker(false);
+  } else if (state.activeLearner) {
+    startLearningTimeTracker(state.activeLearner);
+  }
   // Leaving home — cancel any pending home repaint from cloud load
   if (screen !== "home") {
     homePaintGeneration++;
@@ -354,12 +704,23 @@ function go(screen, params = {}, opts = {}) {
   }
   currentScreen = screen;
 
+  // Keep Bella pink for her whole session (hub, lessons, parent, settings).
+  // Only the shared home screen goes back to garden green.
+  if (screen === "home") {
+    applyLearnerTheme(null);
+  } else if (state.activeLearner && LEARNERS[state.activeLearner]) {
+    applyLearnerTheme(state.activeLearner);
+    // Navigating counts as activity (stops idle clock)
+    if (learningTimeLearnerId === state.activeLearner) markLearningActivity();
+  }
+
   // Browser history: real places get a hash entry; result screens replace
   // so Back returns to the hub/subject instead of a broken empty result.
   const ephemeral = new Set([
     "diagnosticResult",
     "lessonResult",
     "examResult",
+    "levelComplete",
   ]);
   if (!opts.fromHash) {
     const nextHash = hashFor(screen, params);
@@ -385,6 +746,7 @@ function go(screen, params = {}, opts = {}) {
     diagnosticResult: renderDiagnosticResult,
     lesson: renderLesson,
     lessonResult: renderLessonResult,
+    levelComplete: renderLevelComplete,
     exam: renderExam,
     examResult: renderExamResult,
     parent: renderParent,
@@ -483,17 +845,60 @@ function onHashNavigation() {
 /** Open a kid hub — load cloud first, never get sent back to home by a race */
 function applyLearnerTheme(learnerId) {
   try {
-    document.body.classList.remove("theme-learner-bella", "theme-learner-george");
-    if (learnerId && LEARNERS[learnerId]) {
-      document.body.classList.add(`theme-learner-${learnerId}`);
+    const body = document.body;
+    const root = document.documentElement;
+    const next = learnerId && LEARNERS[learnerId] ? learnerId : null;
+
+    // Toggle only — never strip all themes first (that flashed garden green)
+    for (const id of Object.keys(LEARNERS)) {
+      const on = next === id;
+      body.classList.toggle(`theme-${id}`, on);
+      body.classList.toggle(`theme-learner-${id}`, on);
+      root.classList.toggle(`theme-${id}`, on);
+      root.classList.toggle(`theme-learner-${id}`, on);
     }
+    if (next) {
+      body.setAttribute("data-learner", next);
+      root.setAttribute("data-learner", next);
+    } else {
+      body.removeAttribute("data-learner");
+      root.removeAttribute("data-learner");
+    }
+
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
-      meta.setAttribute("content", learnerId === "bella" ? "#24131e" : "#0f1a12");
+      meta.setAttribute("content", next === "bella" ? "#2c1a24" : "#0f1a12");
+    }
+
+    // Drive page chrome via CSS variables (no green flash between class swaps)
+    if (next === "bella") {
+      const pink =
+        "radial-gradient(900px 500px at 12% -8%, rgba(183, 110, 132, 0.32), transparent 55%)," +
+        "radial-gradient(780px 460px at 98% 8%, rgba(212, 165, 180, 0.18), transparent 50%)," +
+        "radial-gradient(680px 400px at 50% 110%, rgba(90, 45, 65, 0.45), transparent 45%)," +
+        "linear-gradient(180deg, #3a2430 0%, #2c1a24 42%, #21141c 100%)";
+      root.style.setProperty("--page-bg-color", "#2c1a24");
+      root.style.setProperty("--page-bg", pink);
+      root.style.setProperty(
+        "--topbar-bg",
+        "linear-gradient(180deg, rgba(44, 26, 36, 0.98) 70%, rgba(44, 26, 36, 0.92))"
+      );
+      root.style.setProperty("background-color", "#2c1a24", "important");
+      body.style.setProperty("background-color", "#2c1a24", "important");
+    } else {
+      root.style.removeProperty("--page-bg-color");
+      root.style.removeProperty("--page-bg");
+      root.style.removeProperty("--topbar-bg");
+      root.style.removeProperty("background-color");
+      body.style.removeProperty("background-color");
     }
   } catch (_) {
     /* ignore */
   }
+}
+
+function bellaThemeChip() {
+  return `<span class="rb-theme-chip">Black horse · mini poodles</span>`;
 }
 
 async function openLearnerHub(learnerId) {
@@ -529,6 +934,9 @@ async function openLearnerHub(learnerId) {
 
   // Push quietly in background — never block opening hub
   save({ quiet: true, learnerId }).catch(() => {});
+
+  // Start counting time on the Learning Lab for this child
+  startLearningTimeTracker(learnerId);
 
   // Instant hub — never wait on network for the kid's first paint
   go("dashboard");
@@ -657,10 +1065,10 @@ function topbar(extraRight = "") {
       <div class="topbar-main">
         <div class="logo" role="button" tabindex="0" data-go="home">
           <img class="logo-mark" src="assets/logo.svg" width="46" height="46" alt="Rawson Learning Lab" />
-          <span class="sr-only">Rawson Learning Lab v63</span>
+          <span class="sr-only">Rawson Learning Lab v68</span>
           <div>
             <h1>Rawson Learning Lab</h1>
-            <p>AI tutors · v63 · learning that fits around life</p>
+            <p>AI tutors · v68 · learning that fits around life</p>
           </div>
         </div>
         <div class="pill-row">
@@ -671,6 +1079,7 @@ function topbar(extraRight = "") {
                 )}</strong></span>
                  <span class="pill">⚡ Lv <strong>${p.level}</strong></span>
                  <span class="pill">🔥 <strong>${p.streak || 0}</strong> day streak</span>
+                 <span class="pill" id="liveTimePill">⏱ …</span>
                  <button class="btn btn-ghost" data-go="dashboard" type="button">My hub</button>
                  <button class="btn btn-ghost" data-switch type="button">Switch kid</button>`
               : ""
@@ -720,12 +1129,15 @@ function bindShell() {
   const sw = appEl.querySelector("[data-switch]");
   if (sw) {
     sw.addEventListener("click", () => {
+      flushLearningTimeTick(true);
+      stopLearningTimeTracker(false);
       state.activeLearner = null;
       applyLearnerTheme(null);
       save({ quiet: true }).catch(function () {});
       go("home");
     });
   }
+  updateLiveTimePill();
   // External brand links (Grok) — never swallowed by SPA handlers
   appEl.querySelectorAll("a.brand-grok, a[href^='http']").forEach((a) => {
     a.addEventListener("click", (e) => {
@@ -754,6 +1166,26 @@ function escapeHtml(s) {
 /** Build context + open AI learning window for a question */
 function learnAboutButtonHtml() {
   return `<button type="button" class="btn-learn-about" id="btnLearnAbout">📖 Learn about this subject</button>`;
+}
+
+function idkButtonHtml() {
+  return `<button type="button" class="btn btn-idk" id="btnIdk" title="It's OK — we'll make the next questions easier">I don't know</button>`;
+}
+
+function adaptHintHtml(subject) {
+  try {
+    const p = profile();
+    if (!p || !subject || typeof getAdaptLevel !== "function") return "";
+    const level = getAdaptLevel(p, subject);
+    const label =
+      typeof adaptLevelLabel === "function" ? adaptLevelLabel(level) : "";
+    if (!label || level === 0) return "";
+    return `<p class="adapt-hint muted">Difficulty: <strong>${escapeHtml(
+      label
+    )}</strong></p>`;
+  } catch (_) {
+    return "";
+  }
 }
 
 function bindLearnAbout(btn, payload) {
@@ -797,15 +1229,19 @@ function recentScoresSummary(id) {
       : CORE_SUBJECTS
   ).map((sub) => {
     const d = p.diagnostics?.[sub];
-    const work = typeof subjectWorkStats === "function" ? subjectWorkStats(p, sub) : null;
-    const overall = subjectOverall(p, sub);
+    const prog = subjectProgressSummary(p, sub);
     return {
       sub,
       name: SUBJECTS[sub].name,
       emoji: SUBJECTS[sub].emoji,
       test: d?.completed ? d.score : null,
-      level: overall,
-      work,
+      level: prog.overall,
+      stageName: prog.stageName,
+      stageEmoji: prog.stageEmoji,
+      stagePct: prog.stagePct,
+      pathwayPct: prog.pathwayPct,
+      statusLabel: prog.statusLabel,
+      started: prog.started,
       date: d?.date || null,
     };
   });
@@ -824,13 +1260,17 @@ function scoreBoardCard(id) {
   const { p, L, subjects, lastLesson, avg } = recentScoresSummary(id);
   const bars = subjects
     .map((s) => {
-      const pct = s.work ? s.work.pct : s.level ?? 0;
-      const label = s.work ? s.work.label : s.level != null ? `${s.level}%` : "—";
+      const pct = s.started ? s.pathwayPct : 0;
+      const label = !s.started
+        ? "Not started"
+        : `${s.stageEmoji} ${s.stageName} · ${pct}% to A*`;
       return `
         <div class="home-score-row">
           <span>${s.emoji} ${s.name}</span>
-          <div class="home-score-bar"><i style="width:${pct}%"></i></div>
-          <strong>${label}</strong>
+          <div class="home-score-bar"><i style="width:${
+            s.started ? Math.max(pct, pct === 0 ? 3 : 0) : 0
+          }%"></i></div>
+          <strong title="${escapeHtml(s.statusLabel)}">${escapeHtml(label)}</strong>
         </div>`;
     })
     .join("");
@@ -849,7 +1289,10 @@ function scoreBoardCard(id) {
         <div class="avatar mini">${L.emoji}</div>
         <div>
           <h3>${escapeHtml(L.fullName)}</h3>
-          <p class="muted">Age ${L.age} · Lv ${p.level} · ${p.xp} XP · 🔥 ${p.streak || 0}</p>
+          <p class="muted">Age ${L.age} · Lv ${p.level} · ${p.xp} XP · ★ ${
+            ensureTimeBonus(p).points
+          } Time Bonus · 🔥 ${p.streak || 0}</p>
+          ${id === "bella" ? bellaThemeChip() : `<span class="rb-theme-chip" style="background:rgba(109,191,138,0.2);border-color:rgba(109,191,138,0.35)">${escapeHtml(L.themeLabel)}</span>`}
         </div>
         <div class="home-avg">
           <span class="home-avg-num">${avg != null ? avg + "%" : "—"}</span>
@@ -857,8 +1300,9 @@ function scoreBoardCard(id) {
         </div>
       </div>
       <div class="home-score-bars">${bars}</div>
+      ${learningTimeBoardHtml(id)}
       <p class="home-last muted">${escapeHtml(lastLine)}</p>
-      <button class="btn btn-primary btn-block mt-1" type="button" data-pick="${id}">
+      <button class="btn ${id === "bella" ? "btn-bella" : "btn-primary"} btn-block mt-1" type="button" data-pick="${id}">
         Open ${escapeHtml(L.name)}'s hub →
       </button>
     </article>`;
@@ -866,6 +1310,8 @@ function scoreBoardCard(id) {
 
 function renderHome() {
   const myGen = ++homePaintGeneration;
+  if (learningTimeLearnerId) flushLearningTimeTick(true);
+  stopLearningTimeTracker(false);
   state.activeLearner = null; // home = no kid selected
   applyLearnerTheme(null);
 
@@ -903,15 +1349,15 @@ function renderHome() {
       <div class="home-theme-row">
         <figure class="home-theme-card bella">
           <img src="${illustFor("pick","bella").src}" alt="${escapeHtml(illustFor("pick","bella").alt)}" />
-          <figcaption>🌸 Bella-Rose</figcaption>
+          <figcaption>Bella-Rose · horses &amp; mini poodles</figcaption>
         </figure>
         <figure class="home-theme-card">
           <img src="${illustFor("pick","george").src}" alt="${escapeHtml(illustFor("pick","george").alt)}" />
           <figcaption>🍃 George</figcaption>
         </figure>
       </div>
-      <h2 class="section-title">Recent scores</h2>
-      <p class="lead">How each student is doing right now (updates automatically).</p>
+      <h2 class="section-title">Recent scores &amp; time on Lab</h2>
+      <p class="lead">Scores plus how long each child has been learning — days and times update automatically.</p>
       <div class="grid-2">
         ${scoreBoardCard("bella")}
         ${scoreBoardCard("george")}
@@ -1021,11 +1467,18 @@ function renderDashboard() {
     return go("home");
   }
   const xpInLevel = (p.xp || 0) % 100;
+  try {
+    syncTimeBonus(p);
+  } catch (_) {
+    /* ignore */
+  }
+  const timeBonusPts = ensureTimeBonus(p).points;
   const nextAct = findNextAction(p);
   touchTutorVisit(p);
   window.__coachGreetSpoken = false; // allow auto-speak greeting this visit
   save({ quiet: true }).catch(() => {});
 
+  const isBella = L.id === "bella";
   appEl.innerHTML = `
     ${topbar()}
     <div class="welcome-banner ${L.theme} welcome-with-art">
@@ -1034,16 +1487,24 @@ function renderDashboard() {
   )}" width="120" height="120" />
       <div class="welcome-copy">
         <h2>Hey ${escapeHtml(L.name)}! ${L.emoji}</h2>
-        <p class="muted" style="margin:0.35rem 0 0">Your path to GCSE A* — Coach is with you</p>
+        <p class="muted" style="margin:0.35rem 0 0">${
+          isBella
+            ? "Your path to GCSE A* — tailored around how you learn"
+            : "Your path to GCSE A* — Coach is with you"
+        }</p>
+        ${isBella ? bellaThemeChip() : ""}
       </div>
       <div class="xp-ring">
         <div class="lvl">Level ${p.level}</div>
         <div class="xp-bar"><div class="xp-fill" style="width:${xpInLevel}%"></div></div>
         <div class="muted" style="font-size:0.75rem;margin-top:0.25rem">${xpInLevel}/100 XP</div>
+        <div class="time-bonus-chip" title="From active learning minutes — separate from XP">★ ${timeBonusPts} Time Bonus</div>
       </div>
     </div>
 
     ${coachPanelHtml(p, L, nextAct)}
+
+    ${progressGraphsHtml(p, { kidMode: true })}
 
     ${(() => {
       const g = typeof allGoalsProgress === "function" ? allGoalsProgress(p) : null;
@@ -1128,19 +1589,6 @@ function renderDashboard() {
         .join("")}
     </div>
 
-    ${stageLegendHtml()}
-
-    <div class="card mb-2 pathway-card-art">
-      <div class="pathway-art-wrap">
-        <img src="${illustFor("pathway").src}" alt="${escapeHtml(
-    illustFor("pathway").alt
-  )}" class="pathway-art" />
-      </div>
-      <h3 style="margin-top:0.85rem;font-family:var(--display)">Your pathway map</h3>
-      <p class="muted" style="margin-top:0">Finish each stage to unlock the next — all the way to A*.</p>
-      ${pathwayMapHtml(p)}
-    </div>
-
     <div class="card mb-2">
       <h3 style="margin-top:0;font-family:var(--display)">Badges</h3>
       <div class="badge-list">
@@ -1157,7 +1605,29 @@ function renderDashboard() {
   bindShell();
   bindCoachPanel(p, L, nextAct);
   appEl.querySelectorAll("[data-subject]").forEach((el) => {
+    if (el.classList.contains("climb-next")) return;
     el.addEventListener("click", () => go("subject", { subject: el.dataset.subject }));
+  });
+  appEl.querySelectorAll(".climb-next").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const subject = btn.dataset.subject;
+      const type = btn.dataset.climbType;
+      if (type === "diagnostic") return go("diagnostic", { subject });
+      if (type === "lesson") {
+        return go("lesson", {
+          subject,
+          skillId: btn.dataset.skill,
+          stage: Number(btn.dataset.stage) || 1,
+        });
+      }
+      if (type === "unlock") {
+        startCourseStage(p, subject, Number(btn.dataset.stage) || 1);
+        save().then(() => go("subject", { subject }));
+        return;
+      }
+      go("subject", { subject });
+    });
   });
   document.getElementById("btnContinue")?.addEventListener("click", async () => {
     if (!nextAct) return go("home");
@@ -1285,9 +1755,11 @@ function renderPower5({ subject }) {
         }
         <h3 class="teach-heading">${escapeHtml(q.q)}</h3>
         <div id="qBody"></div>
+        ${adaptHintHtml(subject)}
         <div id="feedback"></div>
         <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
           <button class="btn btn-primary" type="button" id="btnCheck">Check</button>
+          ${idkButtonHtml()}
           <button class="btn btn-ok" type="button" id="btnNext" style="display:none">Next →</button>
         </div>
       </div>
@@ -1353,29 +1825,36 @@ function renderPower5({ subject }) {
       };
     }
 
-    document.getElementById("btnCheck").onclick = () => {
-      if (revealed) return;
-      if (answerVal === null || answerVal === "") {
-        alert("Pick or type an answer first!");
-        return;
-      }
+    function revealP5(ok, fromIdk) {
       revealed = true;
-      const ok = checkAnswer(q, answerVal);
-      answers[index] = { ok, answer: answerVal };
+      answers[index] = { ok, answer: fromIdk ? null : answerVal, dontKnow: !!fromIdk };
+      try {
+        recordAdaptResult(
+          profile(),
+          subject,
+          fromIdk ? "dontKnow" : ok ? "correct" : "wrong"
+        );
+      } catch (_) {
+        /* ignore */
+      }
       const fb = document.getElementById("feedback");
       fb.className = `feedback ${ok ? "good" : "bad"}`;
-      fb.innerHTML = ok
-        ? `✓ ${escapeHtml(q.explain || "Correct!")}`
-        : `Not quite. ${escapeHtml(q.explain || "")}`;
+      fb.innerHTML = fromIdk
+        ? `That's OK — we'll ease the next ones. ${escapeHtml(q.explain || "")}`
+        : ok
+          ? `✓ ${escapeHtml(q.explain || "Correct!")}`
+          : `Not quite. ${escapeHtml(q.explain || "")}`;
       if (q.type === "multi") {
         body.querySelectorAll(".option").forEach((btn) => {
           const i = Number(btn.dataset.i);
           if (i === q.answer) btn.classList.add("correct");
-          if (i === answerVal && !ok) btn.classList.add("wrong");
+          if (!fromIdk && i === answerVal && !ok) btn.classList.add("wrong");
           btn.disabled = true;
         });
       }
       document.getElementById("btnCheck").disabled = true;
+      const idk = document.getElementById("btnIdk");
+      if (idk) idk.disabled = true;
       const nextBtn = document.getElementById("btnNext");
       nextBtn.style.display = "inline-flex";
       nextBtn.focus();
@@ -1388,12 +1867,25 @@ function renderPower5({ subject }) {
           paint();
         }
       };
-      // Auto-advance on correct after short beat (speed)
-      if (ok) {
+      if (ok && !fromIdk) {
         setTimeout(() => {
           if (document.getElementById("btnNext") === nextBtn) nextBtn.click();
         }, 550);
       }
+    }
+
+    document.getElementById("btnIdk").onclick = () => {
+      if (revealed) return;
+      revealP5(false, true);
+    };
+
+    document.getElementById("btnCheck").onclick = () => {
+      if (revealed) return;
+      if (answerVal === null || answerVal === "") {
+        alert("Pick or type an answer first!");
+        return;
+      }
+      revealP5(checkAnswer(q, answerVal), false);
     };
   }
 
@@ -1409,7 +1901,21 @@ function renderPower5({ subject }) {
     if (typeof ensureTutorMemory === "function") {
       ensureTutorMemory(prof).lastSubject = subject;
     }
-    addXp(prof, 25 + Math.round(scorePct / 4) + (scorePct === 100 ? 15 : 0));
+    awardXp(
+      prof,
+      25 + Math.round(scorePct / 4) + (scorePct === 100 ? 15 : 0),
+      { subject, perfect: scorePct === 100 }
+    );
+    try {
+      logProgress(prof, {
+        subject,
+        kind: "power5",
+        score: scorePct,
+      });
+      retailorRemainingPath(prof, subject, getActiveStage(prof, subject) || 1);
+    } catch (_) {
+      /* ignore */
+    }
     unlockBadge(prof, "power_blitz");
     if (scorePct === 100) unlockBadge(prof, "power_perfect");
     if (elapsedSec <= targetSec && scorePct >= 60) unlockBadge(prof, "speed_demon");
@@ -1522,11 +2028,11 @@ function subjectDashCard(subject) {
         <div class="muted" style="font-size:0.78rem;font-weight:800">
           ${
             overall == null
-              ? "Not started yet"
+              ? "Not started — 0% of the way to A*"
               : escapeHtml(
-                  (typeof subjectWorkStats === "function"
+                  typeof subjectWorkStats === "function"
                     ? subjectWorkStats(p, subject).label
-                    : `${overall}%`) + " done"
+                    : `${overall}% of the way to A*`
                 )
           }
         </div>
@@ -1864,7 +2370,11 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
     recordDailyActivity(p, "exam");
     if (typeof bumpWeekMonth === "function") bumpWeekMonth(p);
     const xpBonus = isTimed ? 20 : isRevision ? 10 : 0;
-    addXp(p, 40 + Math.round(scorePct / 5) + (packStage || 0) * 5 + xpBonus);
+    awardXp(
+      p,
+      40 + Math.round(scorePct / 5) + (packStage || 0) * 5 + xpBonus,
+      { subject, perfect: scorePct >= 100 }
+    );
     if (scorePct >= 80) unlockBadge(p, "exam_star");
     if (scorePct >= 90 && packStage >= 6) unlockBadge(p, "exam_astar");
     if (isTimed) unlockBadge(p, "timed_mock");
@@ -2051,27 +2561,28 @@ function renderSubject({ subject }) {
       </div>`;
   } else if (nextStageNum && stageComplete) {
     nextStepHtml = `
-      <div class="card next-step-card next-step-unlock mb-2">
-        <p class="next-step-label">🎉 Level complete!</p>
-        <h2 class="next-step-title">${stageMeta.emoji} ${escapeHtml(
-      stageMeta.name
-    )} finished</h2>
-        <p class="next-step-desc">Brilliant work, ${escapeHtml(
+      <div class="card level-complete-card next-step-unlock mb-2">
+        <p class="level-complete-kicker">Progress bar full · 100%</p>
+        <div class="level-complete-badge">${stageMeta.emoji}</div>
+        <h2 class="level-complete-title" style="font-size:clamp(1.6rem,4vw,2.2rem)">Level complete!</h2>
+        <p class="level-complete-stage">${escapeHtml(stageMeta.name)} finished</p>
+        <p class="level-complete-msg">Brilliant work, <strong>${escapeHtml(
           kidName
-        )}! Unlock the next level: <strong>${escapeHtml(
-      nextStageMeta.name
-    )}</strong>.</p>
-        <button class="btn btn-primary btn-xl" type="button" id="startNextStage" data-next-stage="${nextStageNum}">
+        )}</strong>! Unlock the next level:</p>
+        <div class="level-complete-bar" aria-hidden="true"><i style="width:100%"></i></div>
+        <button class="btn btn-primary btn-xl level-complete-cta" type="button" id="startNextStage" data-next-stage="${nextStageNum}">
           ${nextStageMeta.emoji} Unlock ${escapeHtml(nextStageMeta.name)} →
         </button>
+        <p class="muted level-complete-hint">Tap the big button to continue</p>
       </div>`;
   } else if (stageComplete && activeStage >= MAX_COURSE_STAGE) {
     nextStepHtml = `
-      <div class="card next-step-card next-step-done mb-2">
-        <p class="next-step-label">⭐ Amazing!</p>
-        <h2 class="next-step-title">A* path complete for ${S.name}</h2>
-        <p class="next-step-desc">You can revise any lesson below, blitz a Power 5, or try exam workouts to stay sharp.</p>
-        <button class="btn btn-primary btn-xl" type="button" id="btnSubjectPower5">
+      <div class="card level-complete-card next-step-done mb-2">
+        <p class="level-complete-kicker">Progress bar full · 100%</p>
+        <div class="level-complete-badge">⭐</div>
+        <h2 class="level-complete-title" style="font-size:clamp(1.6rem,4vw,2.2rem)">A* path complete!</h2>
+        <p class="level-complete-msg">${S.name} mastery finished — revise, or blitz a Power 5.</p>
+        <button class="btn btn-primary btn-xl level-complete-cta" type="button" id="btnSubjectPower5">
           ⚡ Power 5 ${S.name} →
         </button>
       </div>`;
@@ -2221,6 +2732,7 @@ function renderSubject({ subject }) {
         <p class="muted" style="margin:0.25rem 0 0">For ${escapeHtml(
           kidName
         )} · ${escapeHtml(learner().yearGroup)}</p>
+        ${state.activeLearner === "bella" ? bellaThemeChip() : ""}
       </div>
     </div>
 
@@ -2442,14 +2954,13 @@ function renderDiagnostic({ subject }) {
         <h3>${escapeHtml(q.q)}</h3>
         <div id="qBody"></div>
         ${learnAboutButtonHtml()}
+        ${adaptHintHtml(subject)}
         <div id="feedback"></div>
         <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
           <button class="btn btn-primary" type="button" id="btnCheck" ${
             revealed ? "disabled" : ""
           }>Check answer</button>
-          <button class="btn btn-ghost" type="button" id="btnDontKnow" ${
-            revealed ? "disabled" : ""
-          }>I don't know</button>
+          ${idkButtonHtml()}
           <button class="btn btn-ok" type="button" id="btnNext" style="display:${
             revealed ? "inline-flex" : "none"
           }">${index + 1 >= qs.length ? "See results" : "Next →"}</button>
@@ -2508,35 +3019,35 @@ function renderDiagnostic({ subject }) {
       });
     }
 
-    document.getElementById("btnCheck").onclick = () => {
-      if (revealed) return;
-      if (answers[q.id] === undefined || answers[q.id] === "") {
-        alert("Pick or type an answer first!");
-        return;
-      }
+    function revealDiag(ok, fromIdk) {
       revealed = true;
       if (window.__diagKeyHandler) {
         window.removeEventListener("keydown", window.__diagKeyHandler);
         window.__diagKeyHandler = null;
       }
-      const ok = checkAnswer(q, answers[q.id]);
+      try {
+        recordAdaptResult(profile(), subject, fromIdk ? "dontKnow" : ok ? "correct" : "wrong");
+      } catch (_) {
+        /* ignore */
+      }
       const fb = document.getElementById("feedback");
       fb.className = `feedback ${ok ? "good" : "bad"}`;
-      fb.textContent = (ok ? "✓ Correct! " : "Not quite. ") + q.explain;
+      fb.textContent = fromIdk
+        ? "That's OK — next questions will ease up. " + (q.explain || "")
+        : (ok ? "✓ Correct! " : "Not quite. ") + (q.explain || "");
       if (q.type === "multi") {
         body.querySelectorAll(".option").forEach((btn) => {
           const i = Number(btn.dataset.i);
           if (i === q.answer) btn.classList.add("correct");
-          if (i === answers[q.id] && !ok) btn.classList.add("wrong");
+          if (!fromIdk && i === answers[q.id] && !ok) btn.classList.add("wrong");
           btn.disabled = true;
         });
       }
       document.getElementById("btnCheck").disabled = true;
-      const dkPlace = document.getElementById("btnDontKnow");
-      if (dkPlace) dkPlace.disabled = true;
+      const idk = document.getElementById("btnIdk");
+      if (idk) idk.disabled = true;
       const nextBtn = document.getElementById("btnNext");
       nextBtn.style.display = "inline-flex";
-      // Auto-save progress mid-test (kids never click save)
       try {
         if (!profile().diagnostics) profile().diagnostics = {};
         profile().diagnostics[subject] = {
@@ -2550,13 +3061,30 @@ function renderDiagnostic({ subject }) {
       } catch (_) {
         /* ignore */
       }
-      if (ok) {
+      if (ok && !fromIdk) {
         setTimeout(() => {
           if (document.getElementById("btnNext") === nextBtn) nextBtn.click();
         }, 550);
       } else {
         nextBtn.focus();
       }
+    }
+
+    document.getElementById("btnIdk").onclick = () => {
+      if (revealed) return;
+      // Mark unanswered so scoring treats it as incorrect
+      if (answers[q.id] === undefined) answers[q.id] = "__idk__";
+      revealDiag(false, true);
+    };
+
+    document.getElementById("btnCheck").onclick = () => {
+      if (revealed) return;
+      if (answers[q.id] === undefined || answers[q.id] === "") {
+        alert("Pick or type an answer first!");
+        return;
+      }
+      const ok = checkAnswer(q, answers[q.id]);
+      revealDiag(ok, false);
     };
 
     const idkBtn = document.getElementById("btnDontKnow");
@@ -2638,9 +3166,9 @@ function renderDiagnosticResult({ subject, result }) {
       <p class="muted">${escapeHtml(randomEncouragement())}</p>
     </div>
     <div class="card mb-2">
-      <h3 style="margin-top:0;font-family:var(--display)">Skill breakdown</h3>
+      <h3 style="margin-top:0;font-family:var(--display)">How this placement went</h3>
       <div class="skill-bars">${skillHtml}</div>
-      <p class="muted mt-1" style="font-size:0.85rem">Your course prioritises the lowest bars first — just like a tutor would.</p>
+      <p class="muted mt-1" style="font-size:0.85rem">This is today’s quiz, not the whole GCSE. 100% here does not mean A* — the climb still starts at the bottom.</p>
     </div>
     <button class="btn btn-primary btn-lg btn-block" type="button" id="toCourse">See my personalised ${
       S.name
@@ -2777,9 +3305,19 @@ function renderLesson({ subject, skillId, stage }) {
         finishSession();
         return;
       }
-      const isHelp = q._src === "help";
+      const isHelp = q._src === "help" || q._diff === 0;
+      const eased = !!session.easedAfterIdk;
       bodyHtml = `
-        <div class="phase-pill">${isHelp ? "🛟 Extra practice" : "🎯 Practice"}</div>
+        <div class="phase-pill">${
+          isHelp || eased
+            ? "🛟 Easier question"
+            : "🎯 Practice"
+        }</div>
+        ${
+          eased && isHelp
+            ? `<p class="adapt-hint muted">Because you said “I don’t know”, the next ones are easier.</p>`
+            : ""
+        }
         ${
           q.passage
             ? `<blockquote class="passage">${escapeHtml(q.passage)}</blockquote>`
@@ -2788,11 +3326,12 @@ function renderLesson({ subject, skillId, stage }) {
         <h3 class="teach-heading">${escapeHtml(q.q)}</h3>
         <div id="qBody"></div>
         ${learnAboutButtonHtml()}
+        ${adaptHintHtml(subject)}
         <div id="feedback"></div>
         <div id="aiHelpBox"></div>
         <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
           <button class="btn btn-primary" type="button" id="btnCheck">Check</button>
-          <button class="btn btn-ghost" type="button" id="btnDontKnow">I don't know</button>
+          ${idkButtonHtml()}
           <button class="btn btn-ok" type="button" id="btnAdvance" style="display:none">Next →</button>
         </div>`;
     }
@@ -2925,6 +3464,85 @@ function renderLesson({ subject, skillId, stage }) {
       };
     }
 
+    function afterAnswerReveal(ok, fromIdk) {
+      if (typeof persistQuizSession === "function") persistQuizSession(session);
+      const fb = document.getElementById("feedback");
+      fb.className = `feedback ${ok ? "good" : "bad"}`;
+      if (fromIdk) {
+        const lv =
+          typeof adaptLevelLabel === "function"
+            ? adaptLevelLabel(session.adaptLevel)
+            : "easier";
+        const nextIsEasy =
+          session.queue &&
+          session.queue[session.practiceIndex + 1] &&
+          (session.queue[session.practiceIndex + 1]._src === "help" ||
+            session.queue[session.practiceIndex + 1]._diff === 0);
+        fb.innerHTML = `That's OK — next questions are easier now (${escapeHtml(
+          lv
+        )})${nextIsEasy ? " · 🛟 help question coming up" : ""}. ${escapeHtml(
+          q.explain || "Have a look at this tip, then press Next."
+        )}`;
+      } else {
+        fb.innerHTML = ok
+          ? `✓ Nice! ${escapeHtml(q.explain || "Correct!")}`
+          : `Not quite. ${escapeHtml(q.explain || "Read the tip, then press Next.")}`;
+      }
+
+      if (q.type === "multi") {
+        body.querySelectorAll(".option").forEach((btn) => {
+          const i = Number(btn.dataset.i);
+          if (i === q.answer) btn.classList.add("correct");
+          if (!fromIdk && i === answerVal && !ok) btn.classList.add("wrong");
+          btn.disabled = true;
+        });
+      }
+      const checkBtn = document.getElementById("btnCheck");
+      const idkBtn = document.getElementById("btnIdk");
+      if (checkBtn) checkBtn.disabled = true;
+      if (idkBtn) idkBtn.disabled = true;
+      autosaveSoon();
+
+      const advBtn = document.getElementById("btnAdvance");
+      const remaining = session.queue.length - session.practiceIndex - 1;
+      const willInject =
+        !ok &&
+        mod.struggle?.practice?.length &&
+        !session.helpShownForIndex[session.practiceIndex];
+      advBtn.style.display = "inline-flex";
+      advBtn.textContent =
+        remaining <= 0 && !willInject ? "Finish lesson →" : "Next →";
+      advBtn.onclick = () => {
+        const result = advanceAfterAnswer(session, ok);
+        if (typeof persistQuizSession === "function") persistQuizSession(session);
+        if (result.done || session.finished || session.phase === "complete") {
+          finishSession();
+          return;
+        }
+        answerVal = null;
+        revealed = false;
+        paint();
+      };
+      if (ok && !fromIdk) {
+        setTimeout(() => {
+          if (document.getElementById("btnAdvance") === advBtn) advBtn.click();
+        }, 550);
+      } else {
+        advBtn.focus();
+      }
+    }
+
+    document.getElementById("btnIdk").onclick = () => {
+      if (revealed) return;
+      revealed = true;
+      if (session._keyHandler) {
+        window.removeEventListener("keydown", session._keyHandler);
+        session._keyHandler = null;
+      }
+      handleDontKnow(session, q);
+      afterAnswerReveal(false, true);
+    };
+
     document.getElementById("btnCheck").onclick = async () => {
       if (revealed) return;
       if (answerVal === null || answerVal === "") {
@@ -2937,25 +3555,7 @@ function renderLesson({ subject, skillId, stage }) {
         session._keyHandler = null;
       }
       const ok = handlePracticeAnswer(session, q, answerVal);
-      if (typeof persistQuizSession === "function") persistQuizSession(session);
-      const fb = document.getElementById("feedback");
-      fb.className = `feedback ${ok ? "good" : "bad"}`;
-      fb.innerHTML = ok
-        ? `✓ Nice! ${escapeHtml(q.explain || "Correct!")}`
-        : `Not quite. ${escapeHtml(q.explain || "Read the tip, then press Next.")}`;
-
-      if (q.type === "multi") {
-        body.querySelectorAll(".option").forEach((btn) => {
-          const i = Number(btn.dataset.i);
-          if (i === q.answer) btn.classList.add("correct");
-          if (i === answerVal && !ok) btn.classList.add("wrong");
-          btn.disabled = true;
-        });
-      }
-      document.getElementById("btnCheck").disabled = true;
-      const dk2 = document.getElementById("btnDontKnow");
-      if (dk2) dk2.disabled = true;
-      autosaveSoon();
+      afterAnswerReveal(ok, false);
 
       if (!ok && isAiConfigured()) {
         const box = document.getElementById("aiHelpBox");
@@ -2979,35 +3579,6 @@ function renderLesson({ subject, skillId, stage }) {
           }
         }
       }
-
-      const advBtn = document.getElementById("btnAdvance");
-      const remaining = session.queue.length - session.practiceIndex - 1;
-      const willInject =
-        !ok &&
-        mod.struggle?.practice?.length &&
-        !session.helpShownForIndex[session.practiceIndex];
-      advBtn.style.display = "inline-flex";
-      advBtn.textContent =
-        remaining <= 0 && !willInject ? "Finish lesson →" : "Next →";
-      advBtn.onclick = () => {
-        const result = advanceAfterAnswer(session, ok);
-        if (typeof persistQuizSession === "function") persistQuizSession(session);
-        if (result.done || session.finished || session.phase === "complete") {
-          finishSession();
-          return;
-        }
-        answerVal = null;
-        revealed = false;
-        paint();
-      };
-      // Auto-advance when correct (fast loop) — still goes Next, never restarts
-      if (ok) {
-        setTimeout(() => {
-          if (document.getElementById("btnAdvance") === advBtn) advBtn.click();
-        }, 550);
-      } else {
-        advBtn.focus();
-      }
     };
 
     const idkLesson = document.getElementById("btnDontKnow");
@@ -3028,6 +3599,13 @@ function renderLesson({ subject, skillId, stage }) {
     if (liveLesson && liveLesson.key === liveKey) liveLesson = null;
     if (typeof clearQuizSession === "function") {
       clearQuizSession(state.activeLearner, subject, skillId, stageNum);
+    }
+    try {
+      if (typeof rememberAskedQuestions === "function") {
+        rememberAskedQuestions(profile(), subject, session.queue || []);
+      }
+    } catch (_) {
+      /* ignore */
     }
     if (session._keyHandler) {
       window.removeEventListener("keydown", session._keyHandler);
@@ -3094,7 +3672,18 @@ function renderLesson({ subject, skillId, stage }) {
     } catch (_) {
       /* ignore */
     }
-    autoProgressStages(profile(), subject);
+    // If this lesson finished the whole level, celebrate FIRST — don't silently skip ahead
+    const stageDoneNow = isStageComplete(profile(), subject, stageNum);
+    if (stageDoneNow) {
+      go("levelComplete", {
+        subject,
+        stage: stageNum,
+        skillId,
+        scorePct,
+      });
+      return;
+    }
+
     const nextSkill = nextLesson(profile(), subject, stageNum, skillId);
     go("lessonResult", {
       subject,
@@ -3110,6 +3699,82 @@ function renderLesson({ subject, skillId, stage }) {
 
   if (liveLesson && liveLesson.key === liveKey) liveLesson.paint = paint;
   paint();
+}
+
+/**
+ * Big celebration when a stage/level bar hits 100%.
+ * One clear button unlocks the next level (or sends them back if A* done).
+ */
+function renderLevelComplete({ subject, stage, skillId, scorePct }) {
+  if (!state.activeLearner || !SUBJECTS[subject]) return go("dashboard");
+  const p = profile();
+  const L = learner();
+  const stageNum = Number(stage) || getActiveStage(p, subject) || 1;
+  const stageMeta = COURSE_STAGES[stageNum] || COURSE_STAGES[1];
+  const nextStage = stageNum < MAX_COURSE_STAGE ? stageNum + 1 : null;
+  const nextMeta = nextStage ? COURSE_STAGES[nextStage] : null;
+  const celeb =
+    state.activeLearner === "bella"
+      ? illustFor("celebrate", "bella")
+      : state.activeLearner === "george"
+        ? illustFor("celebrate", "george")
+        : illustFor("celebrate");
+
+  appEl.innerHTML = `
+    ${topbar()}
+    <div class="level-complete-screen">
+      <div class="card level-complete-card">
+        ${
+          celeb
+            ? `<img class="level-complete-art" src="${celeb.src}" alt="${escapeHtml(
+                celeb.alt || ""
+              )}" />`
+            : ""
+        }
+        <p class="level-complete-kicker">Progress bar full · 100%</p>
+        <div class="level-complete-badge">${stageMeta.emoji || "🎉"}</div>
+        <h1 class="level-complete-title">Level complete!</h1>
+        <h2 class="level-complete-stage">${escapeHtml(stageMeta.name)} · ${
+    SUBJECTS[subject].emoji
+  } ${escapeHtml(SUBJECTS[subject].name)}</h2>
+        <p class="level-complete-msg">
+          Brilliant work, <strong>${escapeHtml(L.name)}</strong> —
+          you finished every lesson in this level${
+            scorePct != null ? ` (last lesson ${scorePct}%)` : ""
+          }.
+        </p>
+        <div class="level-complete-bar" aria-hidden="true"><i style="width:100%"></i></div>
+        ${
+          nextMeta
+            ? `<button type="button" class="btn btn-primary btn-xl level-complete-cta" id="btnUnlockLevel">
+                 ${nextMeta.emoji} Unlock ${escapeHtml(nextMeta.name)} →
+               </button>
+               <p class="muted level-complete-hint">Tap the big button to start the next level</p>`
+            : `<button type="button" class="btn btn-primary btn-xl level-complete-cta" id="btnUnlockLevel">
+                 ⭐ A* path complete — back to ${escapeHtml(SUBJECTS[subject].name)} →
+               </button>
+               <p class="muted level-complete-hint">You can revise lessons or try Power 5 next</p>`
+        }
+        <button type="button" class="btn btn-ghost mt-1" data-go="dashboard">Home hub</button>
+      </div>
+    </div>
+  `;
+  bindShell();
+  if (typeof fireConfetti === "function") fireConfetti();
+
+  document.getElementById("btnUnlockLevel")?.addEventListener("click", async () => {
+    if (nextStage && nextMeta) {
+      startCourseStage(p, subject, nextStage);
+      if (!p.courses[subject].stages[nextStage]?.path?.length) {
+        buildCourse(p, subject, nextStage);
+      }
+      await save({ quiet: false });
+      go("subject", { subject });
+    } else {
+      await save({ quiet: true });
+      go("subject", { subject });
+    }
+  });
 }
 
 function renderLessonResult({
@@ -3148,10 +3813,16 @@ function renderLessonResult({
     console.warn(e);
   }
 
-  const stageJustDone = isStageComplete(p, subject, stageNum);
-  const nextStage = stageJustDone && stageNum < MAX_COURSE_STAGE ? stageNum + 1 : null;
-  const canUnlockStage = nextStage && canAccessStage(p, subject, nextStage);
-  const nextMeta = nextStage ? COURSE_STAGES[nextStage] : null;
+  // If the bar hit 100% on this lesson, always use the big Level Complete screen
+  if (isStageComplete(p, subject, stageNum)) {
+    return go("levelComplete", {
+      subject,
+      stage: stageNum,
+      skillId,
+      scorePct,
+    });
+  }
+
   const mod = getTeachModule(subject, skillId, stageNum, state.activeLearner);
   const nextTitle =
     nextId && typeof getLessonMeta === "function"
@@ -3160,12 +3831,7 @@ function renderLessonResult({
 
   // ONE clear action for kids — no clutter
   let primaryHtml = "";
-  if (canUnlockStage && nextMeta) {
-    primaryHtml = `
-      <button class="btn btn-primary btn-xl big-next-btn" type="button" id="unlockNext">
-        🎉 Level done! Unlock ${escapeHtml(nextMeta.name)} →
-      </button>`;
-  } else if (nextId && nextId !== skillId) {
+  if (nextId && nextId !== skillId) {
     primaryHtml = `
       <button class="btn btn-primary btn-xl big-next-btn" type="button" id="btnNextSkill">
         ✅ Next: ${escapeHtml(nextTitle || "continue")} →
@@ -3180,9 +3846,16 @@ function renderLessonResult({
       </button>`;
   }
 
+  const celeb =
+    state.activeLearner === "bella" ? illustFor("celebrate", "bella") : null;
   appEl.innerHTML = `
     ${topbar()}
     <div class="card simple-done-card mb-2">
+      ${
+        celeb
+          ? `<img class="home-score-art" src="${celeb.src}" alt="${escapeHtml(celeb.alt)}" style="border-radius:14px;margin:0 0 1rem;max-height:180px;object-fit:cover;width:100%" />`
+          : ""
+      }
       <p class="next-step-label" style="margin:0 0 0.5rem">Lesson finished · saved ✓</p>
       <h1 class="simple-done-title">${escapeHtml(mod?.title || "Well done!")}</h1>
       <p class="simple-done-score">${scorePct}%</p>
@@ -3215,15 +3888,9 @@ function renderLessonResult({
     clearAuto();
     go("lesson", { subject, skillId: nextId, stage: stageNum });
   });
-  document.getElementById("unlockNext")?.addEventListener("click", async () => {
-    clearAuto();
-    startCourseStage(p, subject, nextStage);
-    await save({ quiet: true });
-    go("subject", { subject });
-  });
 
   // Auto-start next lesson so kids aren't stuck choosing
-  if (nextId && nextId !== skillId && !canUnlockStage) {
+  if (nextId && nextId !== skillId) {
     let n = 3;
     const countEl = document.getElementById("autoNextCount");
     countTimer = setInterval(() => {
@@ -3506,36 +4173,39 @@ function parentKid(id) {
   const p = state.profiles[id];
   const mem = ensureTutorMemory(p);
   const struggles = topStruggles(p, 3);
-  const rows = subjectsForLearner(id)
+  const subjectCards = (
+    typeof subjectsForLearner === "function" ? subjectsForLearner(id) : Object.keys(SUBJECTS)
+  )
     .map((sub) => {
-      const d = p.diagnostics[sub];
-      let lessonsDone = 0;
-      let totalLessons = "—";
-      let stageLabel = "—";
-      try {
-        if (p.courses?.[sub]) {
-          const c = migrateCourseEntry(p.courses[sub]);
-          const active = c.activeStage || 1;
-          stageLabel = (COURSE_STAGES[active] || COURSE_STAGES[1]).name;
-          const st = c.stages?.[active];
-          if (st) {
-            const path = Array.isArray(st.path) ? st.path : [];
-            totalLessons = path.length;
-            lessonsDone = path.filter((id) => st.completed && st.completed[id]).length;
-          }
-          const work = typeof subjectWorkStats === "function" ? subjectWorkStats(p, sub) : null;
-          stageLabel = work ? `${stageLabel} · ${work.label}` : stageLabel;
-        }
-      } catch (_) {
-        /* ignore */
-      }
-      return `<tr>
-        <td>${SUBJECTS[sub].emoji} ${SUBJECTS[sub].name}</td>
-        <td>${d?.completed ? d.score + "%" : "—"}</td>
-        <td>${escapeHtml(stageLabel)}</td>
-        <td>${lessonsDone}/${totalLessons}</td>
-        <td>${subjectOverall(p, sub) ?? "—"}%</td>
-      </tr>`;
+      const s = subjectProgressSummary(p, sub);
+      const barPct = s.started ? s.stagePct : 0;
+      const pathway = s.started ? s.pathwayPct : 0;
+      const testLabel =
+        s.placementScore != null ? `${s.placementScore}% placement` : "No placement yet";
+      return `
+        <div class="parent-subject-card">
+          <div class="parent-subject-head">
+            <strong>${SUBJECTS[sub].emoji} ${SUBJECTS[sub].name}</strong>
+            <span class="parent-stage-pill">${escapeHtml(s.stageEmoji)} ${escapeHtml(
+              s.stageName
+            )}</span>
+          </div>
+          <p class="parent-subject-status muted">${escapeHtml(s.statusLabel)}</p>
+          <div class="parent-bar-label"><span>This level</span><strong>${
+            s.started ? `${s.stageLessonDone}/${s.stageLessonTotal || "?"} · ${barPct}%` : "—"
+          }</strong></div>
+          <div class="parent-progress-bar"><i style="width:${Math.max(
+            s.started ? barPct : 0,
+            s.started && barPct === 0 ? 2 : 0
+          )}%"></i></div>
+          <div class="parent-bar-label"><span>Path to A*</span><strong>${
+            s.started ? pathway + "%" : "—"
+          }</strong></div>
+          <div class="parent-progress-bar parent-progress-bar-path"><i style="width:${
+            s.started ? Math.max(pathway, pathway === 0 ? 2 : 0) : 0
+          }%"></i></div>
+          <p class="parent-test-line muted">${escapeHtml(testLabel)}</p>
+        </div>`;
     })
     .join("");
 
@@ -3545,12 +4215,16 @@ function parentKid(id) {
       <h3 style="margin-top:0;font-family:var(--display)">${L.emoji} ${escapeHtml(
     L.fullName
   )}</h3>
-      <p class="muted">Age ${L.age} · ${L.yearGroup} · Level ${p.level} · ${
+      <p class="muted">Age ${L.age} · ${L.yearGroup} · App level ${p.level} · ${
     p.xp
-  } XP · Streak ${p.streak} days · ${p.badges.length} badges
+  } XP · ★ ${ensureTimeBonus(p).points} Time Bonus · Streak ${p.streak} days · ${
+    p.badges.length
+  } badges
       · Today ${dailyProgress(p).done}/${dailyProgress(p).goal} goal
       · Week ${mem.weekDone}/${mem.weeklyGoal} · Month ${mem.monthDone}/${mem.monthlyGoal}
       · Updated ${formatTime(p.updatedAt)}</p>
+      ${learningTimeBoardHtml(id)}
+      ${progressGraphsHtml(p, { kidMode: false })}
       ${
         nextRec
           ? `<p class="parent-next-rec"><strong>Coach next step:</strong> ${escapeHtml(
@@ -3565,12 +4239,9 @@ function parentKid(id) {
             )}</strong></p>`
           : ""
       }
-      <div class="table-wrap">
-        <table class="progress-table">
-          <thead><tr><th>Subject</th><th>Placement</th><th>Course</th><th>Lessons done</th><th>Work %</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
+      <h4 class="parent-subjects-title">Subjects &amp; levels</h4>
+      <p class="muted parent-subjects-legend">“This level” = lessons on their current stage. “Path to A*” is the whole climb — a high quiz score is not 100% of the course.</p>
+      <div class="parent-subjects-grid">${subjectCards}</div>
     </div>`;
 }
 

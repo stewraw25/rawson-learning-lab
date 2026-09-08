@@ -14,7 +14,7 @@ const LEARNERS = {
     stage: "ks3",
     emoji: "🌸",
     theme: "bella",
-    themeLabel: "Horses",
+    themeLabel: "Horses & mini poodles",
     tagline: "Start easy, then climb — no rush",
   },
   george: {
@@ -177,31 +177,31 @@ const ILLUST_LEARNER = {
     },
     welcome: {
       src: "assets/illust/bella/welcome.jpg",
-      alt: "Golden mini poodle and jet-black horse in the paddock at sunset",
+      alt: "Golden mini poodle and jet-black horse in the paddock",
     },
     hero: {
       src: "assets/illust/bella/hero.jpg",
-      alt: "Full view of golden mini poodle and black riding horse in the English countryside",
+      alt: "Golden mini poodle and black riding horse",
     },
     celebrate: {
       src: "assets/illust/bella/celebrate.jpg",
-      alt: "Poodle and black horse celebrating with rose petals",
+      alt: "Poodle and black horse celebrating",
     },
     pick: {
       src: "assets/illust/bella/pick.jpg",
-      alt: "Bella-Rose theme — golden poodle and black horse in the garden paddock",
+      alt: "Bella-Rose — horses and miniature poodles",
     },
     pathway: {
       src: "assets/illust/bella/pathway.jpg",
-      alt: "Poodle and black horse climbing a paddock path",
+      alt: "Poodle and black horse on the pathway",
     },
     teach: {
       src: "assets/illust/bella/teach.jpg",
-      alt: "Poodle teaching at a paddock chalkboard with the black horse watching",
+      alt: "Poodle teaching with the black horse watching",
     },
     exam: {
       src: "assets/illust/bella/exam.jpg",
-      alt: "Poodle and black horse at a quiet exam table in the paddock",
+      alt: "Poodle and black horse ready for a test",
     },
     unlock: {
       src: "assets/illust/bella/unlock.jpg",
@@ -209,15 +209,15 @@ const ILLUST_LEARNER = {
     },
     "subject-maths": {
       src: "assets/illust/bella/subject-maths.jpg",
-      alt: "Black horse and poodle with a maths workbook in the paddock",
+      alt: "Black horse and poodle maths study",
     },
     "subject-english": {
       src: "assets/illust/bella/subject-english.jpg",
-      alt: "Black horse and poodle with a storybook in the garden",
+      alt: "Black horse and poodle reading",
     },
     "subject-science": {
       src: "assets/illust/bella/subject-science.jpg",
-      alt: "Black horse and poodle at a greenhouse science table",
+      alt: "Black horse and poodle science table",
     },
     "subject-horses": {
       src: "assets/illust/bella/hero.jpg",

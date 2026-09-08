@@ -26,6 +26,31 @@ function defaultProfile(learnerId) {
     daily: null, // { date, lessons, exams, goal }
     tutorMemory: null, // AI coach memory — see companion.js
     parentNotes: "",
+    // Time on Learning Lab (seconds) — synced across Macs
+    // totalSec / days = ACTIVE learning; idleSec / idleDays = sitting idle
+    learningTime: {
+      totalSec: 0,
+      idleSec: 0,
+      todaySec: 0,
+      todayIdleSec: 0,
+      todayKey: null,
+      sessions: [], // { id, date, startMs, endMs, sec, idleSec }
+      days: {}, // active seconds by date
+      idleDays: {}, // idle seconds by date
+    },
+    // Adaptive difficulty: -3 easier … 0 … +3 harder (per subject)
+    adapt: {
+      bySubject: {},
+    },
+    // Time Bonus — separate from XP; earned from ACTIVE learning minutes
+    timeBonus: {
+      points: 0,
+      claimedActiveMin: 0,
+    },
+    // Background progress log for AI tailoring + graphs
+    progressLog: {
+      entries: [], // { at, date, subject, skillId, kind, score, adaptLevel }
+    },
     // 0 = empty shell — must NOT beat real cloud progress on merge
     updatedAt: 0,
   };
@@ -87,7 +112,699 @@ function normalizeProfile(learnerId, raw) {
   if (typeof p.streak !== "number" || Number.isNaN(p.streak)) p.streak = Number(p.streak) || 0;
   if (typeof p.updatedAt !== "number") p.updatedAt = Number(p.updatedAt) || 0;
   if (!p.fullName) p.fullName = base.fullName;
+  p.learningTime = ensureLearningTime(p);
+  p.adapt = ensureAdapt(p);
+  p.timeBonus = ensureTimeBonus(p);
+  if (!p.recentQuestions || typeof p.recentQuestions !== "object") {
+    p.recentQuestions = {};
+  }
+  p.progressLog = ensureProgressLog(p);
   return p;
+}
+
+function ensureProgressLog(profile) {
+  const base = { entries: [] };
+  let log =
+    profile && profile.progressLog && typeof profile.progressLog === "object"
+      ? { ...base, ...profile.progressLog }
+      : { ...base };
+  if (!Array.isArray(log.entries)) log.entries = [];
+  if (profile) profile.progressLog = log;
+  return log;
+}
+
+/**
+ * Append a progress event for graphs + AI pathway tailoring.
+ * kind: lesson | diagnostic | power5 | exam | dontKnow | wrong | correct
+ */
+function logProgress(profile, opts) {
+  if (!profile || !opts || !opts.subject) return;
+  const log = ensureProgressLog(profile);
+  const entry = {
+    at: Date.now(),
+    date: todayKey(),
+    subject: opts.subject,
+    skillId: opts.skillId || null,
+    kind: opts.kind || "lesson",
+    score: typeof opts.score === "number" ? Math.round(opts.score) : null,
+    adaptLevel:
+      typeof opts.adaptLevel === "number"
+        ? opts.adaptLevel
+        : typeof getAdaptLevel === "function"
+          ? getAdaptLevel(profile, opts.subject)
+          : 0,
+  };
+  log.entries.push(entry);
+  if (log.entries.length > 400) log.entries = log.entries.slice(-400);
+  profile.progressLog = log;
+  profile.updatedAt = Date.now();
+  return entry;
+}
+
+function recentSkillEvents(profile, subject, skillId, limit) {
+  const log = ensureProgressLog(profile);
+  const max = limit || 8;
+  return log.entries
+    .filter(
+      (e) =>
+        e &&
+        e.subject === subject &&
+        (!skillId || e.skillId === skillId)
+    )
+    .slice(-max);
+}
+
+/** Lower = weaker → teach sooner. Uses live skill score + recent struggle log. */
+function skillWeaknessScore(profile, subject, skillId) {
+  const base = profile.diagnostics?.[subject]?.skillScores?.[skillId];
+  let score = typeof base === "number" ? base : 55;
+  const recent = recentSkillEvents(profile, subject, skillId, 10);
+  for (const e of recent) {
+    if (e.kind === "dontKnow") score -= 14;
+    else if (e.kind === "wrong") score -= 8;
+    else if (e.kind === "correct") score += 3;
+    else if (typeof e.score === "number") {
+      if (e.score < 50) score -= 12;
+      else if (e.score < 70) score -= 6;
+      else if (e.score >= 85) score += 4;
+    }
+  }
+  // Adapt level already easy → keep focusing weak areas
+  try {
+    const lv = getAdaptLevel(profile, subject);
+    if (lv <= -2) score -= 5;
+  } catch (_) {
+    /* ignore */
+  }
+  return score;
+}
+
+function rankedSkillsByWeakness(profile, subject) {
+  const ids = Object.keys(SKILLS[subject] || {});
+  return ids
+    .map((id) => ({
+      id,
+      score: skillWeaknessScore(profile, subject, id),
+      live: profile.diagnostics?.[subject]?.skillScores?.[id] ?? null,
+      name: SKILLS[subject][id]?.name || id,
+    }))
+    .sort((a, b) => a.score - b.score);
+}
+
+/** Snapshot for graphs: skill bars + last scores trend */
+function progressGraphData(profile, subject) {
+  const ranked = rankedSkillsByWeakness(profile, subject);
+  const log = ensureProgressLog(profile);
+  const subjectEntries = log.entries.filter(
+    (e) => e && e.subject === subject && typeof e.score === "number"
+  );
+  const trend = subjectEntries.slice(-12).map((e) => ({
+    date: e.date,
+    score: e.score,
+    skillId: e.skillId,
+    kind: e.kind,
+  }));
+  const focus = ranked.slice(0, 2);
+  const strong = ranked.slice(-1);
+  return {
+    subject,
+    skills: ranked,
+    trend,
+    focus,
+    strong,
+    adaptLevel:
+      typeof getAdaptLevel === "function" ? getAdaptLevel(profile, subject) : 0,
+    adaptLabel:
+      typeof adaptLevelLabel === "function"
+        ? adaptLevelLabel(
+            typeof getAdaptLevel === "function"
+              ? getAdaptLevel(profile, subject)
+              : 0
+          )
+        : "",
+  };
+}
+
+function mergeProgressLog(a, b) {
+  const ae = (a && Array.isArray(a.entries) && a.entries) || [];
+  const be = (b && Array.isArray(b.entries) && b.entries) || [];
+  const byKey = new Map();
+  for (const e of [...ae, ...be]) {
+    if (!e || !e.at) continue;
+    const key = [e.at, e.subject, e.skillId || "", e.kind || "", e.score].join("|");
+    byKey.set(key, e);
+  }
+  const entries = [...byKey.values()].sort((x, y) => (x.at || 0) - (y.at || 0));
+  return { entries: entries.slice(-400) };
+}
+
+function ensureTimeBonus(profile) {
+  const base = { points: 0, claimedActiveMin: 0 };
+  let tb =
+    profile && profile.timeBonus && typeof profile.timeBonus === "object"
+      ? { ...base, ...profile.timeBonus }
+      : { ...base };
+  tb.points = Math.max(0, Math.floor(Number(tb.points) || 0));
+  tb.claimedActiveMin = Math.max(0, Math.floor(Number(tb.claimedActiveMin) || 0));
+  if (profile) profile.timeBonus = tb;
+  return tb;
+}
+
+/**
+ * Award Time Bonus from active learning minutes (1 point per active minute).
+ * Idle time does not count. Separate from XP / levels.
+ */
+function syncTimeBonus(profile) {
+  if (!profile) return ensureTimeBonus(profile || {});
+  const lt = ensureLearningTime(profile);
+  const tb = ensureTimeBonus(profile);
+  const activeMin = Math.floor((Number(lt.totalSec) || 0) / 60);
+  const delta = activeMin - tb.claimedActiveMin;
+  if (delta > 0) {
+    tb.points += delta;
+    tb.claimedActiveMin = activeMin;
+    profile.updatedAt = Date.now();
+  }
+  profile.timeBonus = tb;
+  return tb;
+}
+
+function mergeTimeBonus(a, b) {
+  const A = ensureTimeBonus({ timeBonus: a || {} });
+  const B = ensureTimeBonus({ timeBonus: b || {} });
+  return {
+    points: Math.max(A.points, B.points),
+    claimedActiveMin: Math.max(A.claimedActiveMin, B.claimedActiveMin),
+  };
+}
+
+/** Per-subject adaptive difficulty (-3 easy … +3 hard) */
+function ensureAdapt(profile) {
+  const base = { bySubject: {} };
+  let a =
+    profile && profile.adapt && typeof profile.adapt === "object"
+      ? { ...base, ...profile.adapt }
+      : { ...base };
+  if (!a.bySubject || typeof a.bySubject !== "object" || Array.isArray(a.bySubject)) {
+    a.bySubject = {};
+  }
+  if (profile) profile.adapt = a;
+  return a;
+}
+
+function ensureAdaptSubject(profile, subject) {
+  const a = ensureAdapt(profile);
+  if (!a.bySubject[subject] || typeof a.bySubject[subject] !== "object") {
+    a.bySubject[subject] = {
+      level: 0,
+      correctStreak: 0,
+      missStreak: 0,
+      dontKnowCount: 0,
+      correctCount: 0,
+      answeredCount: 0,
+    };
+  }
+  const s = a.bySubject[subject];
+  s.level = Math.max(-3, Math.min(3, Math.round(Number(s.level) || 0)));
+  s.correctStreak = Math.max(0, Math.floor(Number(s.correctStreak) || 0));
+  s.missStreak = Math.max(0, Math.floor(Number(s.missStreak) || 0));
+  s.dontKnowCount = Math.max(0, Math.floor(Number(s.dontKnowCount) || 0));
+  s.correctCount = Math.max(0, Math.floor(Number(s.correctCount) || 0));
+  s.answeredCount = Math.max(0, Math.floor(Number(s.answeredCount) || 0));
+  return s;
+}
+
+function getAdaptLevel(profile, subject) {
+  return ensureAdaptSubject(profile, subject).level;
+}
+
+function adaptLevelLabel(level) {
+  const n = Math.max(-3, Math.min(3, Number(level) || 0));
+  if (n <= -2) return "Easier questions";
+  if (n === -1) return "A bit easier";
+  if (n === 0) return "Just right";
+  if (n === 1) return "A bit harder";
+  return "Harder questions";
+}
+
+/**
+ * Update difficulty from an answer.
+ * result: "correct" | "wrong" | "dontKnow"
+ * skillId optional — stored in progress log for graphs / tailoring
+ */
+function recordAdaptResult(profile, subject, result, skillId) {
+  if (!profile || !subject) return 0;
+  const s = ensureAdaptSubject(profile, subject);
+  s.answeredCount++;
+  if (result === "correct") {
+    s.correctCount++;
+    s.correctStreak++;
+    s.missStreak = 0;
+    // Getting loads right → harder gradually
+    if (s.correctStreak >= 5) {
+      s.level = Math.min(3, s.level + 1);
+      s.correctStreak = 0;
+    } else if (s.correctStreak >= 3 && s.level < 2) {
+      s.level = Math.min(3, s.level + 1);
+      s.correctStreak = 1;
+    }
+  } else if (result === "dontKnow") {
+    s.dontKnowCount++;
+    s.missStreak++;
+    s.correctStreak = 0;
+    // Each "I don't know" eases; repeated ones ease faster
+    const drop = s.missStreak >= 3 ? 2 : 1;
+    s.level = Math.max(-3, s.level - drop);
+  } else {
+    // wrong
+    s.missStreak++;
+    s.correctStreak = 0;
+    if (s.missStreak >= 3) {
+      s.level = Math.max(-3, s.level - 1);
+      s.missStreak = 1;
+    } else if (s.missStreak >= 2 && s.level > 0) {
+      s.level = Math.max(-3, s.level - 1);
+    }
+  }
+  try {
+    logProgress(profile, {
+      subject,
+      skillId: skillId || null,
+      kind: result === "dontKnow" ? "dontKnow" : result === "correct" ? "correct" : "wrong",
+      score: result === "correct" ? 100 : result === "dontKnow" ? 0 : 40,
+      adaptLevel: s.level,
+    });
+  } catch (_) {
+    /* ignore */
+  }
+  profile.updatedAt = Date.now();
+  return s.level;
+}
+
+/** Fingerprint a question so we can avoid repeats */
+function questionFingerprint(q) {
+  if (!q) return "";
+  return String(q.q || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .slice(0, 120);
+}
+
+function ensureRecentQuestions(profile, subject) {
+  if (!profile.recentQuestions || typeof profile.recentQuestions !== "object") {
+    profile.recentQuestions = {};
+  }
+  if (!Array.isArray(profile.recentQuestions[subject])) {
+    profile.recentQuestions[subject] = [];
+  }
+  return profile.recentQuestions[subject];
+}
+
+/** Remember questions just asked (keep last ~40 per subject) */
+function rememberAskedQuestions(profile, subject, questions) {
+  if (!profile || !subject || !questions || !questions.length) return;
+  const list = ensureRecentQuestions(profile, subject);
+  for (const q of questions) {
+    const fp = questionFingerprint(q);
+    if (!fp) continue;
+    const idx = list.indexOf(fp);
+    if (idx >= 0) list.splice(idx, 1);
+    list.push(fp);
+  }
+  while (list.length > 40) list.shift();
+  profile.updatedAt = Date.now();
+}
+
+function shuffleArray(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/**
+ * Prefer questions not asked recently. Falls back to full pool if filtered empty.
+ */
+function preferFreshQuestions(pool, profile, subject) {
+  if (!pool || !pool.length) return [];
+  const recent = new Set(
+    profile && subject ? ensureRecentQuestions(profile, subject) : []
+  );
+  const fresh = pool.filter((q) => !recent.has(questionFingerprint(q)));
+  return fresh.length ? fresh : pool.slice();
+}
+
+function mergeAdapt(a, b) {
+  const out = { bySubject: {} };
+  const A = a && typeof a === "object" ? a : {};
+  const B = b && typeof b === "object" ? b : {};
+  const keys = new Set([
+    ...Object.keys(A.bySubject || {}),
+    ...Object.keys(B.bySubject || {}),
+  ]);
+  for (const sub of keys) {
+    const x = (A.bySubject && A.bySubject[sub]) || {};
+    const y = (B.bySubject && B.bySubject[sub]) || {};
+    out.bySubject[sub] = {
+      level: Math.round(
+        ((Number(x.level) || 0) + (Number(y.level) || 0)) / 2
+      ),
+      correctStreak: Math.max(Number(x.correctStreak) || 0, Number(y.correctStreak) || 0),
+      missStreak: Math.max(Number(x.missStreak) || 0, Number(y.missStreak) || 0),
+      dontKnowCount: Math.max(Number(x.dontKnowCount) || 0, Number(y.dontKnowCount) || 0),
+      correctCount: Math.max(Number(x.correctCount) || 0, Number(y.correctCount) || 0),
+      answeredCount: Math.max(Number(x.answeredCount) || 0, Number(y.answeredCount) || 0),
+    };
+  }
+  return out;
+}
+
+/** Safe learning-time shape + roll “today” if the calendar day changed */
+function ensureLearningTime(profile) {
+  const base = {
+    totalSec: 0,
+    idleSec: 0,
+    todaySec: 0,
+    todayIdleSec: 0,
+    todayKey: null,
+    sessions: [],
+    days: {},
+    idleDays: {},
+  };
+  let lt =
+    profile && profile.learningTime && typeof profile.learningTime === "object"
+      ? { ...base, ...profile.learningTime }
+      : { ...base };
+  if (!lt.days || typeof lt.days !== "object" || Array.isArray(lt.days)) lt.days = {};
+  if (!lt.idleDays || typeof lt.idleDays !== "object" || Array.isArray(lt.idleDays)) {
+    lt.idleDays = {};
+  }
+  if (!Array.isArray(lt.sessions)) lt.sessions = [];
+  lt.totalSec = Math.max(0, Math.floor(Number(lt.totalSec) || 0));
+  lt.idleSec = Math.max(0, Math.floor(Number(lt.idleSec) || 0));
+  lt.todaySec = Math.max(0, Math.floor(Number(lt.todaySec) || 0));
+  lt.todayIdleSec = Math.max(0, Math.floor(Number(lt.todayIdleSec) || 0));
+  const today = todayKey();
+  if (lt.todayKey !== today) {
+    lt.todayKey = today;
+    lt.todaySec = Math.max(0, Math.floor(Number(lt.days[today]) || 0));
+    lt.todayIdleSec = Math.max(0, Math.floor(Number(lt.idleDays[today]) || 0));
+  }
+  if (profile) profile.learningTime = lt;
+  return lt;
+}
+
+/** Human duration: 45s · 12m · 1h 05m · 2h 30m */
+function formatDuration(sec) {
+  sec = Math.max(0, Math.floor(Number(sec) || 0));
+  if (sec < 60) return sec + "s";
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (h <= 0) return m + "m";
+  if (m <= 0) return h + "h";
+  return h + "h " + String(m).padStart(2, "0") + "m";
+}
+
+function formatClockMs(ms) {
+  try {
+    return new Date(ms).toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch (_) {
+    return "—";
+  }
+}
+
+function formatDayLabel(dateStr) {
+  if (!dateStr) return "—";
+  const today = todayKey();
+  if (dateStr === today) return "Today";
+  try {
+    const y = new Date(today + "T12:00:00");
+    y.setDate(y.getDate() - 1);
+    const yKey =
+      y.getFullYear() +
+      "-" +
+      String(y.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(y.getDate()).padStart(2, "0");
+    if (dateStr === yKey) return "Yesterday";
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    return new Date(dateStr + "T12:00:00").toLocaleDateString("en-GB", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+  } catch (_) {
+    return dateStr;
+  }
+}
+
+/**
+ * Add learning seconds while the child has the lab open.
+ * kind: "active" (interacting) | "idle" (tab open but not doing anything)
+ */
+function addLearningSeconds(profile, seconds, atMs, kind) {
+  if (!profile || !(seconds > 0)) return ensureLearningTime(profile);
+  const now = typeof atMs === "number" ? atMs : Date.now();
+  const isIdle = kind === "idle";
+  const lt = ensureLearningTime(profile);
+  const day = todayKey();
+  const add = Math.floor(seconds);
+  if (lt.todayKey !== day) {
+    lt.todayKey = day;
+    lt.todaySec = Math.max(0, Math.floor(Number(lt.days[day]) || 0));
+    lt.todayIdleSec = Math.max(0, Math.floor(Number(lt.idleDays[day]) || 0));
+  }
+
+  if (isIdle) {
+    lt.idleSec += add;
+    lt.todayIdleSec += add;
+    lt.idleDays[day] = Math.max(0, Math.floor(Number(lt.idleDays[day]) || 0)) + add;
+  } else {
+    lt.totalSec += add;
+    lt.todaySec += add;
+    lt.days[day] = Math.max(0, Math.floor(Number(lt.days[day]) || 0)) + add;
+    try {
+      syncTimeBonus(profile);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  let open = lt.sessions.find((s) => s && s.open);
+  if (!open) {
+    open = {
+      id: (profile.id || "kid") + "-" + now,
+      date: day,
+      startMs: now,
+      endMs: now,
+      sec: 0,
+      idleSec: 0,
+      open: true,
+    };
+    lt.sessions.push(open);
+  }
+  if (isIdle) {
+    open.idleSec = Math.max(0, Math.floor(Number(open.idleSec) || 0)) + add;
+  } else {
+    open.sec = Math.max(0, Math.floor(Number(open.sec) || 0)) + add;
+  }
+  open.endMs = now;
+  open.date = open.date || day;
+
+  // Keep last 80 sessions + prune day maps to ~60 days
+  if (lt.sessions.length > 80) lt.sessions = lt.sessions.slice(-80);
+  for (const map of [lt.days, lt.idleDays]) {
+    const dayKeys = Object.keys(map).sort();
+    if (dayKeys.length > 60) {
+      for (const k of dayKeys.slice(0, dayKeys.length - 60)) delete map[k];
+    }
+  }
+  profile.learningTime = lt;
+  profile.updatedAt = Math.max(Number(profile.updatedAt) || 0, now);
+  return lt;
+}
+
+function beginLearningSession(profile) {
+  if (!profile) return null;
+  const lt = ensureLearningTime(profile);
+  // Close any dangling open session
+  for (const s of lt.sessions) {
+    if (s && s.open) {
+      s.open = false;
+      if (!s.endMs) s.endMs = Date.now();
+    }
+  }
+  const now = Date.now();
+  const sess = {
+    id: (profile.id || "kid") + "-" + now,
+    date: todayKey(),
+    startMs: now,
+    endMs: now,
+    sec: 0,
+    idleSec: 0,
+    open: true,
+  };
+  lt.sessions.push(sess);
+  if (lt.sessions.length > 80) lt.sessions = lt.sessions.slice(-80);
+  profile.learningTime = lt;
+  return sess;
+}
+
+function endLearningSession(profile) {
+  if (!profile) return;
+  const lt = ensureLearningTime(profile);
+  for (const s of lt.sessions) {
+    if (s && s.open) {
+      s.open = false;
+      s.endMs = Date.now();
+    }
+  }
+  profile.learningTime = lt;
+}
+
+function mergeLearningTime(a, b) {
+  const A = ensureLearningTime({ learningTime: a || {} });
+  const B = ensureLearningTime({ learningTime: b || {} });
+  const byId = new Map();
+  for (const s of [...(A.sessions || []), ...(B.sessions || [])]) {
+    if (!s || !s.id) continue;
+    const prev = byId.get(s.id);
+    const active = Math.max(0, Math.floor(Number(s.sec) || 0));
+    const idle = Math.max(0, Math.floor(Number(s.idleSec) || 0));
+    const prevActive = prev ? Math.max(0, Math.floor(Number(prev.sec) || 0)) : -1;
+    const prevIdle = prev ? Math.max(0, Math.floor(Number(prev.idleSec) || 0)) : -1;
+    if (!prev || active + idle >= prevActive + prevIdle) {
+      byId.set(s.id, {
+        id: s.id,
+        date: s.date || "",
+        startMs: Number(s.startMs) || 0,
+        endMs: Number(s.endMs) || Number(s.startMs) || 0,
+        sec: Math.max(active, prevActive, 0),
+        idleSec: Math.max(idle, prevIdle, 0),
+        open: false,
+      });
+    }
+  }
+  const sessions = [...byId.values()].sort(
+    (x, y) => (x.startMs || 0) - (y.startMs || 0)
+  );
+  const days = {};
+  const idleDays = {};
+  for (const s of sessions) {
+    if (!s.date) continue;
+    days[s.date] = (days[s.date] || 0) + (s.sec || 0);
+    idleDays[s.date] = (idleDays[s.date] || 0) + (s.idleSec || 0);
+  }
+  for (const src of [A.days, B.days]) {
+    for (const [k, v] of Object.entries(src || {})) {
+      days[k] = Math.max(days[k] || 0, Math.floor(Number(v) || 0));
+    }
+  }
+  for (const src of [A.idleDays, B.idleDays]) {
+    for (const [k, v] of Object.entries(src || {})) {
+      idleDays[k] = Math.max(idleDays[k] || 0, Math.floor(Number(v) || 0));
+    }
+  }
+  const totalSec = Math.max(
+    A.totalSec || 0,
+    B.totalSec || 0,
+    Object.values(days).reduce((n, v) => n + (Number(v) || 0), 0)
+  );
+  const idleSec = Math.max(
+    A.idleSec || 0,
+    B.idleSec || 0,
+    Object.values(idleDays).reduce((n, v) => n + (Number(v) || 0), 0)
+  );
+  const today = todayKey();
+  return {
+    totalSec,
+    idleSec,
+    todaySec: Math.max(0, Math.floor(Number(days[today]) || 0)),
+    todayIdleSec: Math.max(0, Math.floor(Number(idleDays[today]) || 0)),
+    todayKey: today,
+    sessions: sessions.slice(-80),
+    days,
+    idleDays,
+  };
+}
+
+/** Summary for scoreboards / parent view */
+function learningTimeSummary(profile) {
+  const lt = ensureLearningTime(profile || {});
+  const today = todayKey();
+  const todayActive =
+    lt.todayKey === today ? lt.todaySec : Math.floor(Number(lt.days[today]) || 0);
+  const todayIdle =
+    lt.todayKey === today
+      ? lt.todayIdleSec
+      : Math.floor(Number(lt.idleDays[today]) || 0);
+
+  const dayKeys = [
+    ...new Set([
+      ...Object.keys(lt.days || {}),
+      ...Object.keys(lt.idleDays || {}),
+    ]),
+  ]
+    .filter(
+      (d) => (Number(lt.days[d]) || 0) > 0 || (Number(lt.idleDays[d]) || 0) > 0
+    )
+    .sort()
+    .reverse()
+    .slice(0, 7);
+
+  const recentDays = dayKeys.map((date) => {
+    const active = Math.floor(Number(lt.days[date]) || 0);
+    const idle = Math.floor(Number(lt.idleDays[date]) || 0);
+    const daySessions = (lt.sessions || [])
+      .filter(
+        (s) =>
+          s && s.date === date && ((s.sec || 0) > 0 || (s.idleSec || 0) > 0)
+      )
+      .sort((a, b) => (a.startMs || 0) - (b.startMs || 0));
+    const slots = daySessions.map((s) => {
+      const start = formatClockMs(s.startMs);
+      const end = formatClockMs(s.endMs || s.startMs);
+      return {
+        start,
+        end,
+        sec: s.sec || 0,
+        idleSec: s.idleSec || 0,
+        label: start === end ? start : start + "–" + end,
+        open: !!s.open,
+      };
+    });
+    return {
+      date,
+      label: formatDayLabel(date),
+      sec: active,
+      idleSec: idle,
+      dur: formatDuration(active),
+      idleDur: formatDuration(idle),
+      slots,
+      slotText: slots.map((s) => s.label + (s.open ? " (now)" : "")).join(", "),
+    };
+  });
+
+  return {
+    totalSec: lt.totalSec,
+    idleSec: lt.idleSec,
+    todaySec: todayActive,
+    todayIdleSec: todayIdle,
+    totalLabel: formatDuration(lt.totalSec),
+    idleLabel: formatDuration(lt.idleSec),
+    todayLabel: formatDuration(todayActive),
+    todayIdleLabel: formatDuration(todayIdle),
+    recentDays,
+  };
 }
 
 function loadState() {
@@ -186,9 +903,47 @@ function updateStreak(profile) {
 }
 
 function addXp(profile, amount) {
-  profile.xp += amount;
+  profile.xp = (Number(profile.xp) || 0) + Math.max(0, Math.round(Number(amount) || 0));
   const newLevel = 1 + Math.floor(profile.xp / 100);
   profile.level = newLevel;
+}
+
+/** Harder adaptive level → more XP; easier → a bit less (still fair). */
+function xpMultiplierForAdapt(level) {
+  const n = Math.max(-3, Math.min(3, Number(level) || 0));
+  const table = {
+    "-3": 0.7,
+    "-2": 0.8,
+    "-1": 0.9,
+    "0": 1,
+    "1": 1.15,
+    "2": 1.35,
+    "3": 1.55,
+  };
+  return table[String(n)] || 1;
+}
+
+/**
+ * Award XP scaled by subject difficulty (and optional question difficulty).
+ * questionDiff: 0 = help/easy, 1 = normal, 2 = stretch
+ * Returns actual XP added.
+ */
+function awardXp(profile, baseAmount, opts) {
+  opts = opts || {};
+  let amount = Math.max(0, Number(baseAmount) || 0);
+  if (!amount) return 0;
+  let mult = 1;
+  if (opts.subject && typeof getAdaptLevel === "function") {
+    mult *= xpMultiplierForAdapt(getAdaptLevel(profile, opts.subject));
+  }
+  if (typeof opts.questionDiff === "number") {
+    if (opts.questionDiff <= 0) mult *= 0.75;
+    else if (opts.questionDiff >= 2) mult *= 1.25;
+  }
+  if (opts.perfect) mult *= 1.1;
+  const gained = Math.max(1, Math.round(amount * mult));
+  addXp(profile, gained);
+  return gained;
 }
 
 function unlockBadge(profile, badgeId) {
@@ -504,6 +1259,23 @@ function mergeProfiles(localP, remoteP, learnerId) {
   if (L.tutorMemory || R.tutorMemory) {
     out.tutorMemory = { ...(R.tutorMemory || {}), ...(L.tutorMemory || {}) };
   }
+  out.learningTime = mergeLearningTime(L.learningTime, R.learningTime);
+  out.adapt = mergeAdapt(L.adapt, R.adapt);
+  out.timeBonus = mergeTimeBonus(L.timeBonus, R.timeBonus);
+  out.recentQuestions = {};
+  for (const sub of new Set([
+    ...Object.keys(L.recentQuestions || {}),
+    ...Object.keys(R.recentQuestions || {}),
+  ])) {
+    const merged = [
+      ...new Set([
+        ...((L.recentQuestions && L.recentQuestions[sub]) || []),
+        ...((R.recentQuestions && R.recentQuestions[sub]) || []),
+      ]),
+    ];
+    out.recentQuestions[sub] = merged.slice(-40);
+  }
+  out.progressLog = mergeProgressLog(L.progressLog, R.progressLog);
   return normalizeProfile(learnerId, out);
 }
 
@@ -621,14 +1393,8 @@ function ensureCourseReady(profile, subject) {
         `Your ${SUBJECTS[subject].name} lessons are ready — start at the top!`,
     };
   }
-  if (!profile._autoProgressing) {
-    profile._autoProgressing = true;
-    try {
-      autoProgressStages(profile, subject);
-    } finally {
-      profile._autoProgressing = false;
-    }
-  }
+  // Do NOT auto-skip to the next stage here — kids need a clear "Level complete!" moment.
+  // Unlock happens from the Level Complete screen / subject unlock button.
   return c.stages[c.activeStage] || c.stages[stage];
 }
 
@@ -720,15 +1486,9 @@ function buildCourse(profile, subject, stageNum) {
   const skillDefs = SKILLS[subject];
   const skillIds = Object.keys(skillDefs);
 
-  let ranked;
-  if (diag && diag.skillScores) {
-    ranked = skillIds
-      .map((id) => ({
-        id,
-        score: diag.skillScores[id] ?? 50,
-      }))
-      .sort((a, b) => a.score - b.score);
-  } else {
+  // Weakest first using live scores + struggle log (AI tailoring)
+  let ranked = rankedSkillsByWeakness(profile, subject);
+  if (!ranked.length) {
     ranked = skillIds.map((id, i) => ({ id, score: 50 - i }));
   }
 
@@ -867,7 +1627,10 @@ function recordDiagnostic(profile, subject, answers, result) {
     answers,
   };
   updateStreak(profile);
-  addXp(profile, 40 + Math.round(result.score / 5));
+  awardXp(profile, 40 + Math.round(result.score / 5), {
+    subject,
+    perfect: result.score >= 100,
+  });
   unlockBadge(profile, "first_steps");
   if (result.score >= 70) {
     if (subject === "maths") unlockBadge(profile, "maths_star");
@@ -884,6 +1647,24 @@ function recordDiagnostic(profile, subject, answers, result) {
   if (typeof bumpWeekMonth === "function") bumpWeekMonth(profile);
 
   buildCourse(profile, subject);
+
+  try {
+    logProgress(profile, {
+      subject,
+      kind: "diagnostic",
+      score: result.score,
+    });
+    for (const [skillId, sc] of Object.entries(result.skillScores || {})) {
+      logProgress(profile, {
+        subject,
+        skillId,
+        kind: "diagnostic",
+        score: sc,
+      });
+    }
+  } catch (_) {
+    /* ignore */
+  }
 
   // GCSE pathway badge
   const avg =
@@ -947,26 +1728,34 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
     date: todayKey(),
     stage,
   });
+  try {
+    logProgress(profile, {
+      subject,
+      skillId,
+      kind: "lesson",
+      score: scorePct,
+    });
+  } catch (_) {
+    /* ignore */
+  }
   updateStreak(profile);
-  addXp(profile, stageXpBase(stage) + Math.round(scorePct / 10));
+  awardXp(profile, stageXpBase(stage) + Math.round(scorePct / 10), {
+    subject,
+    perfect: scorePct >= 100,
+  });
   unlockBadge(profile, "lesson_1");
   const lessonCount = profile.lessonHistory.length;
   if (lessonCount >= 5) unlockBadge(profile, "lesson_5");
   if (lessonCount >= 25) unlockBadge(profile, "lesson_25");
   if (lessonCount >= 50) unlockBadge(profile, "lesson_50");
 
-  const ranked = Object.keys(SKILLS[subject])
-    .map((id) => ({
-      id,
-      score: profile.diagnostics[subject]?.skillScores?.[id] ?? 50,
-    }))
-    .sort((a, b) => a.score - b.score);
+  const ranked = rankedSkillsByWeakness(profile, subject);
   st.focusMessage =
     stage <= 1
       ? makeFocusMessage(subject, ranked, profile.diagnostics[subject])
       : makeStageFocusMessage(subject, ranked, profile.diagnostics[subject], stage);
 
-  // Re-order remaining lessons by live skill scores (AI-style continuous tailoring)
+  // Re-order remaining lessons by weakness log (struggle first, then ease up)
   retailorRemainingPath(profile, subject, stage);
 
   if (isStageComplete(profile, subject, stage)) {
@@ -992,8 +1781,9 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
 }
 
 /**
- * After each lesson: keep completed skills in order, re-sort remaining
- * by current weakness so the pathway adapts as the student develops.
+ * After each lesson: keep completed skills, re-sort remaining weakest-first
+ * using the progress log (struggles / don't-knows pull a topic forward).
+ * If a skill scored very low, schedule one remediation revisit later in path.
  */
 function retailorRemainingPath(profile, subject, stageNum) {
   try {
@@ -1006,19 +1796,46 @@ function retailorRemainingPath(profile, subject, stageNum) {
     if (!st.completed || typeof st.completed !== "object" || Array.isArray(st.completed)) {
       st.completed = {};
     }
-    const scores = profile.diagnostics?.[subject]?.skillScores || {};
     const done = [];
     const remaining = [];
     for (const id of st.path) {
       if (st.completed[id]) done.push(id);
       else remaining.push(id);
     }
-    remaining.sort((a, b) => (scores[a] ?? 50) - (scores[b] ?? 50));
+    remaining.sort(
+      (a, b) =>
+        skillWeaknessScore(profile, subject, a) -
+        skillWeaknessScore(profile, subject, b)
+    );
+
+    // Remediation: very weak completed skill → one extra practice slot if not already queued
+    const remediate = [];
+    for (const id of done) {
+      const sc = profile.diagnostics?.[subject]?.skillScores?.[id];
+      const last = recentSkillEvents(profile, subject, id, 3);
+      const poorLesson = last.some(
+        (e) => e.kind === "lesson" && typeof e.score === "number" && e.score < 55
+      );
+      const manyIdk =
+        last.filter((e) => e.kind === "dontKnow").length >= 2;
+      if (
+        ((typeof sc === "number" && sc < 55) || poorLesson || manyIdk) &&
+        !remaining.includes(id) &&
+        !(st.remediated && st.remediated[id])
+      ) {
+        remediate.push(id);
+        if (!st.remediated) st.remediated = {};
+        st.remediated[id] = true;
+        // Keep completed tick so bar doesn't drop; remediation is an extra pass
+      }
+    }
+    // Put one remediation skill near the front of remaining (after the weakest new ones)
+    if (remediate.length) {
+      remaining.splice(Math.min(1, remaining.length), 0, remediate[0]);
+    }
+
     st.path = [...done, ...remaining];
-    const ranked = st.path.map((id) => ({
-      id,
-      score: scores[id] ?? 50,
-    }));
+    const ranked = rankedSkillsByWeakness(profile, subject);
     st.focusMessage =
       stage <= 1
         ? makeFocusMessage(subject, ranked, profile.diagnostics?.[subject])
@@ -1028,11 +1845,14 @@ function retailorRemainingPath(profile, subject, stageNum) {
             profile.diagnostics?.[subject],
             stage
           );
-    // Surface adaptation note for coach/UI
     if (remaining.length) {
       const weakest = remaining[0];
       const wName = SKILLS[subject]?.[weakest]?.name || weakest;
-      st.adaptNote = `Pathway updated: next focus is ${wName} (based on how you’re doing).`;
+      const lv =
+        typeof getAdaptLevel === "function" ? getAdaptLevel(profile, subject) : 0;
+      const lvLabel =
+        typeof adaptLevelLabel === "function" ? adaptLevelLabel(lv) : "";
+      st.adaptNote = `AI pathway updated: training ${wName} next (${lvLabel}). Gets harder as you improve.`;
     } else {
       st.adaptNote = `Stage complete — every skill practiced.`;
     }
@@ -1042,56 +1862,133 @@ function retailorRemainingPath(profile, subject, stageNum) {
 }
 
 /**
- * Honest work done on this subject — lessons finished vs lessons on the path.
- * Does NOT use the placement-test score (that was filling bars to ~99% with almost no work).
+ * Honest subject progress for parents / scoreboards.
+ * Never treats a high placement test as “nearly finished the course”.
+ * Overall % is the climb from First steps → A* (six levels), not quiz scores.
  */
-function subjectWorkStats(profile, subject) {
-  const empty = { done: 0, total: 0, pct: 0, label: "No lessons yet" };
-  if (!profile) return empty;
-  let done = 0;
-  let total = 0;
-  const c = profile.courses && profile.courses[subject];
-  if (c) {
+function subjectProgressSummary(profile, subject) {
+  const empty = {
+    started: false,
+    placementScore: null,
+    stageNum: 0,
+    stageName: "Not started",
+    stageEmoji: "○",
+    stageLessonDone: 0,
+    stageLessonTotal: 0,
+    stagePct: 0,
+    pathwayPct: 0,
+    overall: null,
+    statusLabel: "Not started",
+  };
+  if (!profile || !SUBJECTS[subject]) return empty;
+
+  const diag = profile.diagnostics && profile.diagnostics[subject];
+  const placementDone = !!(diag && diag.completed);
+  let placementScore = null;
+  if (placementDone && diag.score != null && !Number.isNaN(Number(diag.score))) {
+    placementScore = Math.max(0, Math.min(100, Math.round(Number(diag.score))));
+  }
+
+  let stageNum = 0;
+  let stageName = "Not started";
+  let stageEmoji = "○";
+  let stageLessonDone = 0;
+  let stageLessonTotal = 0;
+  let stagePct = 0;
+  let pathwayPct = 0;
+  let doneCount = 0;
+
+  if (placementDone) {
     try {
-      const migrated = migrateCourseEntry(c);
-      const stageNum = Number(migrated.activeStage) || 1;
-      const st = migrated.stages && migrated.stages[stageNum];
-      const path = st && Array.isArray(st.path) ? st.path : [];
-      const completed =
-        st && st.completed && typeof st.completed === "object" && !Array.isArray(st.completed)
-          ? st.completed
-          : {};
-      total = path.length;
-      done = path.filter((id) => !!completed[id]).length;
+      ensureCourseReady(profile, subject);
     } catch (_) {
-      /* keep empty */
+      /* ignore */
+    }
+    const active = getActiveStage(profile, subject) || 1;
+    stageNum = active;
+    const meta = COURSE_STAGES[active] || COURSE_STAGES[1];
+    stageName = meta.name;
+    stageEmoji = meta.emoji || "📘";
+    const st = getCourseStageData(profile, subject, active);
+    const path = (st && Array.isArray(st.path) && st.path) || [];
+    const completed =
+      st && st.completed && typeof st.completed === "object" && !Array.isArray(st.completed)
+        ? st.completed
+        : {};
+    stageLessonTotal = path.length;
+    stageLessonDone = path.filter((id) => !!completed[id]).length;
+    stagePct = stageLessonTotal
+      ? Math.round((stageLessonDone / stageLessonTotal) * 100)
+      : 0;
+    pathwayPct = pathwayProgressPct(profile, subject);
+
+    const c = profile.courses && profile.courses[subject];
+    if (c) {
+      try {
+        const migrated = migrateCourseEntry(c);
+        for (const stage of Object.values(migrated.stages || {})) {
+          if (!stage || !stage.completed || typeof stage.completed !== "object") continue;
+          if (Array.isArray(stage.completed)) continue;
+          doneCount += Object.keys(stage.completed).filter((k) => stage.completed[k]).length;
+        }
+      } catch (_) {
+        /* ignore */
+      }
     }
   }
-  if (!total) {
-    const skillN = Object.keys(SKILLS[subject] || {}).length;
-    if (skillN) {
-      return { done: 0, total: skillN, pct: 0, label: `0 of ${skillN} lessons` };
-    }
-    return empty;
+
+  let overall = null;
+  if (!placementDone && doneCount === 0) {
+    overall = null;
+  } else if (placementDone && doneCount === 0) {
+    overall = Math.min(8, Math.max(2, Math.round((placementScore || 0) / 20)));
+  } else {
+    overall = pathwayPct;
   }
-  const pct = Math.round((done / total) * 100);
+
+  let statusLabel = "Not started";
+  if (!placementDone) statusLabel = "Needs placement test";
+  else if (stagePct >= 100 && stageNum >= MAX_COURSE_STAGE)
+    statusLabel = "A* path complete";
+  else if (stagePct >= 100) statusLabel = `${stageName} complete — unlock next`;
+  else
+    statusLabel = `${stageEmoji} ${stageName} · ${stageLessonDone}/${
+      stageLessonTotal || "?"
+    } lessons · ${pathwayPct}% to A*`;
+
   return {
-    done,
-    total,
-    pct: Math.min(100, Math.max(0, pct)),
-    label: `${done} of ${total} lessons`,
+    started: placementDone || doneCount > 0,
+    placementScore,
+    stageNum,
+    stageName,
+    stageEmoji,
+    stageLessonDone,
+    stageLessonTotal,
+    stagePct,
+    pathwayPct,
+    overall,
+    statusLabel,
   };
 }
 
-/**
- * Subject % for progress bars — only real lessons, never the placement score.
- */
+function subjectWorkStats(profile, subject) {
+  const s = subjectProgressSummary(profile, subject);
+  if (!s.started) {
+    return { done: 0, total: 0, pct: 0, label: "No lessons yet" };
+  }
+  return {
+    done: s.stageLessonDone,
+    total: s.stageLessonTotal,
+    pct: s.pathwayPct,
+    label: `${s.stageLessonDone} of ${s.stageLessonTotal || "?"} on ${s.stageName} · ${
+      s.pathwayPct
+    }% to A*`,
+  };
+}
+
 function subjectOverall(profile, subject) {
-  if (!profile) return null;
-  const stats = subjectWorkStats(profile, subject);
-  const started = !!(profile.diagnostics && profile.diagnostics[subject]?.completed);
-  if (!started && stats.done === 0) return null;
-  return stats.pct;
+  const s = subjectProgressSummary(profile, subject);
+  return s.overall;
 }
 
 /** Next incomplete skill on the active stage (null if stage path finished) */
@@ -1445,17 +2342,31 @@ function buildPower5Questions(profile, subject) {
     const stage = profile.id && LEARNERS[profile.id] ? LEARNERS[profile.id].stage : "both";
     for (const q of DIAGNOSTICS[subject]) {
       if (q.stage === "both" || q.stage === stage || !q.stage) {
-        pushQ(q, q.skillId || null, 1);
+        pushQ(q, q.skill || q.skillId || null, 1);
       }
     }
   }
 
-  // Shuffle
-  for (let i = bank.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [bank[i], bank[j]] = [bank[j], bank[i]];
+  // Adaptive difficulty: easier → prefer struggle-style / earlier items
+  const adaptLv = getAdaptLevel(profile, subject);
+  if (adaptLv <= -1) {
+    // Pull in struggle questions from weak skills
+    for (const skillId of weak.slice(0, 3)) {
+      if (typeof getTeachModule !== "function") break;
+      const mod = getTeachModule(subject, skillId, 1, profile.id);
+      if (mod?.struggle?.practice) {
+        for (const q of mod.struggle.practice) pushQ(q, skillId, 1);
+      }
+    }
   }
-  return bank.slice(0, 5);
+
+  // Prefer not-recently-asked, then shuffle
+  let pool = preferFreshQuestions(bank, profile, subject);
+  pool = shuffleArray(pool);
+  if (adaptLv >= 2 && pool.length > 5) {
+    return pool.slice(0, 5);
+  }
+  return pool.slice(0, 5);
 }
 
 /** Estimate seconds remaining for a snappy Power 5 (for UI only) */
