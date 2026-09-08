@@ -49,7 +49,7 @@ function bindLearningActivityListeners() {
   learningTimeActivityBound = true;
   const opts = { capture: true, passive: true };
   const bump = () => markLearningActivity();
-  ["pointerdown", "keydown", "scroll", "touchstart", "mousemove", "click"].forEach(
+  ["pointerdown", "keydown", "scroll", "touchstart", "click"].forEach(
     (evt) => document.addEventListener(evt, bump, opts)
   );
 }
@@ -126,19 +126,20 @@ function stopLearningTimeTracker(flush) {
 function startLearningTimeTracker(learnerId) {
   if (!learnerId || !LEARNERS[learnerId]) return;
   bindLearningActivityListeners();
+  const already = learningTimeLearnerId === learnerId;
   if (learningTimeLearnerId && learningTimeLearnerId !== learnerId) {
     flushLearningTimeTick(true);
   }
   const p = state.profiles[learnerId];
   if (!p) return;
-  if (learningTimeLearnerId !== learnerId) {
+  if (!already) {
     beginLearningSession(p);
     learningTimeSessionActiveSec = 0;
     learningTimeSessionIdleSec = 0;
+    learningTimeLastTick = Date.now();
+    learningTimeLastActivity = Date.now();
   }
   learningTimeLearnerId = learnerId;
-  learningTimeLastTick = Date.now();
-  learningTimeLastActivity = Date.now();
   if (learningTimeTimer) clearInterval(learningTimeTimer);
   learningTimeTimer = setInterval(() => {
     if (!learningTimeLearnerId) return;
@@ -314,14 +315,18 @@ function learningTimeBoardHtml(id) {
             const slot =
               d.slots && d.slots.length
                 ? d.slots
-                    .slice(0, 3)
+                    .slice(0, 2)
                     .map((s) => s.label)
-                    .join(", ") + (d.slots.length > 3 ? "…" : "")
+                    .join(", ") + (d.slots.length > 2 ? "…" : "")
                 : "";
+            const idleBit =
+              d.idleSec >= 30
+                ? `<span class="time-day-idle">idle ${escapeHtml(d.idleDur)}</span>`
+                : `<span class="time-day-idle"></span>`;
             return `<div class="time-day-row">
               <span class="time-day-name">${escapeHtml(d.label)}</span>
               <span class="time-day-dur">${escapeHtml(d.dur)}</span>
-              <span class="time-day-idle">idle ${escapeHtml(d.idleDur)}</span>
+              ${idleBit}
               <span class="time-slots">${escapeHtml(slot || "—")}</span>
             </div>`;
           })
@@ -331,7 +336,7 @@ function learningTimeBoardHtml(id) {
     <div class="time-board">
       <div class="time-stats">
         <div class="time-stat">
-          <span class="time-stat-label">Active</span>
+          <span class="time-stat-label">All learning</span>
           <strong>${escapeHtml(sum.totalLabel)}</strong>
         </div>
         <div class="time-stat">
@@ -339,15 +344,15 @@ function learningTimeBoardHtml(id) {
           <strong>${escapeHtml(sum.todayLabel)}</strong>
         </div>
         <div class="time-stat">
-          <span class="time-stat-label">Idle</span>
-          <strong>${escapeHtml(sum.idleLabel)}</strong>
+          <span class="time-stat-label">Idle today</span>
+          <strong>${escapeHtml(sum.todayIdleLabel)}</strong>
         </div>
         <div class="time-stat time-stat-bonus">
           <span class="time-stat-label">Time Bonus</span>
           <strong>★ ${bonus}</strong>
         </div>
       </div>
-      <p class="time-board-note muted">Time Bonus grows with <em>active</em> minutes — not idle. Separate from XP.</p>
+      <p class="time-board-note muted">Learning = clicking / typing. Idle = tab open, not doing anything. ★ from learning minutes only.</p>
       <div class="time-day-list">${days}</div>
     </div>`;
 }

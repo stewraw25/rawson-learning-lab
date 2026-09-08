@@ -284,6 +284,9 @@ function syncTimeBonus(profile) {
     tb.points += delta;
     tb.claimedActiveMin = activeMin;
     profile.updatedAt = Date.now();
+  } else if (tb.claimedActiveMin > activeMin) {
+    tb.points = Math.min(tb.points, activeMin);
+    tb.claimedActiveMin = activeMin;
   }
   profile.timeBonus = tb;
   return tb;
@@ -483,6 +486,88 @@ function mergeAdapt(a, b) {
 }
 
 /** Safe learning-time shape + roll “today” if the calendar day changed */
+/** Sittings within this gap are one block (stops 1-minute session spam). */
+const SESSION_JOIN_MS = 2 * 60 * 1000;
+
+function sessionEndMs(s) {
+  if (!s) return 0;
+  const start = Number(s.startMs) || 0;
+  const marked = Number(s.endMs) || start;
+  const byDur = start + (Math.max(0, Number(s.sec) || 0) + Math.max(0, Number(s.idleSec) || 0)) * 1000;
+  return Math.max(marked, byDur, start);
+}
+
+/** Merge overlapping / back-to-back fragments into real sittings. Cap time to wall clock. */
+function coalesceSessions(sessions) {
+  const list = (sessions || [])
+    .filter((s) => s && (Number(s.startMs) || Number(s.endMs)))
+    .map((s) => ({
+      id: s.id || "",
+      date: s.date || "",
+      startMs: Number(s.startMs) || Number(s.endMs) || 0,
+      endMs: sessionEndMs(s),
+      sec: Math.max(0, Math.floor(Number(s.sec) || 0)),
+      idleSec: Math.max(0, Math.floor(Number(s.idleSec) || 0)),
+      open: !!s.open,
+    }))
+    .sort((a, b) => a.startMs - b.startMs);
+  const out = [];
+  for (const s of list) {
+    const last = out[out.length - 1];
+    if (
+      last &&
+      s.date === last.date &&
+      s.startMs <= last.endMs + SESSION_JOIN_MS
+    ) {
+      last.endMs = Math.max(last.endMs, s.endMs);
+      last.sec += s.sec;
+      last.idleSec += s.idleSec;
+      last.open = last.open || s.open;
+      last.id = last.open ? last.id || s.id : last.id || s.id;
+    } else {
+      out.push({ ...s });
+    }
+  }
+  for (const s of out) {
+    const wall = Math.max(0, Math.floor((s.endMs - s.startMs) / 1000));
+    const raw = s.sec + s.idleSec;
+    if (wall > 0 && raw > wall) {
+      s.idleSec = Math.round((s.idleSec * wall) / raw);
+      s.sec = Math.max(0, wall - s.idleSec);
+    }
+  }
+  return out.slice(-80);
+}
+
+function rebuildLearningTimeFromSessions(lt) {
+  const prevDays = lt.days && typeof lt.days === "object" ? lt.days : {};
+  const prevIdle = lt.idleDays && typeof lt.idleDays === "object" ? lt.idleDays : {};
+  const sessions = coalesceSessions(lt.sessions);
+  const days = {};
+  const idleDays = {};
+  for (const s of sessions) {
+    if (!s.date) continue;
+    days[s.date] = (days[s.date] || 0) + s.sec;
+    idleDays[s.date] = (idleDays[s.date] || 0) + s.idleSec;
+  }
+  for (const [k, v] of Object.entries(prevDays)) {
+    if (days[k] == null) days[k] = Math.max(0, Math.floor(Number(v) || 0));
+  }
+  for (const [k, v] of Object.entries(prevIdle)) {
+    if (idleDays[k] == null) idleDays[k] = Math.max(0, Math.floor(Number(v) || 0));
+  }
+  const today = todayKey();
+  lt.sessions = sessions;
+  lt.days = days;
+  lt.idleDays = idleDays;
+  lt.totalSec = Object.values(days).reduce((n, v) => n + (Number(v) || 0), 0);
+  lt.idleSec = Object.values(idleDays).reduce((n, v) => n + (Number(v) || 0), 0);
+  lt.todayKey = today;
+  lt.todaySec = Math.max(0, Math.floor(Number(days[today]) || 0));
+  lt.todayIdleSec = Math.max(0, Math.floor(Number(idleDays[today]) || 0));
+  return lt;
+}
+
 function ensureLearningTime(profile) {
   const base = {
     totalSec: 0,
@@ -503,16 +588,7 @@ function ensureLearningTime(profile) {
     lt.idleDays = {};
   }
   if (!Array.isArray(lt.sessions)) lt.sessions = [];
-  lt.totalSec = Math.max(0, Math.floor(Number(lt.totalSec) || 0));
-  lt.idleSec = Math.max(0, Math.floor(Number(lt.idleSec) || 0));
-  lt.todaySec = Math.max(0, Math.floor(Number(lt.todaySec) || 0));
-  lt.todayIdleSec = Math.max(0, Math.floor(Number(lt.todayIdleSec) || 0));
-  const today = todayKey();
-  if (lt.todayKey !== today) {
-    lt.todayKey = today;
-    lt.todaySec = Math.max(0, Math.floor(Number(lt.days[today]) || 0));
-    lt.todayIdleSec = Math.max(0, Math.floor(Number(lt.idleDays[today]) || 0));
-  }
+  rebuildLearningTimeFromSessions(lt);
   if (profile) profile.learningTime = lt;
   return lt;
 }
@@ -578,39 +654,29 @@ function addLearningSeconds(profile, seconds, atMs, kind) {
   const lt = ensureLearningTime(profile);
   const day = todayKey();
   const add = Math.floor(seconds);
-  if (lt.todayKey !== day) {
-    lt.todayKey = day;
-    lt.todaySec = Math.max(0, Math.floor(Number(lt.days[day]) || 0));
-    lt.todayIdleSec = Math.max(0, Math.floor(Number(lt.idleDays[day]) || 0));
-  }
-
-  if (isIdle) {
-    lt.idleSec += add;
-    lt.todayIdleSec += add;
-    lt.idleDays[day] = Math.max(0, Math.floor(Number(lt.idleDays[day]) || 0)) + add;
-  } else {
-    lt.totalSec += add;
-    lt.todaySec += add;
-    lt.days[day] = Math.max(0, Math.floor(Number(lt.days[day]) || 0)) + add;
-    try {
-      syncTimeBonus(profile);
-    } catch (_) {
-      /* ignore */
-    }
-  }
 
   let open = lt.sessions.find((s) => s && s.open);
   if (!open) {
-    open = {
-      id: (profile.id || "kid") + "-" + now,
-      date: day,
-      startMs: now,
-      endMs: now,
-      sec: 0,
-      idleSec: 0,
-      open: true,
-    };
-    lt.sessions.push(open);
+    const last = lt.sessions[lt.sessions.length - 1];
+    if (
+      last &&
+      last.date === day &&
+      now - sessionEndMs(last) <= SESSION_JOIN_MS
+    ) {
+      last.open = true;
+      open = last;
+    } else {
+      open = {
+        id: (profile.id || "kid") + "-" + now,
+        date: day,
+        startMs: now,
+        endMs: now,
+        sec: 0,
+        idleSec: 0,
+        open: true,
+      };
+      lt.sessions.push(open);
+    }
   }
   if (isIdle) {
     open.idleSec = Math.max(0, Math.floor(Number(open.idleSec) || 0)) + add;
@@ -619,13 +685,14 @@ function addLearningSeconds(profile, seconds, atMs, kind) {
   }
   open.endMs = now;
   open.date = open.date || day;
-
-  // Keep last 80 sessions + prune day maps to ~60 days
   if (lt.sessions.length > 80) lt.sessions = lt.sessions.slice(-80);
-  for (const map of [lt.days, lt.idleDays]) {
-    const dayKeys = Object.keys(map).sort();
-    if (dayKeys.length > 60) {
-      for (const k of dayKeys.slice(0, dayKeys.length - 60)) delete map[k];
+
+  rebuildLearningTimeFromSessions(lt);
+  if (!isIdle) {
+    try {
+      syncTimeBonus(profile);
+    } catch (_) {
+      /* ignore */
     }
   }
   profile.learningTime = lt;
@@ -636,17 +703,24 @@ function addLearningSeconds(profile, seconds, atMs, kind) {
 function beginLearningSession(profile) {
   if (!profile) return null;
   const lt = ensureLearningTime(profile);
-  // Close any dangling open session
+  const now = Date.now();
+  const day = todayKey();
+  const last = lt.sessions[lt.sessions.length - 1];
+  if (last && last.date === day && now - sessionEndMs(last) <= SESSION_JOIN_MS) {
+    last.open = true;
+    last.endMs = now;
+    profile.learningTime = lt;
+    return last;
+  }
   for (const s of lt.sessions) {
     if (s && s.open) {
       s.open = false;
-      if (!s.endMs) s.endMs = Date.now();
+      if (!s.endMs) s.endMs = now;
     }
   }
-  const now = Date.now();
   const sess = {
     id: (profile.id || "kid") + "-" + now,
-    date: todayKey(),
+    date: day,
     startMs: now,
     endMs: now,
     sec: 0,
@@ -672,69 +746,18 @@ function endLearningSession(profile) {
 }
 
 function mergeLearningTime(a, b) {
-  const A = ensureLearningTime({ learningTime: a || {} });
-  const B = ensureLearningTime({ learningTime: b || {} });
-  const byId = new Map();
-  for (const s of [...(A.sessions || []), ...(B.sessions || [])]) {
-    if (!s || !s.id) continue;
-    const prev = byId.get(s.id);
-    const active = Math.max(0, Math.floor(Number(s.sec) || 0));
-    const idle = Math.max(0, Math.floor(Number(s.idleSec) || 0));
-    const prevActive = prev ? Math.max(0, Math.floor(Number(prev.sec) || 0)) : -1;
-    const prevIdle = prev ? Math.max(0, Math.floor(Number(prev.idleSec) || 0)) : -1;
-    if (!prev || active + idle >= prevActive + prevIdle) {
-      byId.set(s.id, {
-        id: s.id,
-        date: s.date || "",
-        startMs: Number(s.startMs) || 0,
-        endMs: Number(s.endMs) || Number(s.startMs) || 0,
-        sec: Math.max(active, prevActive, 0),
-        idleSec: Math.max(idle, prevIdle, 0),
-        open: false,
-      });
-    }
+  const A = a && typeof a === "object" ? a : {};
+  const B = b && typeof b === "object" ? b : {};
+  const localOpen = (A.sessions || []).some((s) => s && s.open);
+  const merged = rebuildLearningTimeFromSessions({
+    sessions: [...(A.sessions || []), ...(B.sessions || [])],
+  });
+  if (localOpen && merged.sessions.length) {
+    merged.sessions[merged.sessions.length - 1].open = true;
+  } else {
+    for (const s of merged.sessions) s.open = false;
   }
-  const sessions = [...byId.values()].sort(
-    (x, y) => (x.startMs || 0) - (y.startMs || 0)
-  );
-  const days = {};
-  const idleDays = {};
-  for (const s of sessions) {
-    if (!s.date) continue;
-    days[s.date] = (days[s.date] || 0) + (s.sec || 0);
-    idleDays[s.date] = (idleDays[s.date] || 0) + (s.idleSec || 0);
-  }
-  for (const src of [A.days, B.days]) {
-    for (const [k, v] of Object.entries(src || {})) {
-      days[k] = Math.max(days[k] || 0, Math.floor(Number(v) || 0));
-    }
-  }
-  for (const src of [A.idleDays, B.idleDays]) {
-    for (const [k, v] of Object.entries(src || {})) {
-      idleDays[k] = Math.max(idleDays[k] || 0, Math.floor(Number(v) || 0));
-    }
-  }
-  const totalSec = Math.max(
-    A.totalSec || 0,
-    B.totalSec || 0,
-    Object.values(days).reduce((n, v) => n + (Number(v) || 0), 0)
-  );
-  const idleSec = Math.max(
-    A.idleSec || 0,
-    B.idleSec || 0,
-    Object.values(idleDays).reduce((n, v) => n + (Number(v) || 0), 0)
-  );
-  const today = todayKey();
-  return {
-    totalSec,
-    idleSec,
-    todaySec: Math.max(0, Math.floor(Number(days[today]) || 0)),
-    todayIdleSec: Math.max(0, Math.floor(Number(idleDays[today]) || 0)),
-    todayKey: today,
-    sessions: sessions.slice(-80),
-    days,
-    idleDays,
-  };
+  return merged;
 }
 
 /** Summary for scoreboards / parent view */
