@@ -288,8 +288,8 @@ function progressGraphsHtml(profile, opts) {
       <p class="muted" style="margin:0 0 0.85rem;font-size:0.9rem">
         ${
           kidMode
-            ? "You start at zero. Each level you finish unlocks the next. A high quiz mark is not the whole GCSE — keep climbing."
-            : "Bars are the six-level path (First steps → A*), not placement-test scores. 100% here only means that subject’s A* path is finished."
+            ? "First steps is the bottom rung — a small slice of the climb. GCSE A* is at the top and takes every level after that."
+            : "Bars are weighted toward GCSE Core, Higher and A*. Finishing First steps is only about 5% of the climb, not a third of A*."
         }
       </p>
       <div class="climb-list">${rows}</div>

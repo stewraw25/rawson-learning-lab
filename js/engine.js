@@ -1368,6 +1368,7 @@ function ensureCourseReady(profile, subject) {
     course.contentVersion = FIRST_STEPS_VERSION;
     course.activeStage = 1;
   }
+  if (course) clearCompletionsPastActiveStage(course);
   const c = profile.courses[subject];
   if (!c) return null;
   const stage = Number(c.activeStage) || 1;
@@ -1570,22 +1571,65 @@ function countCompletedStages(profile, subject) {
   return n;
 }
 
-function pathwayProgressPct(profile, subject) {
-  // Weight: each stage with content equally; partial credit on the first incomplete stage
+/**
+ * Share of the A* climb each level is worth.
+ * First steps is a tiny rung — most of the journey is GCSE Core / Higher / A*.
+ */
+const STAGE_A_STAR_WEIGHTS = {
+  1: 5,
+  2: 8,
+  3: 12,
+  4: 20,
+  5: 25,
+  6: 30,
+};
+
+function stageAStarWeight(subject, stageNum) {
   const maxS =
     typeof maxStageWithContent === "function"
       ? maxStageWithContent(subject)
       : MAX_COURSE_STAGE;
+  if (maxS <= 1) return 100;
+  return STAGE_A_STAR_WEIGHTS[stageNum] || 0;
+}
+
+/** Drop ticks on levels above the current one (left over from the old hard Stage 1). */
+function clearCompletionsPastActiveStage(course) {
+  if (!course || !course.stages || typeof course.stages !== "object") return;
+  const active = Number(course.activeStage) || 1;
+  const stages = course.stages;
+  const keys = Array.isArray(stages) ? stages.map((_, i) => i) : Object.keys(stages);
+  for (const k of keys) {
+    const n = parseStageStorageKey(k);
+    if (!Number.isFinite(n) || n <= active) continue;
+    const st = stages[k];
+    if (st && typeof st === "object") st.completed = {};
+  }
+}
+
+function pathwayProgressPct(profile, subject) {
+  const maxS =
+    typeof maxStageWithContent === "function"
+      ? maxStageWithContent(subject)
+      : MAX_COURSE_STAGE;
+  const active = Math.max(1, Number(getActiveStage(profile, subject)) || 1);
+  // Never credit later levels they have not unlocked yet (stale ticks inflate the bar)
+  const upTo = Math.min(maxS, active);
+
+  let totalW = 0;
+  for (let s = 1; s <= maxS; s++) totalW += stageAStarWeight(subject, s);
+  if (totalW <= 0) totalW = 100;
+
   let score = 0;
-  const per = 100 / Math.max(1, maxS);
-  for (let s = 1; s <= maxS; s++) {
+  for (let s = 1; s <= upTo; s++) {
+    const w = (stageAStarWeight(subject, s) / totalW) * 100;
     if (isStageComplete(profile, subject, s)) {
-      score += per;
+      score += w;
     } else {
       const st = getCourseStageData(profile, subject, s);
       if (st && st.path && st.path.length) {
         const done = st.path.filter((id) => st.completed && st.completed[id]).length;
-        score += per * (done / st.path.length);
+        score += w * (done / st.path.length);
       }
       break;
     }
