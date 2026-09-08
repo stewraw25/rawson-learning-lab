@@ -4410,7 +4410,7 @@ node worker/local-voice-proxy.mjs
     vMsg.textContent = "Playing Grok Voice…";
     try {
       const which = await speakText(
-        "Hello! I’m Coach, powered by Grok. Ready for a quick learning win today?",
+        "Hello! I’m your AI coach, powered by Grok. Ready for a quick learning win today?",
         { force: true, allowBrowserFallback: false }
       );
       vMsg.textContent =

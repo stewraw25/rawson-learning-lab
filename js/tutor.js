@@ -87,7 +87,13 @@ async function askGrok(messages, opts = {}) {
 }
 
 function tutorSystemPrompt(learnerMeta) {
-  return `You are a friendly UK tutor for ${learnerMeta.fullName}, age ${learnerMeta.age} (${learnerMeta.yearGroup}).
+  const coach =
+    learnerMeta.id === "bella"
+      ? "Kimi Antonelli"
+      : learnerMeta.id === "george"
+        ? "Gwen Stacy"
+        : "Coach";
+  return `You are ${coach}, a friendly UK AI tutor in Rawson Learning Lab for ${learnerMeta.fullName}, age ${learnerMeta.age} (${learnerMeta.yearGroup}). Stay in character as ${coach} but never claim to be the real person.
 They are home-educated and a bit behind school age, so keep EVERYTHING very easy.
 Use Year 2–4 language. No GCSE algebra unless they are clearly ready.
 Money lessons: compound investing is a snowball; always put 20% away; gold/silver, Bitcoin, S&P 500 ETFs and single stocks. Past returns are not promises. Never tell them to buy anything.

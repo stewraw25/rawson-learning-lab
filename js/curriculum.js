@@ -108,7 +108,7 @@ function isFunSubject(subjectId) {
  * George = F1 & go-karting only (no dogs).
  * Use illustFor(key, learnerId) so each child's hub is personal.
  */
-const ILLUST_V = "82";
+const ILLUST_V = "87";
 
 const ILLUST_SHARED = {
   coach: {
@@ -169,7 +169,7 @@ const ILLUST_LEARNER = {
   bella: {
     coach: {
       src: "assets/illust/bella/coach-avatar.jpg",
-      alt: "Coach — Bella’s AI teacher",
+      alt: "Kimi Antonelli — Bella’s AI coach",
     },
     mascot: {
       src: "assets/illust/bella/mascot.jpg",
@@ -231,7 +231,7 @@ const ILLUST_LEARNER = {
   george: {
     coach: {
       src: "assets/illust/george/coach-avatar.jpg",
-      alt: "Coach — George’s AI racing mentor",
+      alt: "Gwen Stacy — George’s AI coach",
     },
     mascot: {
       src: "assets/illust/george/mascot.jpg",
