@@ -108,7 +108,7 @@ function isFunSubject(subjectId) {
  * George = F1 & go-karting only (no dogs).
  * Use illustFor(key, learnerId) so each child's hub is personal.
  */
-const ILLUST_V = "67";
+const ILLUST_V = "82";
 
 const ILLUST_SHARED = {
   coach: {
@@ -209,19 +209,19 @@ const ILLUST_LEARNER = {
     },
     "subject-maths": {
       src: "assets/illust/bella/subject-maths.jpg",
-      alt: "Black horse and poodle maths study",
+      alt: "Poodle at a desk of counting cubes — Bella’s maths",
     },
     "subject-english": {
       src: "assets/illust/bella/subject-english.jpg",
-      alt: "Black horse and poodle reading",
+      alt: "Poodle reading in a cosy library nook — Bella’s English",
     },
     "subject-science": {
       src: "assets/illust/bella/subject-science.jpg",
-      alt: "Black horse and poodle science table",
+      alt: "Poodle in a greenhouse with a magnifying glass — Bella’s science",
     },
     "subject-horses": {
-      src: "assets/illust/bella/hero.jpg",
-      alt: "Golden mini poodle and black horse — Bella’s horse subject",
+      src: "assets/illust/bella/subject-horses.jpg",
+      alt: "Poodle grooming the black horse in the stable",
     },
     "subject-investing": {
       src: "assets/illust/shared/subject-investing.jpg",
