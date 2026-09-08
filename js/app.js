@@ -276,6 +276,7 @@ function hashFor(screen, params = {}) {
   if (screen === "exam")
     return `#/exam/${params.subject}/${params.packStage || 4}/${params.mode || "practice"}`;
   if (screen === "power5") return `#/power5/${params.subject || "maths"}`;
+  if (screen === "invest") return "#/invest";
   if (screen === "parent") return "#/parent";
   if (screen === "aiSettings") return "#/aiSettings";
   if (screen === "sync") return "#/sync";
@@ -391,6 +392,7 @@ function go(screen, params = {}, opts = {}) {
     sync: renderSyncSetup,
     aiSettings: renderAiSettings,
     power5: renderPower5,
+    invest: typeof renderInvestCalc === "function" ? renderInvestCalc : renderDashboard,
   };
   const fn = routes[screen];
   try {
@@ -1112,10 +1114,14 @@ function renderDashboard() {
         <span class="qa-label">Power 5 Horses</span>
       </button>`
       }
+      <button type="button" class="quick-act" id="btnInvestCalc" title="Compound investing calculator">
+        <span class="qa-emoji">💰</span>
+        <span class="qa-label">Money machine</span>
+      </button>
     </div>
 
     <h2 class="section-title">Your subjects</h2>
-    <p class="lead">Maths, English and Science — plus a fun subject just for you.</p>
+    <p class="lead">Maths, English and Science — plus fun extras, including money &amp; investing for both of you.</p>
     <div class="grid-3 mb-2">
       ${subjectsForLearner(L.id)
         .map((sub) => subjectDashCard(sub))
@@ -1191,6 +1197,9 @@ function renderDashboard() {
   );
   document.getElementById("btnPower5Fun")?.addEventListener("click", () =>
     go("power5", { subject: L.id === "george" ? "karting" : "horses" })
+  );
+  document.getElementById("btnInvestCalc")?.addEventListener("click", () =>
+    go("invest")
   );
 }
 
@@ -2215,6 +2224,16 @@ function renderSubject({ subject }) {
       </div>
     </div>
 
+    ${
+      subject === "investing"
+        ? `<div class="card next-step-card mb-2" style="border-color:rgba(212,175,55,0.45)">
+        <p class="next-step-label">💰 Compound calculator</p>
+        <h2 class="next-step-title">Money machine</h2>
+        <p class="next-step-desc">Put in a sum, pick weekly or monthly, and see how Gold, the S&amp;P 500 and Bitcoin could grow if past years repeated — and what 20% of your money can become by the age you choose.</p>
+        <button class="btn btn-primary btn-xl" type="button" id="btnOpenInvestCalc">Open the money machine →</button>
+      </div>`
+        : ""
+    }
     ${nextStepHtml}
     ${
       /* Keep stage chips small — not the main focus for kids */
@@ -2276,6 +2295,9 @@ function renderSubject({ subject }) {
   });
   document.getElementById("btnSubjectPower5")?.addEventListener("click", () =>
     go("power5", { subject })
+  );
+  document.getElementById("btnOpenInvestCalc")?.addEventListener("click", () =>
+    go("invest")
   );
 
   appEl.querySelectorAll("[data-exam-stage]").forEach((btn) => {

@@ -76,14 +76,26 @@ const SUBJECTS = {
     illust: "assets/illust/bella/hero.jpg",
     illustAlt: "Golden mini poodle and black horse in the countryside",
   },
+  investing: {
+    id: "investing",
+    name: "Money & investing",
+    emoji: "💰",
+    colour: "investing",
+    fun: true,
+    illust: "assets/illust/shared/subject-investing.jpg",
+    illustAlt: "Gold coins, silver and a piggy bank on a garden table",
+  },
 };
 
 const CORE_SUBJECTS = ["maths", "english", "science"];
 
 function subjectsForLearner(learnerId) {
-  const extra = Object.keys(SUBJECTS).filter(
-    (id) => SUBJECTS[id].forLearner === learnerId
-  );
+  const extra = Object.keys(SUBJECTS).filter((id) => {
+    const s = SUBJECTS[id];
+    if (!s || CORE_SUBJECTS.includes(id)) return false;
+    if (s.forLearner) return s.forLearner === learnerId;
+    return !!s.fun;
+  });
   return [...CORE_SUBJECTS, ...extra];
 }
 
@@ -96,7 +108,7 @@ function isFunSubject(subjectId) {
  * George = F1 & go-karting only (no dogs).
  * Use illustFor(key, learnerId) so each child's hub is personal.
  */
-const ILLUST_V = "62";
+const ILLUST_V = "67";
 
 const ILLUST_SHARED = {
   coach: {
@@ -146,6 +158,10 @@ const ILLUST_SHARED = {
   "subject-science": {
     src: "assets/illust/shared/subject-science.jpg",
     alt: "Golden mini poodle science lab adventure",
+  },
+  "subject-investing": {
+    src: "assets/illust/shared/subject-investing.jpg",
+    alt: "Gold coins, silver and a piggy bank on a garden table",
   },
 };
 
@@ -207,6 +223,10 @@ const ILLUST_LEARNER = {
       src: "assets/illust/bella/hero.jpg",
       alt: "Golden mini poodle and black horse — Bella’s horse subject",
     },
+    "subject-investing": {
+      src: "assets/illust/shared/subject-investing.jpg",
+      alt: "Gold coins, silver and a piggy bank — money and investing",
+    },
   },
   george: {
     coach: {
@@ -264,6 +284,10 @@ const ILLUST_LEARNER = {
     "subject-karting": {
       src: "assets/illust/george/hero.jpg",
       alt: "Go-kart on track — George’s karting subject",
+    },
+    "subject-investing": {
+      src: "assets/illust/shared/subject-investing.jpg",
+      alt: "Gold coins, silver and a piggy bank — money and investing",
     },
   },
 };
@@ -334,6 +358,14 @@ const SKILLS = {
     feeding: { name: "Feeding", gcse: "Fun" },
     riding: { name: "Riding basics", gcse: "Fun" },
     history: { name: "History of horses", gcse: "Fun" },
+  },
+  investing: {
+    compound: { name: "The money snowball", gcse: "Fun" },
+    twenty: { name: "The 20% rule", gcse: "Fun" },
+    metals: { name: "Gold & silver", gcse: "Fun" },
+    bitcoin: { name: "Bitcoin", gcse: "Fun" },
+    etf: { name: "ETFs & the S&P 500", gcse: "Fun" },
+    stocks: { name: "One company", gcse: "Fun" },
   },
 };
 
@@ -858,6 +890,92 @@ const DIAGNOSTICS = {
       options: ["bicycles", "horses", "skateboards", "trains"],
       answer: 1,
       explain: "Knights rode horses into battle and at tournaments.",
+    },
+  ],
+  investing: [
+    {
+      id: "i1",
+      skill: "compound",
+      stage: "both",
+      q: "A money snowball means your money…",
+      type: "multi",
+      options: [
+        "gets smaller every year",
+        "earns a bit, then that bit can earn a bit too",
+        "turns into ice",
+        "only works if you spend it all",
+      ],
+      answer: 1,
+      explain: "Compound investing is a snowball: growth can earn more growth if you leave it.",
+    },
+    {
+      id: "i2",
+      skill: "twenty",
+      stage: "both",
+      q: "20% of £10 is…",
+      type: "typed",
+      answer: "2",
+      explain: "20% means 20 in every 100, or 1 in every 5. £10 ÷ 5 = £2.",
+    },
+    {
+      id: "i3",
+      skill: "metals",
+      stage: "both",
+      q: "Gold and silver are…",
+      type: "multi",
+      options: [
+        "metals people have used as money for a very long time",
+        "types of fruit",
+        "computer games",
+        "only found on the moon",
+      ],
+      answer: 0,
+      explain: "People have used gold and silver as money for thousands of years.",
+    },
+    {
+      id: "i4",
+      skill: "bitcoin",
+      stage: "both",
+      q: "Bitcoin is…",
+      type: "multi",
+      options: [
+        "internet money with a limited amount",
+        "a kind of horse",
+        "a school subject",
+        "a type of sandwich",
+      ],
+      answer: 0,
+      explain: "Bitcoin is digital money. Only a set number can ever exist. It can go up and down a lot.",
+    },
+    {
+      id: "i5",
+      skill: "etf",
+      stage: "both",
+      q: "An ETF like the S&P 500 lets you…",
+      type: "multi",
+      options: [
+        "own a little bit of lots of companies at once",
+        "buy one sweet",
+        "print your own money",
+        "skip saving",
+      ],
+      answer: 0,
+      explain: "An ETF is a bundle. The S&P 500 bundle is 500 big US companies.",
+    },
+    {
+      id: "i6",
+      skill: "stocks",
+      stage: "both",
+      q: "If you buy shares in one company and that company fails…",
+      type: "multi",
+      options: [
+        "you can lose that money",
+        "the bank always pays you extra",
+        "you win a prize",
+        "nothing can go wrong",
+      ],
+      answer: 0,
+      explain: "One company can fail. Spreading money (like an ETF) is usually safer than betting on just one.",
     },
   ],
 };
@@ -1422,6 +1540,85 @@ const LESSONS = {
           options: ["travel", "use the internet"],
           answer: 0,
           explain: "Travel, farm and carry things.",
+        },
+      ],
+    },
+  },
+  investing: {
+    compound: {
+      title: "The money snowball",
+      blurb: "Leave money in, and growth can earn more growth.",
+      items: [
+        {
+          q: "A money snowball grows when you…",
+          type: "multi",
+          options: ["leave it in to grow", "spend it all today"],
+          answer: 0,
+          explain: "Leaving it in lets growth earn more growth.",
+        },
+      ],
+    },
+    twenty: {
+      title: "The 20% rule",
+      blurb: "Put 20p of every £1 you get into the pot.",
+      items: [
+        {
+          q: "20% of £10 is…",
+          type: "typed",
+          answer: "2",
+          explain: "£10 ÷ 5 = £2.",
+        },
+      ],
+    },
+    metals: {
+      title: "Gold & silver",
+      blurb: "Old metals people still use as a store of value.",
+      items: [
+        {
+          q: "Gold and silver are…",
+          type: "multi",
+          options: ["metals", "vegetables"],
+          answer: 0,
+          explain: "They are metals — and people have used them as money.",
+        },
+      ],
+    },
+    bitcoin: {
+      title: "Bitcoin",
+      blurb: "Internet money. It can shoot up or crash.",
+      items: [
+        {
+          q: "Bitcoin can…",
+          type: "multi",
+          options: ["go up and down a lot", "never change price"],
+          answer: 0,
+          explain: "Bitcoin is jumpy. Past speed is not a promise.",
+        },
+      ],
+    },
+    etf: {
+      title: "ETFs & the S&P 500",
+      blurb: "A bundle of many companies in one go.",
+      items: [
+        {
+          q: "The S&P 500 is a bundle of…",
+          type: "multi",
+          options: ["500 big companies", "500 sweets"],
+          answer: 0,
+          explain: "It is 500 large US companies in one ETF.",
+        },
+      ],
+    },
+    stocks: {
+      title: "One company",
+      blurb: "Buying one firm can win big — or lose.",
+      items: [
+        {
+          q: "One company can…",
+          type: "multi",
+          options: ["fail and you can lose money", "never fail"],
+          answer: 0,
+          explain: "Spreading money is usually safer than one bet.",
         },
       ],
     },

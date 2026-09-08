@@ -1604,6 +1604,362 @@ const TEACH_MODULES = {
       },
     },
   },
+  investing: {
+    compound: {
+      title: "The money snowball",
+      blurb: "Leave money in. Growth can earn more growth. That is compound investing.",
+      videoKey: "number",
+      teach: {
+        points: [
+          "If you hide £10 under the bed, next year you still have £10.",
+          "If you invest £10 and it grows 10%, you have £11. Next year 10% of £11 is more than 10% of £10.",
+          "That extra-on-the-extra is the snowball. The longer you leave it, the bigger it can get.",
+        ],
+        visual: "£10 → grows → £11 → grows → £12.10 → and so on.",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Start with £10.",
+          "It grows 10% → add £1 → £11.",
+          "Next year 10% of £11 is £1.10 → £12.10. The snowball got a little bigger.",
+        ],
+      },
+      practice: [
+        {
+          q: "Compound investing is like a…",
+          type: "multi",
+          options: ["snowball that can grow", "hole that eats money", "game you always win"],
+          answer: 0,
+          explain: "Growth can earn more growth if you leave it in.",
+        },
+        {
+          q: "The snowball works best when you…",
+          type: "multi",
+          options: ["leave the money in for a long time", "spend it the same day", "change your mind every week"],
+          answer: 0,
+          explain: "Time is the secret. Start young.",
+        },
+        {
+          q: "£10 under the bed after a year is still…",
+          type: "typed",
+          answer: "10",
+          explain: "It did not grow. Investing is how a pot can grow.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Bed = same number. Invested pot = number can grow.",
+          "Snowball = new growth sits on old growth.",
+        ],
+        practice: [
+          {
+            q: "Leaving money in to grow is called…",
+            type: "multi",
+            options: ["compound investing", "spending"],
+            answer: 0,
+            explain: "Compound = snowball.",
+          },
+        ],
+      },
+    },
+    twenty: {
+      title: "The 20% rule",
+      blurb: "Pay yourself first: 20p of every £1 you get goes in the pot.",
+      videoKey: "fractions",
+      teach: {
+        points: [
+          "20% means 20 in every 100 — or 1 in every 5. So 20% of £10 is £2.",
+          "If you always put 20% of pocket money, birthday money or later a job into the pot, you still have 80% to use.",
+          "The 20% is not for sweets today. It is the snowball for Future You.",
+        ],
+        visual: "£10 → £2 in the pot, £8 to spend.",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "You get £10.",
+          "Split into 5 equal parts of £2.",
+          "One part (£2) goes in the pot. That is 20%.",
+        ],
+      },
+      practice: [
+        {
+          q: "20% of £10 is…",
+          type: "typed",
+          answer: "2",
+          explain: "£10 ÷ 5 = £2.",
+        },
+        {
+          q: "20% of £5 is…",
+          type: "typed",
+          answer: "1",
+          explain: "£5 ÷ 5 = £1.",
+        },
+        {
+          q: "The 20% rule means you…",
+          type: "multi",
+          options: [
+            "put 20p of every £1 into the pot",
+            "spend every penny",
+            "give all your money away",
+          ],
+          answer: 0,
+          explain: "Pay yourself first. 20% saved, 80% for now.",
+        },
+      ],
+      struggle: {
+        points: [
+          "20% = 1 out of 5.",
+          "£10 → five lots of £2 → one lot in the pot.",
+        ],
+        practice: [
+          {
+            q: "20% of £20 is…",
+            type: "typed",
+            answer: "4",
+            explain: "£20 ÷ 5 = £4.",
+          },
+        ],
+      },
+    },
+    metals: {
+      title: "Gold & silver",
+      blurb: "Old metals. People still buy them as a store of value.",
+      videoKey: "materials",
+      teach: {
+        points: [
+          "Gold and silver are metals. Kings, coins and jewellery have used them for thousands of years.",
+          "You can buy small coins or bars, or a gold/silver fund. You do not need a chest of treasure.",
+          "Prices go up and down. Gold does not pay you a wage — you hope the metal is worth more later.",
+        ],
+        visual: "Gold coin + silver bar = metals people treat as money.",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Long ago people paid with gold and silver coins.",
+          "Today we use pounds, but some people still keep gold or silver.",
+          "It is one way to save — not the only way, and not a magic trick.",
+        ],
+      },
+      practice: [
+        {
+          q: "Gold and silver are…",
+          type: "multi",
+          options: ["metals", "types of bread", "computer apps"],
+          answer: 0,
+          explain: "They are metals people have used as money.",
+        },
+        {
+          q: "Gold prices…",
+          type: "multi",
+          options: ["can go up and down", "never change", "only go up"],
+          answer: 0,
+          explain: "Some years gold falls. Past years are not a promise.",
+        },
+        {
+          q: "A store of value means you hope it…",
+          type: "multi",
+          options: ["keeps worth for later", "tastes nice", "runs fast"],
+          answer: 0,
+          explain: "You keep it so Future You might still find it useful.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Gold = yellow metal. Silver = grey-white metal.",
+          "People like them because they are rare and last a long time.",
+        ],
+        practice: [
+          {
+            q: "Which is a metal people use as money?",
+            type: "multi",
+            options: ["gold", "paper aeroplanes"],
+            answer: 0,
+            explain: "Gold (and silver).",
+          },
+        ],
+      },
+    },
+    bitcoin: {
+      title: "Bitcoin",
+      blurb: "Internet money. Only a set amount can ever exist. It is jumpy.",
+      videoKey: "energy",
+      teach: {
+        points: [
+          "Bitcoin is digital money on computers around the world. Nobody can print extra forever — there is a cap.",
+          "In some past years it grew very fast. In other years it crashed. Both can happen.",
+          "Never put in money you cannot lose. Past speed cannot keep going forever.",
+        ],
+        visual: "Bitcoin = internet money with a limited amount.",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Imagine a sticker album that will only ever have 21 million stickers.",
+          "If lots of people want one, the price can jump. If they stop wanting it, the price can drop.",
+          "That is why Bitcoin is exciting and risky.",
+        ],
+      },
+      practice: [
+        {
+          q: "Bitcoin is…",
+          type: "multi",
+          options: ["internet money", "a kind of horse", "a sandwich"],
+          answer: 0,
+          explain: "Digital money with a limited amount.",
+        },
+        {
+          q: "Bitcoin’s price can…",
+          type: "multi",
+          options: ["shoot up or crash", "only go up", "never move"],
+          answer: 0,
+          explain: "It is jumpy. Past years are not a promise.",
+        },
+        {
+          q: "True or false: Bitcoin will grow 50% every year forever.",
+          type: "multi",
+          options: ["False", "True"],
+          answer: 0,
+          explain: "Nothing grows that fast forever. The calculator shows a past picture only.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Internet money ≠ coins in your pocket.",
+          "Limited amount + lots of people wanting it = price can jump. Fear = price can drop.",
+        ],
+        practice: [
+          {
+            q: "Should you put in money you cannot lose?",
+            type: "multi",
+            options: ["No", "Yes, all of it"],
+            answer: 0,
+            explain: "Only money you can afford to lose.",
+          },
+        ],
+      },
+    },
+    etf: {
+      title: "ETFs & the S&P 500",
+      blurb: "Buy a bundle of many companies in one go.",
+      videoKey: "data",
+      teach: {
+        points: [
+          "ETF means a basket you can buy like one thing. Inside are lots of pieces.",
+          "The S&P 500 is a famous basket of 500 big companies in the United States.",
+          "Owning a little of many companies is usually steadier than betting on just one.",
+        ],
+        visual: "One ETF ticket → 500 companies inside.",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Instead of picking one shop, you buy a tiny slice of 500 shops.",
+          "If one shop has a bad year, the others can still help.",
+          "Over many years that basket has grown — but some years it falls too.",
+        ],
+      },
+      practice: [
+        {
+          q: "An ETF is a…",
+          type: "multi",
+          options: ["basket of many things", "single sweet", "type of horse"],
+          answer: 0,
+          explain: "A bundle you buy in one go.",
+        },
+        {
+          q: "The S&P 500 is about…",
+          type: "multi",
+          options: ["500 big US companies", "500 footballers", "500 horses"],
+          answer: 0,
+          explain: "A famous US company basket.",
+        },
+        {
+          q: "A basket of many companies is usually…",
+          type: "multi",
+          options: ["steadier than one company", "always a loss", "illegal"],
+          answer: 0,
+          explain: "Spreading out is the idea. Still not a promise.",
+        },
+      ],
+      struggle: {
+        points: [
+          "ETF = basket. S&P 500 = a famous basket of 500.",
+          "Many slices beat one slice if that one slice goes wrong.",
+        ],
+        practice: [
+          {
+            q: "S&P 500 is an example of an…",
+            type: "multi",
+            options: ["ETF / basket", "ice cream"],
+            answer: 0,
+            explain: "A company basket.",
+          },
+        ],
+      },
+    },
+    stocks: {
+      title: "One company",
+      blurb: "Buying one firm can win — or you can lose that money.",
+      videoKey: "writing",
+      teach: {
+        points: [
+          "A share is a tiny slice of one company. If the company does well, the slice can be worth more.",
+          "If the company does badly or closes, that slice can be worth little or nothing.",
+          "Grown-ups sometimes pick a few companies they understand — but a basket (ETF) is the calmer first step.",
+        ],
+        visual: "One shop vs a street of shops.",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "You buy a slice of one toy shop.",
+          "If kids love the toys, the slice might grow.",
+          "If the shop closes, the slice can vanish. That is the risk of one company.",
+        ],
+      },
+      practice: [
+        {
+          q: "A share is a…",
+          type: "multi",
+          options: ["tiny slice of a company", "slice of cake you must eat today", "free prize"],
+          answer: 0,
+          explain: "You own a little bit of that firm.",
+        },
+        {
+          q: "If one company fails, you can…",
+          type: "multi",
+          options: ["lose that money", "never lose", "print more shares at home"],
+          answer: 0,
+          explain: "One-company bets can go to zero.",
+        },
+        {
+          q: "A calmer first step is often…",
+          type: "multi",
+          options: ["an ETF basket", "one mystery company", "spending the 20%"],
+          answer: 0,
+          explain: "Many companies in one go.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Share = slice of one firm.",
+          "One firm can fail. A basket spreads the risk.",
+        ],
+        practice: [
+          {
+            q: "True or false: one company can fail.",
+            type: "multi",
+            options: ["True", "False"],
+            answer: 0,
+            explain: "Yes. That is why spreading money matters.",
+          },
+        ],
+      },
+    },
+  },
 };
 
 /**

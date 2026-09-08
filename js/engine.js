@@ -1338,7 +1338,11 @@ function findNextAction(profile) {
         label: `Continue ${SUBJECTS[sub].name}: ${meta.title} (${stName})`,
       };
     }
-    if (stage < MAX_COURSE_STAGE && isStageComplete(profile, sub, stage)) {
+    if (
+      stage < MAX_COURSE_STAGE &&
+      isStageComplete(profile, sub, stage) &&
+      !(typeof isFunSubject === "function" && isFunSubject(sub))
+    ) {
       const ns = stage + 1;
       const nm = COURSE_STAGES[ns];
       return {
