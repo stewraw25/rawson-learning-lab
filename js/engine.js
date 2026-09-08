@@ -235,11 +235,11 @@ function checkAnswer(question, userAnswer) {
 const COURSE_STAGES = {
   1: {
     id: 1,
-    name: "Foundation",
+    name: "First steps",
     emoji: "🌱",
-    short: "F",
-    gradeBand: "Entry · secure the basics",
-    blurb: "Placement-based first course — close the gaps.",
+    short: "1",
+    gradeBand: "Year 2–4 basics · start here",
+    blurb: "Easy counting, adding and simple words — no GCSE yet.",
   },
   2: {
     id: 2,
@@ -385,6 +385,7 @@ function migrateCourseEntry(c) {
   return {
     activeStage: active >= 1 ? active : 1,
     stages,
+    contentVersion: c.contentVersion || "",
   };
 }
 
@@ -401,6 +402,7 @@ function serializeCourseEntry(c) {
   return {
     activeStage: Number(m.activeStage) || 1,
     stages,
+    contentVersion: m.contentVersion || "",
   };
 }
 
@@ -435,6 +437,9 @@ function mergeCourseEntry(a, b) {
   return {
     activeStage: Math.max(Number(A.activeStage) || 1, Number(B.activeStage) || 1),
     stages,
+    contentVersion: A.contentVersion === FIRST_STEPS_VERSION || B.contentVersion === FIRST_STEPS_VERSION
+      ? FIRST_STEPS_VERSION
+      : A.contentVersion || B.contentVersion || "",
   };
 }
 
@@ -567,6 +572,9 @@ function ensureCourseShape(profile, subject) {
   return profile.courses[subject];
 }
 
+/** Bump this when Stage 1 content is rewritten so kids restart First steps (not skip to hard work). */
+const FIRST_STEPS_VERSION = "first-steps-v1";
+
 /**
  * After placement: always ensure a non-empty lesson path for the active stage.
  * Keeps any completed lesson scores already saved.
@@ -579,6 +587,14 @@ function ensureCourseReady(profile, subject) {
     buildCourse(profile, subject, 1);
   } else {
     ensureCourseShape(profile, subject);
+  }
+  const course = profile.courses[subject];
+  if (course && course.contentVersion !== FIRST_STEPS_VERSION) {
+    course.activeStage = 1;
+    if (course.stages && course.stages[1]) course.stages[1].completed = {};
+    buildCourse(profile, subject, 1);
+    course.contentVersion = FIRST_STEPS_VERSION;
+    course.activeStage = 1;
   }
   const c = profile.courses[subject];
   if (!c) return null;
@@ -1023,83 +1039,56 @@ function retailorRemainingPath(profile, subject, stageNum) {
 }
 
 /**
- * Subject % for progress bars — rises as lessons complete (not stuck near placement %).
- * Starts at placement; each finished lesson lifts toward mastery.
+ * Honest work done on this subject — lessons finished vs lessons on the path.
+ * Does NOT use the placement-test score (that was filling bars to ~99% with almost no work).
  */
-function subjectOverall(profile, subject) {
-  if (!profile) return null;
-  const diag = profile.diagnostics && profile.diagnostics[subject];
-
-  let placement = null;
-  if (diag && diag.skillScores && typeof diag.skillScores === "object") {
-    const vals = Object.values(diag.skillScores).filter((v) => typeof v === "number");
-    if (vals.length) {
-      placement = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
-    }
-  }
-  if (placement == null && diag && diag.score != null) {
-    placement = Number(diag.score);
-  }
-
-  // Count completed lessons across stages
-  let doneCount = 0;
-  let pathLen = 0;
-  const lessonScores = [];
+function subjectWorkStats(profile, subject) {
+  const empty = { done: 0, total: 0, pct: 0, label: "No lessons yet" };
+  if (!profile) return empty;
+  let done = 0;
+  let total = 0;
   const c = profile.courses && profile.courses[subject];
   if (c) {
     try {
       const migrated = migrateCourseEntry(c);
-      for (const st of Object.values(migrated.stages || {})) {
-        if (!st) continue;
-        const path = Array.isArray(st.path) ? st.path : [];
-        pathLen += path.length || 0;
-        const completed =
-          st.completed && typeof st.completed === "object" && !Array.isArray(st.completed)
-            ? st.completed
-            : {};
-        for (const [k, v] of Object.entries(completed)) {
-          if (!v) continue;
-          doneCount++;
-          if (typeof v.score === "number") lessonScores.push(v.score);
-        }
-        // If path empty but completed has keys
-        if (!path.length) {
-          /* already counted completed keys */
-        }
-      }
-      // Fallback path length from skills if stages empty
-      if (!pathLen) {
-        pathLen = Math.max(doneCount, Object.keys(SKILLS[subject] || {}).length, 1);
-      }
+      const stageNum = Number(migrated.activeStage) || 1;
+      const st = migrated.stages && migrated.stages[stageNum];
+      const path = st && Array.isArray(st.path) ? st.path : [];
+      const completed =
+        st && st.completed && typeof st.completed === "object" && !Array.isArray(st.completed)
+          ? st.completed
+          : {};
+      total = path.length;
+      done = path.filter((id) => !!completed[id]).length;
     } catch (_) {
-      pathLen = Math.max(1, Object.keys(SKILLS[subject] || {}).length);
+      /* keep empty */
     }
   }
-
-  const completionRatio = pathLen > 0 ? Math.min(1, doneCount / pathLen) : 0;
-  const lessonAvg = lessonScores.length
-    ? lessonScores.reduce((a, b) => a + b, 0) / lessonScores.length
-    : null;
-
-  if (placement == null && doneCount === 0) return null;
-  if (doneCount === 0 && placement != null) {
-    return Math.min(100, Math.max(0, Math.round(placement)));
+  if (!total) {
+    const skillN = Object.keys(SKILLS[subject] || {}).length;
+    if (skillN) {
+      return { done: 0, total: skillN, pct: 0, label: `0 of ${skillN} lessons` };
+    }
+    return empty;
   }
-  if (placement == null) {
-    const q =
-      lessonAvg != null
-        ? lessonAvg * 0.4 + completionRatio * 100 * 0.6
-        : completionRatio * 100;
-    return Math.min(100, Math.max(0, Math.round(q)));
-  }
+  const pct = Math.round((done / total) * 100);
+  return {
+    done,
+    total,
+    pct: Math.min(100, Math.max(0, pct)),
+    label: `${done} of ${total} lessons`,
+  };
+}
 
-  // Rise from placement toward a high target as more lessons finish
-  const target = Math.max(placement, lessonAvg != null ? lessonAvg : placement, 72);
-  const blended = placement + (target - placement) * completionRatio;
-  const finishBonus = completionRatio * 14;
-  const overall = Math.round(blended + finishBonus);
-  // Never drop below placement after they've started learning
-  return Math.min(100, Math.max(placement, overall));
+/**
+ * Subject % for progress bars — only real lessons, never the placement score.
+ */
+function subjectOverall(profile, subject) {
+  if (!profile) return null;
+  const stats = subjectWorkStats(profile, subject);
+  const started = !!(profile.diagnostics && profile.diagnostics[subject]?.completed);
+  if (!started && stats.done === 0) return null;
+  return stats.pct;
 }
 
 /** Next incomplete skill on the active stage (null if stage path finished) */

@@ -791,6 +791,7 @@ function recentScoresSummary(id) {
   const L = LEARNERS[id];
   const subjects = ["maths", "english", "science"].map((sub) => {
     const d = p.diagnostics?.[sub];
+    const work = typeof subjectWorkStats === "function" ? subjectWorkStats(p, sub) : null;
     const overall = subjectOverall(p, sub);
     return {
       sub,
@@ -798,6 +799,7 @@ function recentScoresSummary(id) {
       emoji: SUBJECTS[sub].emoji,
       test: d?.completed ? d.score : null,
       level: overall,
+      work,
       date: d?.date || null,
     };
   });
@@ -816,13 +818,12 @@ function scoreBoardCard(id) {
   const { p, L, subjects, lastLesson, avg } = recentScoresSummary(id);
   const bars = subjects
     .map((s) => {
-      const pct = s.level ?? s.test ?? 0;
-      const label =
-        s.test != null ? `${s.test}% test` : s.level != null ? `~${s.level}%` : "—";
+      const pct = s.work ? s.work.pct : s.level ?? 0;
+      const label = s.work ? s.work.label : s.level != null ? `${s.level}%` : "—";
       return `
         <div class="home-score-row">
           <span>${s.emoji} ${s.name}</span>
-          <div class="home-score-bar"><i style="width:${Math.max(pct, 4)}%"></i></div>
+          <div class="home-score-bar"><i style="width:${pct}%"></i></div>
           <strong>${label}</strong>
         </div>`;
     })
@@ -1489,10 +1490,18 @@ function subjectDashCard(subject) {
         <h3>${S.name}</h3>
         <p class="muted" style="margin:0;font-size:0.85rem;min-height:2.4em">${status}</p>
         <div class="skill-meter">
-          <div class="skill-fill" style="width:${overall ?? 5}%"></div>
+          <div class="skill-fill" style="width:${overall ?? 0}%"></div>
         </div>
         <div class="muted" style="font-size:0.78rem;font-weight:800">
-          ${overall == null ? "Not assessed yet" : `Skill level ~${overall}%`}
+          ${
+            overall == null
+              ? "Not started yet"
+              : escapeHtml(
+                  (typeof subjectWorkStats === "function"
+                    ? subjectWorkStats(p, subject).label
+                    : `${overall}%`) + " done"
+                )
+          }
         </div>
       </div>
     </article>`;
@@ -2394,6 +2403,9 @@ function renderDiagnostic({ subject }) {
           <button class="btn btn-primary" type="button" id="btnCheck" ${
             revealed ? "disabled" : ""
           }>Check answer</button>
+          <button class="btn btn-ghost" type="button" id="btnDontKnow" ${
+            revealed ? "disabled" : ""
+          }>I don't know</button>
           <button class="btn btn-ok" type="button" id="btnNext" style="display:${
             revealed ? "inline-flex" : "none"
           }">${index + 1 >= qs.length ? "See results" : "Next →"}</button>
@@ -2476,6 +2488,8 @@ function renderDiagnostic({ subject }) {
         });
       }
       document.getElementById("btnCheck").disabled = true;
+      const dkPlace = document.getElementById("btnDontKnow");
+      if (dkPlace) dkPlace.disabled = true;
       const nextBtn = document.getElementById("btnNext");
       nextBtn.style.display = "inline-flex";
       // Auto-save progress mid-test (kids never click save)
@@ -2500,6 +2514,15 @@ function renderDiagnostic({ subject }) {
         nextBtn.focus();
       }
     };
+
+    const idkBtn = document.getElementById("btnDontKnow");
+    if (idkBtn) {
+      idkBtn.onclick = () => {
+        if (revealed) return;
+        answers[q.id] = q.type === "multi" ? -1 : "__idk__";
+        document.getElementById("btnCheck")?.click();
+      };
+    }
 
     document.getElementById("btnNext").onclick = () => {
       if (window.__diagKeyHandler) {
@@ -2725,6 +2748,7 @@ function renderLesson({ subject, skillId, stage }) {
         <div id="aiHelpBox"></div>
         <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
           <button class="btn btn-primary" type="button" id="btnCheck">Check</button>
+          <button class="btn btn-ghost" type="button" id="btnDontKnow">I don't know</button>
           <button class="btn btn-ok" type="button" id="btnAdvance" style="display:none">Next →</button>
         </div>`;
     }
@@ -2885,6 +2909,8 @@ function renderLesson({ subject, skillId, stage }) {
         });
       }
       document.getElementById("btnCheck").disabled = true;
+      const dk2 = document.getElementById("btnDontKnow");
+      if (dk2) dk2.disabled = true;
       autosaveSoon();
 
       if (!ok && isAiConfigured()) {
@@ -2939,6 +2965,15 @@ function renderLesson({ subject, skillId, stage }) {
         advBtn.focus();
       }
     };
+
+    const idkLesson = document.getElementById("btnDontKnow");
+    if (idkLesson) {
+      idkLesson.onclick = () => {
+        if (revealed) return;
+        answerVal = q.type === "multi" ? -1 : "__idk__";
+        document.getElementById("btnCheck")?.click();
+      };
+    }
   }
 
   async function finishSession() {
@@ -3440,12 +3475,12 @@ function parentKid(id) {
           stageLabel = (COURSE_STAGES[active] || COURSE_STAGES[1]).name;
           const st = c.stages?.[active];
           if (st) {
-            lessonsDone = Object.keys(st.completed || {}).length;
-            totalLessons = Array.isArray(st.path) ? st.path.length : "—";
+            const path = Array.isArray(st.path) ? st.path : [];
+            totalLessons = path.length;
+            lessonsDone = path.filter((id) => st.completed && st.completed[id]).length;
           }
-          // Show foundation complete hint
-          const pathPct = pathwayProgressPct(p, sub);
-          stageLabel = `${stageLabel} · ${pathPct}%→A*`;
+          const work = typeof subjectWorkStats === "function" ? subjectWorkStats(p, sub) : null;
+          stageLabel = work ? `${stageLabel} · ${work.label}` : stageLabel;
         }
       } catch (_) {
         /* ignore */
@@ -3488,7 +3523,7 @@ function parentKid(id) {
       }
       <div class="table-wrap">
         <table class="progress-table">
-          <thead><tr><th>Subject</th><th>Test</th><th>Course</th><th>Lessons</th><th>Level</th></tr></thead>
+          <thead><tr><th>Subject</th><th>Placement</th><th>Course</th><th>Lessons done</th><th>Work %</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
