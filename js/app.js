@@ -200,11 +200,11 @@ function climbNextFor(profile, subject) {
   if (!s.started) {
     return { type: "diagnostic", subject, label: "Start here — short placement" };
   }
-  if (
-    s.stagePct >= 100 &&
-    s.stageNum < MAX_COURSE_STAGE &&
-    !(typeof isFunSubject === "function" && isFunSubject(subject))
-  ) {
+  const maxS =
+    typeof maxStageWithContent === "function"
+      ? maxStageWithContent(subject)
+      : MAX_COURSE_STAGE;
+  if (s.stagePct >= 100 && s.stageNum < maxS) {
     const nxt = COURSE_STAGES[s.stageNum + 1];
     return {
       type: "unlock",
@@ -1991,15 +1991,19 @@ function subjectDashCard(subject) {
       const active = getActiveStage(p, subject);
       const stageMeta = COURSE_STAGES[active] || COURSE_STAGES[1];
       next = nextLesson(p, subject, active);
+      const maxS =
+        typeof maxStageWithContent === "function"
+          ? maxStageWithContent(subject)
+          : MAX_COURSE_STAGE;
       if (next) {
         const meta = getLessonMeta(subject, next, active);
         status = `${stageMeta.emoji} ${stageMeta.name}: ${meta.title || next}`;
-      } else if (active < MAX_COURSE_STAGE && isStageComplete(p, subject, active)) {
+      } else if (active < maxS && isStageComplete(p, subject, active)) {
         const nextMeta = COURSE_STAGES[active + 1];
         status = `${stageMeta.name} done — unlock ${nextMeta.name}!`;
       } else if (isStageComplete(p, subject, active)) {
-        status = active >= MAX_COURSE_STAGE
-          ? "⭐ A* pathway complete — revise anytime"
+        status = active >= maxS
+          ? "⭐ Path complete — revise anytime"
           : `${stageMeta.name} complete — revise anytime`;
       } else {
         const pct = pathwayProgressPct(p, subject);
@@ -2539,8 +2543,12 @@ function renderSubject({ subject }) {
   const stageComplete = path.length > 0 && path.every((id) => completedMap[id]);
   const nextId = path.length ? nextLesson(p, subject, activeStage) : null;
   const nextMeta = nextId ? getLessonMeta(subject, nextId, activeStage) : null;
+  const maxS =
+    typeof maxStageWithContent === "function"
+      ? maxStageWithContent(subject)
+      : MAX_COURSE_STAGE;
   const nextStageNum =
-    stageComplete && activeStage < MAX_COURSE_STAGE ? activeStage + 1 : null;
+    stageComplete && activeStage < maxS ? activeStage + 1 : null;
   const nextStageMeta = nextStageNum ? COURSE_STAGES[nextStageNum] : null;
   const pathPct = pathwayProgressPct(p, subject);
   const kidName = learner().name;
@@ -2575,7 +2583,7 @@ function renderSubject({ subject }) {
         </button>
         <p class="muted level-complete-hint">Tap the big button to continue</p>
       </div>`;
-  } else if (stageComplete && activeStage >= MAX_COURSE_STAGE) {
+  } else if (stageComplete && activeStage >= maxS) {
     nextStepHtml = `
       <div class="card level-complete-card next-step-done mb-2">
         <p class="level-complete-kicker">Progress bar full · 100%</p>
@@ -2611,7 +2619,12 @@ function renderSubject({ subject }) {
   }
 
   // Stage progress chips (simple for kids)
-  const stageCount = isFunSubject(subject) ? 1 : MAX_COURSE_STAGE;
+  const stageCount =
+    typeof maxStageWithContent === "function"
+      ? maxStageWithContent(subject)
+      : isFunSubject(subject)
+        ? 1
+        : MAX_COURSE_STAGE;
   const stageChips = diag?.completed
     ? `<div class="stage-chip-row" role="list">
         ${Array.from({ length: stageCount }, (_, i) => i + 1)
@@ -2631,12 +2644,8 @@ function renderSubject({ subject }) {
           .join("")}
       </div>
       <p class="stage-chip-caption muted">
-        ${escapeHtml((isFunSubject(subject) ? "Fun track" : stageMeta.emoji + " " + stageMeta.name) + " · " + doneCount + " of " + path.length + " lessons done")}
-        ${
-          isFunSubject(subject)
-            ? ""
-            : ` · whole path to A* <strong style="color:var(--gold)">${pathPct}%</strong>`
-        }
+        ${escapeHtml(stageMeta.emoji + " " + stageMeta.name + " · " + doneCount + " of " + path.length + " lessons done")}
+         · whole path <strong style="color:var(--gold)">${pathPct}%</strong>
       </p>`
     : "";
 
@@ -2776,7 +2785,11 @@ function renderSubject({ subject }) {
     ensureCourseReady(p, subject);
     const stNow = Number(p.courses[subject]?.activeStage) || activeStage;
     const stageDone = isStageComplete(p, subject, stNow);
-    if (stageDone && stNow < MAX_COURSE_STAGE) {
+    const maxSRegen =
+      typeof maxStageWithContent === "function"
+        ? maxStageWithContent(subject)
+        : MAX_COURSE_STAGE;
+    if (stageDone && stNow < maxSRegen) {
       startCourseStage(p, subject, stNow + 1);
       ensureCourseReady(p, subject);
     } else {
@@ -3711,7 +3724,11 @@ function renderLevelComplete({ subject, stage, skillId, scorePct }) {
   const L = learner();
   const stageNum = Number(stage) || getActiveStage(p, subject) || 1;
   const stageMeta = COURSE_STAGES[stageNum] || COURSE_STAGES[1];
-  const nextStage = stageNum < MAX_COURSE_STAGE ? stageNum + 1 : null;
+  const maxS =
+    typeof maxStageWithContent === "function"
+      ? maxStageWithContent(subject)
+      : MAX_COURSE_STAGE;
+  const nextStage = stageNum < maxS ? stageNum + 1 : null;
   const nextMeta = nextStage ? COURSE_STAGES[nextStage] : null;
   const celeb =
     state.activeLearner === "bella"

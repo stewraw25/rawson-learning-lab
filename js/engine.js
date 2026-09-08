@@ -1436,13 +1436,28 @@ function isStageComplete(profile, subject, stageNum) {
   return st.path.every((id) => !!st.completed[id]);
 }
 
-/** Stage N unlocks when N-1 is complete (stage 1 needs diagnostic) */
+/** True if this subject has at least one lesson at that stage. */
+function subjectHasStageContent(subject, stageNum) {
+  const stage = Number(stageNum) || 1;
+  const ids = Object.keys((typeof SKILLS !== "undefined" && SKILLS[subject]) || {});
+  if (!ids.length) return false;
+  return ids.some((id) => lessonExistsForStage(subject, id, stage));
+}
+
+/** Highest stage that actually has lessons (investing stays at 1; karting/horses climb to 6). */
+function maxStageWithContent(subject) {
+  let max = 1;
+  for (let s = 1; s <= MAX_COURSE_STAGE; s++) {
+    if (subjectHasStageContent(subject, s)) max = s;
+  }
+  return max;
+}
+
+/** Stage N unlocks when N-1 is complete (stage 1 needs diagnostic). No empty stages. */
 function canAccessStage(profile, subject, stageNum) {
   const stage = Number(stageNum) || 1;
   if (stage < 1 || stage > MAX_COURSE_STAGE) return false;
-  if (typeof isFunSubject === "function" && isFunSubject(subject) && stage > 1) {
-    return false;
-  }
+  if (!subjectHasStageContent(subject, stage)) return false;
   if (stage === 1) return !!(profile.diagnostics?.[subject]?.completed);
   return isStageComplete(profile, subject, stage - 1);
 }
@@ -1556,10 +1571,14 @@ function countCompletedStages(profile, subject) {
 }
 
 function pathwayProgressPct(profile, subject) {
-  // Weight: each stage equal; partial credit for lessons on active incomplete stage
+  // Weight: each stage with content equally; partial credit on the first incomplete stage
+  const maxS =
+    typeof maxStageWithContent === "function"
+      ? maxStageWithContent(subject)
+      : MAX_COURSE_STAGE;
   let score = 0;
-  const per = 100 / MAX_COURSE_STAGE;
-  for (let s = 1; s <= MAX_COURSE_STAGE; s++) {
+  const per = 100 / Math.max(1, maxS);
+  for (let s = 1; s <= maxS; s++) {
     if (isStageComplete(profile, subject, s)) {
       score += per;
     } else {
@@ -1568,7 +1587,7 @@ function pathwayProgressPct(profile, subject) {
         const done = st.path.filter((id) => st.completed && st.completed[id]).length;
         score += per * (done / st.path.length);
       }
-      break; // only credit into the first incomplete stage
+      break;
     }
   }
   return Math.min(100, Math.round(score));
@@ -1948,7 +1967,13 @@ function subjectProgressSummary(profile, subject) {
 
   let statusLabel = "Not started";
   if (!placementDone) statusLabel = "Needs placement test";
-  else if (stagePct >= 100 && stageNum >= MAX_COURSE_STAGE)
+  else if (
+    stagePct >= 100 &&
+    stageNum >=
+      (typeof maxStageWithContent === "function"
+        ? maxStageWithContent(subject)
+        : MAX_COURSE_STAGE)
+  )
     statusLabel = "A* path complete";
   else if (stagePct >= 100) statusLabel = `${stageName} complete — unlock next`;
   else
@@ -2235,11 +2260,11 @@ function findNextAction(profile) {
         label: `Continue ${SUBJECTS[sub].name}: ${meta.title} (${stName})`,
       };
     }
-    if (
-      stage < MAX_COURSE_STAGE &&
-      isStageComplete(profile, sub, stage) &&
-      !(typeof isFunSubject === "function" && isFunSubject(sub))
-    ) {
+    const maxS =
+      typeof maxStageWithContent === "function"
+        ? maxStageWithContent(sub)
+        : MAX_COURSE_STAGE;
+    if (stage < maxS && isStageComplete(profile, sub, stage)) {
       const ns = stage + 1;
       const nm = COURSE_STAGES[ns];
       return {
