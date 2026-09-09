@@ -284,6 +284,9 @@ function syncTimeBonus(profile) {
     tb.points += delta;
     tb.claimedActiveMin = activeMin;
     profile.updatedAt = Date.now();
+  } else if (tb.claimedActiveMin > activeMin) {
+    tb.points = Math.min(tb.points, activeMin);
+    tb.claimedActiveMin = activeMin;
   }
   profile.timeBonus = tb;
   return tb;
@@ -483,6 +486,88 @@ function mergeAdapt(a, b) {
 }
 
 /** Safe learning-time shape + roll “today” if the calendar day changed */
+/** Sittings within this gap are one block (stops 1-minute session spam). */
+const SESSION_JOIN_MS = 2 * 60 * 1000;
+
+function sessionEndMs(s) {
+  if (!s) return 0;
+  const start = Number(s.startMs) || 0;
+  const marked = Number(s.endMs) || start;
+  const byDur = start + (Math.max(0, Number(s.sec) || 0) + Math.max(0, Number(s.idleSec) || 0)) * 1000;
+  return Math.max(marked, byDur, start);
+}
+
+/** Merge overlapping / back-to-back fragments into real sittings. Cap time to wall clock. */
+function coalesceSessions(sessions) {
+  const list = (sessions || [])
+    .filter((s) => s && (Number(s.startMs) || Number(s.endMs)))
+    .map((s) => ({
+      id: s.id || "",
+      date: s.date || "",
+      startMs: Number(s.startMs) || Number(s.endMs) || 0,
+      endMs: sessionEndMs(s),
+      sec: Math.max(0, Math.floor(Number(s.sec) || 0)),
+      idleSec: Math.max(0, Math.floor(Number(s.idleSec) || 0)),
+      open: !!s.open,
+    }))
+    .sort((a, b) => a.startMs - b.startMs);
+  const out = [];
+  for (const s of list) {
+    const last = out[out.length - 1];
+    if (
+      last &&
+      s.date === last.date &&
+      s.startMs <= last.endMs + SESSION_JOIN_MS
+    ) {
+      last.endMs = Math.max(last.endMs, s.endMs);
+      last.sec += s.sec;
+      last.idleSec += s.idleSec;
+      last.open = last.open || s.open;
+      last.id = last.open ? last.id || s.id : last.id || s.id;
+    } else {
+      out.push({ ...s });
+    }
+  }
+  for (const s of out) {
+    const wall = Math.max(0, Math.floor((s.endMs - s.startMs) / 1000));
+    const raw = s.sec + s.idleSec;
+    if (wall > 0 && raw > wall) {
+      s.idleSec = Math.round((s.idleSec * wall) / raw);
+      s.sec = Math.max(0, wall - s.idleSec);
+    }
+  }
+  return out.slice(-80);
+}
+
+function rebuildLearningTimeFromSessions(lt) {
+  const prevDays = lt.days && typeof lt.days === "object" ? lt.days : {};
+  const prevIdle = lt.idleDays && typeof lt.idleDays === "object" ? lt.idleDays : {};
+  const sessions = coalesceSessions(lt.sessions);
+  const days = {};
+  const idleDays = {};
+  for (const s of sessions) {
+    if (!s.date) continue;
+    days[s.date] = (days[s.date] || 0) + s.sec;
+    idleDays[s.date] = (idleDays[s.date] || 0) + s.idleSec;
+  }
+  for (const [k, v] of Object.entries(prevDays)) {
+    if (days[k] == null) days[k] = Math.max(0, Math.floor(Number(v) || 0));
+  }
+  for (const [k, v] of Object.entries(prevIdle)) {
+    if (idleDays[k] == null) idleDays[k] = Math.max(0, Math.floor(Number(v) || 0));
+  }
+  const today = todayKey();
+  lt.sessions = sessions;
+  lt.days = days;
+  lt.idleDays = idleDays;
+  lt.totalSec = Object.values(days).reduce((n, v) => n + (Number(v) || 0), 0);
+  lt.idleSec = Object.values(idleDays).reduce((n, v) => n + (Number(v) || 0), 0);
+  lt.todayKey = today;
+  lt.todaySec = Math.max(0, Math.floor(Number(days[today]) || 0));
+  lt.todayIdleSec = Math.max(0, Math.floor(Number(idleDays[today]) || 0));
+  return lt;
+}
+
 function ensureLearningTime(profile) {
   const base = {
     totalSec: 0,
@@ -503,16 +588,7 @@ function ensureLearningTime(profile) {
     lt.idleDays = {};
   }
   if (!Array.isArray(lt.sessions)) lt.sessions = [];
-  lt.totalSec = Math.max(0, Math.floor(Number(lt.totalSec) || 0));
-  lt.idleSec = Math.max(0, Math.floor(Number(lt.idleSec) || 0));
-  lt.todaySec = Math.max(0, Math.floor(Number(lt.todaySec) || 0));
-  lt.todayIdleSec = Math.max(0, Math.floor(Number(lt.todayIdleSec) || 0));
-  const today = todayKey();
-  if (lt.todayKey !== today) {
-    lt.todayKey = today;
-    lt.todaySec = Math.max(0, Math.floor(Number(lt.days[today]) || 0));
-    lt.todayIdleSec = Math.max(0, Math.floor(Number(lt.idleDays[today]) || 0));
-  }
+  rebuildLearningTimeFromSessions(lt);
   if (profile) profile.learningTime = lt;
   return lt;
 }
@@ -578,39 +654,29 @@ function addLearningSeconds(profile, seconds, atMs, kind) {
   const lt = ensureLearningTime(profile);
   const day = todayKey();
   const add = Math.floor(seconds);
-  if (lt.todayKey !== day) {
-    lt.todayKey = day;
-    lt.todaySec = Math.max(0, Math.floor(Number(lt.days[day]) || 0));
-    lt.todayIdleSec = Math.max(0, Math.floor(Number(lt.idleDays[day]) || 0));
-  }
-
-  if (isIdle) {
-    lt.idleSec += add;
-    lt.todayIdleSec += add;
-    lt.idleDays[day] = Math.max(0, Math.floor(Number(lt.idleDays[day]) || 0)) + add;
-  } else {
-    lt.totalSec += add;
-    lt.todaySec += add;
-    lt.days[day] = Math.max(0, Math.floor(Number(lt.days[day]) || 0)) + add;
-    try {
-      syncTimeBonus(profile);
-    } catch (_) {
-      /* ignore */
-    }
-  }
 
   let open = lt.sessions.find((s) => s && s.open);
   if (!open) {
-    open = {
-      id: (profile.id || "kid") + "-" + now,
-      date: day,
-      startMs: now,
-      endMs: now,
-      sec: 0,
-      idleSec: 0,
-      open: true,
-    };
-    lt.sessions.push(open);
+    const last = lt.sessions[lt.sessions.length - 1];
+    if (
+      last &&
+      last.date === day &&
+      now - sessionEndMs(last) <= SESSION_JOIN_MS
+    ) {
+      last.open = true;
+      open = last;
+    } else {
+      open = {
+        id: (profile.id || "kid") + "-" + now,
+        date: day,
+        startMs: now,
+        endMs: now,
+        sec: 0,
+        idleSec: 0,
+        open: true,
+      };
+      lt.sessions.push(open);
+    }
   }
   if (isIdle) {
     open.idleSec = Math.max(0, Math.floor(Number(open.idleSec) || 0)) + add;
@@ -619,13 +685,14 @@ function addLearningSeconds(profile, seconds, atMs, kind) {
   }
   open.endMs = now;
   open.date = open.date || day;
-
-  // Keep last 80 sessions + prune day maps to ~60 days
   if (lt.sessions.length > 80) lt.sessions = lt.sessions.slice(-80);
-  for (const map of [lt.days, lt.idleDays]) {
-    const dayKeys = Object.keys(map).sort();
-    if (dayKeys.length > 60) {
-      for (const k of dayKeys.slice(0, dayKeys.length - 60)) delete map[k];
+
+  rebuildLearningTimeFromSessions(lt);
+  if (!isIdle) {
+    try {
+      syncTimeBonus(profile);
+    } catch (_) {
+      /* ignore */
     }
   }
   profile.learningTime = lt;
@@ -636,17 +703,24 @@ function addLearningSeconds(profile, seconds, atMs, kind) {
 function beginLearningSession(profile) {
   if (!profile) return null;
   const lt = ensureLearningTime(profile);
-  // Close any dangling open session
+  const now = Date.now();
+  const day = todayKey();
+  const last = lt.sessions[lt.sessions.length - 1];
+  if (last && last.date === day && now - sessionEndMs(last) <= SESSION_JOIN_MS) {
+    last.open = true;
+    last.endMs = now;
+    profile.learningTime = lt;
+    return last;
+  }
   for (const s of lt.sessions) {
     if (s && s.open) {
       s.open = false;
-      if (!s.endMs) s.endMs = Date.now();
+      if (!s.endMs) s.endMs = now;
     }
   }
-  const now = Date.now();
   const sess = {
     id: (profile.id || "kid") + "-" + now,
-    date: todayKey(),
+    date: day,
     startMs: now,
     endMs: now,
     sec: 0,
@@ -672,69 +746,18 @@ function endLearningSession(profile) {
 }
 
 function mergeLearningTime(a, b) {
-  const A = ensureLearningTime({ learningTime: a || {} });
-  const B = ensureLearningTime({ learningTime: b || {} });
-  const byId = new Map();
-  for (const s of [...(A.sessions || []), ...(B.sessions || [])]) {
-    if (!s || !s.id) continue;
-    const prev = byId.get(s.id);
-    const active = Math.max(0, Math.floor(Number(s.sec) || 0));
-    const idle = Math.max(0, Math.floor(Number(s.idleSec) || 0));
-    const prevActive = prev ? Math.max(0, Math.floor(Number(prev.sec) || 0)) : -1;
-    const prevIdle = prev ? Math.max(0, Math.floor(Number(prev.idleSec) || 0)) : -1;
-    if (!prev || active + idle >= prevActive + prevIdle) {
-      byId.set(s.id, {
-        id: s.id,
-        date: s.date || "",
-        startMs: Number(s.startMs) || 0,
-        endMs: Number(s.endMs) || Number(s.startMs) || 0,
-        sec: Math.max(active, prevActive, 0),
-        idleSec: Math.max(idle, prevIdle, 0),
-        open: false,
-      });
-    }
+  const A = a && typeof a === "object" ? a : {};
+  const B = b && typeof b === "object" ? b : {};
+  const localOpen = (A.sessions || []).some((s) => s && s.open);
+  const merged = rebuildLearningTimeFromSessions({
+    sessions: [...(A.sessions || []), ...(B.sessions || [])],
+  });
+  if (localOpen && merged.sessions.length) {
+    merged.sessions[merged.sessions.length - 1].open = true;
+  } else {
+    for (const s of merged.sessions) s.open = false;
   }
-  const sessions = [...byId.values()].sort(
-    (x, y) => (x.startMs || 0) - (y.startMs || 0)
-  );
-  const days = {};
-  const idleDays = {};
-  for (const s of sessions) {
-    if (!s.date) continue;
-    days[s.date] = (days[s.date] || 0) + (s.sec || 0);
-    idleDays[s.date] = (idleDays[s.date] || 0) + (s.idleSec || 0);
-  }
-  for (const src of [A.days, B.days]) {
-    for (const [k, v] of Object.entries(src || {})) {
-      days[k] = Math.max(days[k] || 0, Math.floor(Number(v) || 0));
-    }
-  }
-  for (const src of [A.idleDays, B.idleDays]) {
-    for (const [k, v] of Object.entries(src || {})) {
-      idleDays[k] = Math.max(idleDays[k] || 0, Math.floor(Number(v) || 0));
-    }
-  }
-  const totalSec = Math.max(
-    A.totalSec || 0,
-    B.totalSec || 0,
-    Object.values(days).reduce((n, v) => n + (Number(v) || 0), 0)
-  );
-  const idleSec = Math.max(
-    A.idleSec || 0,
-    B.idleSec || 0,
-    Object.values(idleDays).reduce((n, v) => n + (Number(v) || 0), 0)
-  );
-  const today = todayKey();
-  return {
-    totalSec,
-    idleSec,
-    todaySec: Math.max(0, Math.floor(Number(days[today]) || 0)),
-    todayIdleSec: Math.max(0, Math.floor(Number(idleDays[today]) || 0)),
-    todayKey: today,
-    sessions: sessions.slice(-80),
-    days,
-    idleDays,
-  };
+  return merged;
 }
 
 /** Summary for scoreboards / parent view */
@@ -990,11 +1013,11 @@ function checkAnswer(question, userAnswer) {
 const COURSE_STAGES = {
   1: {
     id: 1,
-    name: "Foundation",
+    name: "First steps",
     emoji: "🌱",
-    short: "F",
-    gradeBand: "Entry · secure the basics",
-    blurb: "Placement-based first course — close the gaps.",
+    short: "1",
+    gradeBand: "Year 2–4 basics · start here",
+    blurb: "Easy counting, adding and simple words — no GCSE yet.",
   },
   2: {
     id: 2,
@@ -1140,6 +1163,7 @@ function migrateCourseEntry(c) {
   return {
     activeStage: active >= 1 ? active : 1,
     stages,
+    contentVersion: c.contentVersion || "",
   };
 }
 
@@ -1156,6 +1180,7 @@ function serializeCourseEntry(c) {
   return {
     activeStage: Number(m.activeStage) || 1,
     stages,
+    contentVersion: m.contentVersion || "",
   };
 }
 
@@ -1190,6 +1215,9 @@ function mergeCourseEntry(a, b) {
   return {
     activeStage: Math.max(Number(A.activeStage) || 1, Number(B.activeStage) || 1),
     stages,
+    contentVersion: A.contentVersion === FIRST_STEPS_VERSION || B.contentVersion === FIRST_STEPS_VERSION
+      ? FIRST_STEPS_VERSION
+      : A.contentVersion || B.contentVersion || "",
   };
 }
 
@@ -1339,6 +1367,9 @@ function ensureCourseShape(profile, subject) {
   return profile.courses[subject];
 }
 
+/** Bump this when Stage 1 content is rewritten so kids restart First steps (not skip to hard work). */
+const FIRST_STEPS_VERSION = "first-steps-v1";
+
 /**
  * After placement: always ensure a non-empty lesson path for the active stage.
  * Keeps any completed lesson scores already saved.
@@ -1352,6 +1383,15 @@ function ensureCourseReady(profile, subject) {
   } else {
     ensureCourseShape(profile, subject);
   }
+  const course = profile.courses[subject];
+  if (course && course.contentVersion !== FIRST_STEPS_VERSION) {
+    course.activeStage = 1;
+    if (course.stages && course.stages[1]) course.stages[1].completed = {};
+    buildCourse(profile, subject, 1);
+    course.contentVersion = FIRST_STEPS_VERSION;
+    course.activeStage = 1;
+  }
+  if (course) clearCompletionsPastActiveStage(course);
   const c = profile.courses[subject];
   if (!c) return null;
   const stage = Number(c.activeStage) || 1;
@@ -1420,10 +1460,28 @@ function isStageComplete(profile, subject, stageNum) {
   return st.path.every((id) => !!st.completed[id]);
 }
 
-/** Stage N unlocks when N-1 is complete (stage 1 needs diagnostic) */
+/** True if this subject has at least one lesson at that stage. */
+function subjectHasStageContent(subject, stageNum) {
+  const stage = Number(stageNum) || 1;
+  const ids = Object.keys((typeof SKILLS !== "undefined" && SKILLS[subject]) || {});
+  if (!ids.length) return false;
+  return ids.some((id) => lessonExistsForStage(subject, id, stage));
+}
+
+/** Highest stage that actually has lessons (investing stays at 1; karting/horses climb to 6). */
+function maxStageWithContent(subject) {
+  let max = 1;
+  for (let s = 1; s <= MAX_COURSE_STAGE; s++) {
+    if (subjectHasStageContent(subject, s)) max = s;
+  }
+  return max;
+}
+
+/** Stage N unlocks when N-1 is complete (stage 1 needs diagnostic). No empty stages. */
 function canAccessStage(profile, subject, stageNum) {
   const stage = Number(stageNum) || 1;
   if (stage < 1 || stage > MAX_COURSE_STAGE) return false;
+  if (!subjectHasStageContent(subject, stage)) return false;
   if (stage === 1) return !!(profile.diagnostics?.[subject]?.completed);
   return isStageComplete(profile, subject, stage - 1);
 }
@@ -1536,20 +1594,67 @@ function countCompletedStages(profile, subject) {
   return n;
 }
 
+/**
+ * Share of the A* climb each level is worth.
+ * First steps is a tiny rung — most of the journey is GCSE Core / Higher / A*.
+ */
+const STAGE_A_STAR_WEIGHTS = {
+  1: 5,
+  2: 8,
+  3: 12,
+  4: 20,
+  5: 25,
+  6: 30,
+};
+
+function stageAStarWeight(subject, stageNum) {
+  const maxS =
+    typeof maxStageWithContent === "function"
+      ? maxStageWithContent(subject)
+      : MAX_COURSE_STAGE;
+  if (maxS <= 1) return 100;
+  return STAGE_A_STAR_WEIGHTS[stageNum] || 0;
+}
+
+/** Drop ticks on levels above the current one (left over from the old hard Stage 1). */
+function clearCompletionsPastActiveStage(course) {
+  if (!course || !course.stages || typeof course.stages !== "object") return;
+  const active = Number(course.activeStage) || 1;
+  const stages = course.stages;
+  const keys = Array.isArray(stages) ? stages.map((_, i) => i) : Object.keys(stages);
+  for (const k of keys) {
+    const n = parseStageStorageKey(k);
+    if (!Number.isFinite(n) || n <= active) continue;
+    const st = stages[k];
+    if (st && typeof st === "object") st.completed = {};
+  }
+}
+
 function pathwayProgressPct(profile, subject) {
-  // Weight: each stage equal; partial credit for lessons on active incomplete stage
+  const maxS =
+    typeof maxStageWithContent === "function"
+      ? maxStageWithContent(subject)
+      : MAX_COURSE_STAGE;
+  const active = Math.max(1, Number(getActiveStage(profile, subject)) || 1);
+  // Never credit later levels they have not unlocked yet (stale ticks inflate the bar)
+  const upTo = Math.min(maxS, active);
+
+  let totalW = 0;
+  for (let s = 1; s <= maxS; s++) totalW += stageAStarWeight(subject, s);
+  if (totalW <= 0) totalW = 100;
+
   let score = 0;
-  const per = 100 / MAX_COURSE_STAGE;
-  for (let s = 1; s <= MAX_COURSE_STAGE; s++) {
+  for (let s = 1; s <= upTo; s++) {
+    const w = (stageAStarWeight(subject, s) / totalW) * 100;
     if (isStageComplete(profile, subject, s)) {
-      score += per;
+      score += w;
     } else {
       const st = getCourseStageData(profile, subject, s);
       if (st && st.path && st.path.length) {
         const done = st.path.filter((id) => st.completed && st.completed[id]).length;
-        score += per * (done / st.path.length);
+        score += w * (done / st.path.length);
       }
-      break; // only credit into the first incomplete stage
+      break;
     }
   }
   return Math.min(100, Math.round(score));
@@ -1753,7 +1858,7 @@ function recordLesson(profile, subject, skillId, scorePct, stageNum) {
       unlockBadge(profile, `astar_complete_${subject}`);
     }
     // All 3 subjects at stage 6
-    const allAstar = ["maths", "english", "science"].every((sub) =>
+    const allAstar = CORE_SUBJECTS.every((sub) =>
       isStageComplete(profile, sub, 6)
     );
     if (allAstar) unlockBadge(profile, "triple_astar");
@@ -1843,12 +1948,9 @@ function retailorRemainingPath(profile, subject, stageNum) {
 }
 
 /**
- * Subject % for progress bars — rises as lessons complete (not stuck near placement %).
- * Starts at placement; each finished lesson lifts toward mastery.
- */
-/**
  * Honest subject progress for parents / scoreboards.
  * Never treats a high placement test as “nearly finished the course”.
+ * Overall % is the climb from First steps → A* (six levels), not quiz scores.
  */
 function subjectProgressSummary(profile, subject) {
   const empty = {
@@ -1906,7 +2008,6 @@ function subjectProgressSummary(profile, subject) {
       : 0;
     pathwayPct = pathwayProgressPct(profile, subject);
 
-    // Count finished lessons across stages (for overall blend)
     const c = profile.courses && profile.courses[subject];
     if (c) {
       try {
@@ -1922,12 +2023,10 @@ function subjectProgressSummary(profile, subject) {
     }
   }
 
-  // Overall = progress toward A* (pathway), not the placement score
   let overall = null;
   if (!placementDone && doneCount === 0) {
     overall = null;
   } else if (placementDone && doneCount === 0) {
-    // Started placement only — show tiny progress, not 90%+
     overall = Math.min(8, Math.max(2, Math.round((placementScore || 0) / 20)));
   } else {
     overall = pathwayPct;
@@ -1935,10 +2034,19 @@ function subjectProgressSummary(profile, subject) {
 
   let statusLabel = "Not started";
   if (!placementDone) statusLabel = "Needs placement test";
-  else if (stagePct >= 100 && stageNum >= MAX_COURSE_STAGE)
+  else if (
+    stagePct >= 100 &&
+    stageNum >=
+      (typeof maxStageWithContent === "function"
+        ? maxStageWithContent(subject)
+        : MAX_COURSE_STAGE)
+  )
     statusLabel = "A* path complete";
   else if (stagePct >= 100) statusLabel = `${stageName} complete — unlock next`;
-  else statusLabel = `${stageEmoji} ${stageName} · ${stageLessonDone}/${stageLessonTotal || "?"} lessons`;
+  else
+    statusLabel = `${stageEmoji} ${stageName} · ${stageLessonDone}/${
+      stageLessonTotal || "?"
+    } lessons · ${pathwayPct}% to A*`;
 
   return {
     started: placementDone || doneCount > 0,
@@ -1955,7 +2063,21 @@ function subjectProgressSummary(profile, subject) {
   };
 }
 
-/** @deprecated Prefer subjectProgressSummary — kept for older call sites */
+function subjectWorkStats(profile, subject) {
+  const s = subjectProgressSummary(profile, subject);
+  if (!s.started) {
+    return { done: 0, total: 0, pct: 0, label: "No lessons yet" };
+  }
+  return {
+    done: s.stageLessonDone,
+    total: s.stageLessonTotal,
+    pct: s.pathwayPct,
+    label: `${s.stageLessonDone} of ${s.stageLessonTotal || "?"} on ${s.stageName} · ${
+      s.pathwayPct
+    }% to A*`,
+  };
+}
+
 function subjectOverall(profile, subject) {
   const s = subjectProgressSummary(profile, subject);
   return s.overall;
@@ -2177,7 +2299,10 @@ function recordDailyActivity(profile, kind) {
  */
 function findNextAction(profile) {
   if (!profile) return null;
-  const subjects = ["maths", "english", "science"];
+  const subjects =
+    typeof subjectsForLearner === "function"
+      ? subjectsForLearner(profile.id)
+      : CORE_SUBJECTS;
   const mem =
     typeof ensureTutorMemory === "function" ? ensureTutorMemory(profile) : null;
 
@@ -2202,7 +2327,11 @@ function findNextAction(profile) {
         label: `Continue ${SUBJECTS[sub].name}: ${meta.title} (${stName})`,
       };
     }
-    if (stage < MAX_COURSE_STAGE && isStageComplete(profile, sub, stage)) {
+    const maxS =
+      typeof maxStageWithContent === "function"
+        ? maxStageWithContent(sub)
+        : MAX_COURSE_STAGE;
+    if (stage < maxS && isStageComplete(profile, sub, stage)) {
       const ns = stage + 1;
       const nm = COURSE_STAGES[ns];
       return {

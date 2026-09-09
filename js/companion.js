@@ -5,6 +5,12 @@
 
 const TEACHER_NAME = "Coach";
 
+function coachNameFor(learnerId) {
+  if (learnerId === "bella") return "Kimi Antonelli";
+  if (learnerId === "george") return "Gwen Stacy";
+  return TEACHER_NAME;
+}
+
 function escapeHtmlCoach(s) {
   return String(s ?? "")
     .replace(/&/g, "&amp;")
@@ -180,12 +186,13 @@ function timeOfDayGreeting() {
 function buildCoachGreeting(profile, learnerMeta, nextAct) {
   const m = ensureTutorMemory(profile);
   const name = learnerMeta.name || "friend";
+  const coach = coachNameFor(learnerMeta.id);
   const hi = timeOfDayGreeting();
   const parts = [];
 
   if (m.visitCount <= 1) {
     parts.push(
-      `${hi}, ${name}! I’m ${TEACHER_NAME} — your learning coach. I’ll remember where you left off and cheer you on to GCSE A*.`
+      `${hi}, ${name}! I’m ${coach} — your learning coach. I’ll remember where you left off and cheer you on to GCSE A*.`
     );
   } else {
     const hours = m.lastSeenAt ? (Date.now() - m.lastSeenAt) / 3600000 : 99;
@@ -309,7 +316,8 @@ async function askCoach(profile, learnerMeta, question, nextAct) {
     .map((s) => `${s.title} (${s.wrong} tough attempts)`)
     .join("; ");
   const next = nextAct?.label || "explore subjects";
-  const system = `You are ${TEACHER_NAME}, an extraordinary UK home-education coach for ${learnerMeta.fullName}, age ${learnerMeta.age} (${learnerMeta.yearGroup}).
+  const coach = coachNameFor(learnerMeta.id);
+  const system = `You are ${coach}, an extraordinary UK home-education coach for ${learnerMeta.fullName}, age ${learnerMeta.age} (${learnerMeta.yearGroup}). Stay in character as ${coach} but keep teaching kind, simple and age-appropriate. Never claim to be the real person in real life — you are their AI coach in Rawson Learning Lab.
 Be warm, clear, never condescending. British spelling. Keep answers under 120 words.
 You remember their journey: next best action is "${next}".
 Recent struggles: ${struggles || "none logged yet"}.
@@ -362,7 +370,7 @@ function coachPanelHtml(profile, learnerMeta, nextAct, opts) {
         </div>
         <div class="coach-main">
           <div class="coach-name">
-            <span>${TEACHER_NAME} · chat with your AI teacher</span>
+            <span>${escapeHtmlCoach(coachNameFor(learnerMeta.id))} · your AI coach</span>
           </div>
           <div class="speech-bubble" id="coachSpeech">${escapeHtmlCoach(speech)}</div>
           ${struggleLine}
@@ -375,7 +383,7 @@ function coachPanelHtml(profile, learnerMeta, nextAct, opts) {
       </div>
       <div class="coach-ask">
         <input type="text" class="coach-input" id="coachInput" maxlength="280"
-          placeholder="Type a message to Coach… e.g. What should I do next?" autocomplete="off" />
+          placeholder="Type a message… e.g. What should I do next?" autocomplete="off" />
         <button type="button" class="btn btn-primary" id="coachSend">Send</button>
       </div>
       <div class="coach-chips">
@@ -435,7 +443,7 @@ function bindCoachPanel(profile, learnerMeta, nextAct) {
           .map(
             (c) =>
               `<div class="coach-log-line ${c.role}"><strong>${
-                c.role === "user" ? "You" : TEACHER_NAME
+                c.role === "user" ? "You" : coachNameFor(learnerMeta.id)
               }:</strong> ${escapeHtmlCoach(c.text)}</div>`
           )
           .join("");

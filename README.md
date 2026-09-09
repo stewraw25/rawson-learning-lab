@@ -6,7 +6,7 @@ Homeschool tuition pathway for **Bella-Rose Rawson** (12) and **George Rawson** 
 
 | Stage | Name | Grade band |
 |------:|------|------------|
-| 1 | Foundation | Entry · secure the basics |
+| 1 | First steps | Year 2–4 basics · counting, adding, simple words |
 | 2 | Intermediate | Grades 2–3 · fluency |
 | 3 | Secure | Grades 3–4 · KS3 secure |
 | 4 | GCSE Core | Grades 4–5 · Foundation tier |
@@ -50,4 +50,6 @@ Open `index.html` in a browser, or serve the folder with any static server.
 
 ## Curriculum note
 
-Aligned to the English National Curriculum (KS2 for George, KS3 for Bella-Rose) with skills mapped toward GCSE Maths, English Language and Science foundations. Complements school work — not a full exam-board course.
+Stage 1 starts at Year 2–4 (George is 10 and Bella-Rose is 12, both catching up at home). Later stages still climb toward GCSE. Progress bars count **lessons finished**, not the placement-test score.
+
+Fun extras: **Go-karting** (George) and **Horses** (Bella-Rose) use the same six-level climb as core subjects — First steps is very easy, then each unlock is harder. **Money & investing** is a shared extra (compound investing, the 20% rule, gold & silver, Bitcoin, S&P 500 ETFs, stocks, plus a calculator at `#/invest`). Past returns in the calculator are illustrations, not promises.

@@ -49,7 +49,7 @@ function bindLearningActivityListeners() {
   learningTimeActivityBound = true;
   const opts = { capture: true, passive: true };
   const bump = () => markLearningActivity();
-  ["pointerdown", "keydown", "scroll", "touchstart", "mousemove", "click"].forEach(
+  ["pointerdown", "keydown", "scroll", "touchstart", "click"].forEach(
     (evt) => document.addEventListener(evt, bump, opts)
   );
 }
@@ -126,19 +126,20 @@ function stopLearningTimeTracker(flush) {
 function startLearningTimeTracker(learnerId) {
   if (!learnerId || !LEARNERS[learnerId]) return;
   bindLearningActivityListeners();
+  const already = learningTimeLearnerId === learnerId;
   if (learningTimeLearnerId && learningTimeLearnerId !== learnerId) {
     flushLearningTimeTick(true);
   }
   const p = state.profiles[learnerId];
   if (!p) return;
-  if (learningTimeLearnerId !== learnerId) {
+  if (!already) {
     beginLearningSession(p);
     learningTimeSessionActiveSec = 0;
     learningTimeSessionIdleSec = 0;
+    learningTimeLastTick = Date.now();
+    learningTimeLastActivity = Date.now();
   }
   learningTimeLearnerId = learnerId;
-  learningTimeLastTick = Date.now();
-  learningTimeLastActivity = Date.now();
   if (learningTimeTimer) clearInterval(learningTimeTimer);
   learningTimeTimer = setInterval(() => {
     if (!learningTimeLearnerId) return;
@@ -188,107 +189,112 @@ function updateLiveTimePill() {
   ].join("\n");
 }
 
-/** SVG skill bars + score trend for AI-tailored teaching visibility */
+/**
+ * Honest Zero → A* climb. Never uses placement/quiz % as “finished”.
+ * One bar per core subject = share of the six-level path, not a 100% skill score.
+ */
+function climbNextFor(profile, subject) {
+  const s =
+    typeof subjectProgressSummary === "function"
+      ? subjectProgressSummary(profile, subject)
+      : { started: false };
+  if (!s.started) {
+    return { type: "diagnostic", subject, label: "Start here — short placement" };
+  }
+  const maxS =
+    typeof maxStageWithContent === "function"
+      ? maxStageWithContent(subject)
+      : MAX_COURSE_STAGE;
+  if (s.stagePct >= 100 && s.stageNum < maxS) {
+    const nxt = COURSE_STAGES[s.stageNum + 1];
+    return {
+      type: "unlock",
+      subject,
+      stage: s.stageNum + 1,
+      label: nxt ? `Unlock ${nxt.name}` : "Unlock next level",
+    };
+  }
+  try {
+    const stage = getActiveStage(profile, subject) || s.stageNum || 1;
+    const next = nextLesson(profile, subject, stage);
+    if (next) {
+      const meta = getLessonMeta(subject, next, stage);
+      return {
+        type: "lesson",
+        subject,
+        skillId: next,
+        stage,
+        label: "Keep going: " + (meta?.title || next),
+      };
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return { type: "subject", subject, label: "Open " + (SUBJECTS[subject]?.name || subject) };
+}
+
 function progressGraphsHtml(profile, opts) {
   opts = opts || {};
   const kidMode = !!opts.kidMode;
-  const subjects = ["maths", "english", "science"].filter((sub) => {
+  const subjects = (CORE_SUBJECTS || ["maths", "english", "science"]).filter((sub) => {
     if (opts.subject) return sub === opts.subject;
-    const d = profile.diagnostics?.[sub];
-    const log = profile.progressLog?.entries || [];
-    return !!(d && d.completed) || log.some((e) => e && e.subject === sub);
+    return !!SUBJECTS[sub];
   });
-  if (!subjects.length) {
-    return `
-      <div class="card progress-graphs-card mb-2">
-        <h3 style="margin:0 0 0.35rem;font-family:var(--display)">${
-          kidMode ? "🎯 Your AI focus" : "📊 Progress graphs"
-        }</h3>
-        <p class="muted" style="margin:0;font-size:0.9rem">
-          ${
-            kidMode
-              ? "Finish a placement test or lesson and your focus chart will appear here."
-              : "Graphs appear after placement tests and lessons — used to tailor the pathway."
-          }
-        </p>
-      </div>`;
-  }
 
-  const blocks = subjects
+  const rows = subjects
     .map((sub) => {
-      const data = progressGraphData(profile, sub);
-      const maxBar = 100;
-      const bars = data.skills
-        .map((sk) => {
-          const live = typeof sk.live === "number" ? sk.live : Math.max(0, Math.min(100, sk.score));
-          const weak = live < 60;
-          return `
-            <div class="pg-skill-row ${weak ? "is-weak" : ""}">
-              <span class="pg-skill-name" title="${escapeHtml(sk.name)}">${escapeHtml(
-                sk.name
-              )}</span>
-              <div class="pg-skill-bar"><i style="width:${Math.max(live, 3)}%"></i></div>
-              <strong class="pg-skill-pct">${Math.round(live)}%</strong>
-            </div>`;
-        })
-        .join("");
-
-      const trend = data.trend.length
-        ? (() => {
-            const w = 220;
-            const h = 56;
-            const pts = data.trend;
-            const step = pts.length > 1 ? w / (pts.length - 1) : w;
-            const coords = pts
-              .map((p, i) => {
-                const x = i * step;
-                const y = h - (Math.max(0, Math.min(100, p.score)) / 100) * (h - 6) - 3;
-                return `${x.toFixed(1)},${y.toFixed(1)}`;
-              })
-              .join(" ");
-            return `
-              <svg class="pg-spark" viewBox="0 0 ${w} ${h}" width="100%" height="56" role="img" aria-label="Score trend">
-                <polyline fill="none" stroke="currentColor" stroke-width="2.5" points="${coords}" />
-              </svg>
-              <p class="muted pg-spark-caption">Recent scores (tailored over time)</p>`;
-          })()
-        : `<p class="muted pg-spark-caption">No score history yet</p>`;
-
-      const focusNames = data.focus
-        .map((f) => SKILLS[sub]?.[f.id]?.name || f.id)
-        .join(" · ");
-      const focusLine = focusNames
-        ? kidMode
-          ? `AI is training you on: <strong>${escapeHtml(focusNames)}</strong>`
-          : `Focus (weakest first): <strong>${escapeHtml(focusNames)}</strong>`
-        : "";
-
+      const s = subjectProgressSummary(profile, sub);
+      const next = climbNextFor(profile, sub);
+      const climbPct = s.started ? s.pathwayPct : 0;
+      const levelNow = s.started ? s.stageNum : 0;
+      const chips = Array.from({ length: MAX_COURSE_STAGE }, (_, i) => {
+        const n = i + 1;
+        const meta = COURSE_STAGES[n];
+        let cls = "climb-chip is-locked";
+        if (s.started && n < levelNow) cls = "climb-chip is-done";
+        else if (s.started && n === levelNow) cls = "climb-chip is-here";
+        return `<span class="${cls}" title="${escapeHtml(
+          (meta && meta.name) || "Level " + n
+        )}">${n === 6 ? "A*" : n}</span>`;
+      }).join("");
+      const where = !s.started
+        ? "Not started — still at the bottom"
+        : s.stageNum >= MAX_COURSE_STAGE && s.stagePct >= 100
+          ? "A* path complete — revise to stay sharp"
+          : `Level ${s.stageNum} of ${MAX_COURSE_STAGE} · ${s.stageName} · ${climbPct}% of the way to A*`;
       return `
-        <div class="pg-subject">
-          <div class="pg-subject-head">
+        <article class="climb-row" data-subject="${sub}">
+          <div class="climb-row-head">
             <strong>${SUBJECTS[sub].emoji} ${SUBJECTS[sub].name}</strong>
-            <span class="pg-adapt">${escapeHtml(data.adaptLabel || "Just right")}</span>
+            <span class="climb-where muted">${escapeHtml(where)}</span>
           </div>
-          <p class="pg-focus muted">${focusLine}</p>
-          <div class="pg-skills">${bars}</div>
-          <div class="pg-trend">${trend}</div>
-        </div>`;
+          <div class="climb-chips" aria-hidden="true">${chips}</div>
+          <div class="climb-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${climbPct}">
+            <i style="width:${s.started ? Math.max(climbPct, climbPct === 0 ? 4 : 0) : 0}%"></i>
+          </div>
+          <button type="button" class="climb-next" data-climb-type="${next.type}" data-subject="${sub}"
+            ${next.skillId ? `data-skill="${next.skillId}"` : ""}
+            ${next.stage ? `data-stage="${next.stage}"` : ""}>
+            ${escapeHtml(next.label)} →
+          </button>
+        </article>`;
     })
     .join("");
 
   return `
-    <div class="card progress-graphs-card mb-2">
+    <div class="card progress-graphs-card climb-card mb-2">
       <h3 style="margin:0 0 0.25rem;font-family:var(--display)">${
-        kidMode ? "🎯 Your AI focus map" : "📊 Tailoring graphs"
+        kidMode ? "⛰️ Your climb to A*" : "Path to A* (honest progress)"
       }</h3>
-      <p class="muted" style="margin:0 0 0.85rem;font-size:0.82rem">
+      <p class="muted" style="margin:0 0 0.85rem;font-size:0.9rem">
         ${
           kidMode
-            ? "Lower bars get extra practice first. As you improve, questions get harder gradually."
-            : "Background log of skills over time. Struggling topics are pulled forward; difficulty rises as scores improve."
+            ? "First steps is the bottom rung — a small slice of the climb. GCSE A* is at the top and takes every level after that."
+            : "Bars are weighted toward GCSE Core, Higher and A*. Finishing First steps is only about 5% of the climb, not a third of A*."
         }
       </p>
-      <div class="pg-grid">${blocks}</div>
+      <div class="climb-list">${rows}</div>
+      <p class="muted climb-legend">1 First steps · 2 Intermediate · 3 Secure · 4 GCSE Core · 5 Higher · A*</p>
     </div>`;
 }
 
@@ -309,14 +315,18 @@ function learningTimeBoardHtml(id) {
             const slot =
               d.slots && d.slots.length
                 ? d.slots
-                    .slice(0, 3)
+                    .slice(0, 2)
                     .map((s) => s.label)
-                    .join(", ") + (d.slots.length > 3 ? "…" : "")
+                    .join(", ") + (d.slots.length > 2 ? "…" : "")
                 : "";
+            const idleBit =
+              d.idleSec >= 30
+                ? `<span class="time-day-idle">idle ${escapeHtml(d.idleDur)}</span>`
+                : `<span class="time-day-idle"></span>`;
             return `<div class="time-day-row">
               <span class="time-day-name">${escapeHtml(d.label)}</span>
               <span class="time-day-dur">${escapeHtml(d.dur)}</span>
-              <span class="time-day-idle">idle ${escapeHtml(d.idleDur)}</span>
+              ${idleBit}
               <span class="time-slots">${escapeHtml(slot || "—")}</span>
             </div>`;
           })
@@ -326,7 +336,7 @@ function learningTimeBoardHtml(id) {
     <div class="time-board">
       <div class="time-stats">
         <div class="time-stat">
-          <span class="time-stat-label">Active</span>
+          <span class="time-stat-label">All learning</span>
           <strong>${escapeHtml(sum.totalLabel)}</strong>
         </div>
         <div class="time-stat">
@@ -334,15 +344,15 @@ function learningTimeBoardHtml(id) {
           <strong>${escapeHtml(sum.todayLabel)}</strong>
         </div>
         <div class="time-stat">
-          <span class="time-stat-label">Idle</span>
-          <strong>${escapeHtml(sum.idleLabel)}</strong>
+          <span class="time-stat-label">Idle today</span>
+          <strong>${escapeHtml(sum.todayIdleLabel)}</strong>
         </div>
         <div class="time-stat time-stat-bonus">
           <span class="time-stat-label">Time Bonus</span>
           <strong>★ ${bonus}</strong>
         </div>
       </div>
-      <p class="time-board-note muted">Time Bonus grows with <em>active</em> minutes — not idle. Separate from XP.</p>
+      <p class="time-board-note muted">Learning = clicking / typing. Idle = tab open, not doing anything. ★ from learning minutes only.</p>
       <div class="time-day-list">${days}</div>
     </div>`;
 }
@@ -602,6 +612,7 @@ function hashFor(screen, params = {}) {
   if (screen === "exam")
     return `#/exam/${params.subject}/${params.packStage || 4}/${params.mode || "practice"}`;
   if (screen === "power5") return `#/power5/${params.subject || "maths"}`;
+  if (screen === "invest") return "#/invest";
   if (screen === "parent") return "#/parent";
   if (screen === "aiSettings") return "#/aiSettings";
   if (screen === "sync") return "#/sync";
@@ -748,6 +759,7 @@ function go(screen, params = {}, opts = {}) {
     sync: renderSyncSetup,
     aiSettings: renderAiSettings,
     power5: renderPower5,
+    invest: typeof renderInvestCalc === "function" ? renderInvestCalc : renderDashboard,
   };
   const fn = routes[screen];
   try {
@@ -1056,12 +1068,11 @@ function topbar(extraRight = "") {
   return `
     <header class="topbar">
       <div class="topbar-main">
-        <div class="logo" role="button" tabindex="0" data-go="home">
-          <img class="logo-mark" src="assets/logo.svg" width="46" height="46" alt="Rawson Learning Lab" />
-          <span class="sr-only">Rawson Learning Lab v68</span>
-          <div>
+        <div class="logo" role="button" tabindex="0" data-go="home" title="Rawson Learning Lab">
+          <img class="logo-mark" src="assets/logo.svg" width="40" height="40" alt="" />
+          <div class="logo-text">
             <h1>Rawson Learning Lab</h1>
-            <p>AI tutors · v68 · learning that fits around life</p>
+            <p>AI tutors</p>
           </div>
         </div>
         <div class="pill-row">
@@ -1070,11 +1081,11 @@ function topbar(extraRight = "") {
               ? `<span class="pill">${L.emoji} <strong>${escapeHtml(
                   L.name
                 )}</strong></span>
-                 <span class="pill">⚡ Lv <strong>${p.level}</strong></span>
-                 <span class="pill">🔥 <strong>${p.streak || 0}</strong> day streak</span>
+                 <span class="pill">Lv <strong>${p.level}</strong></span>
+                 <span class="pill">🔥 <strong>${p.streak || 0}</strong></span>
                  <span class="pill" id="liveTimePill">⏱ …</span>
-                 <button class="btn btn-ghost" data-go="dashboard" type="button">My hub</button>
-                 <button class="btn btn-ghost" data-switch type="button">Switch kid</button>`
+                 <button class="btn btn-ghost" data-go="dashboard" type="button">Hub</button>
+                 <button class="btn btn-ghost" data-switch type="button">Switch</button>`
               : ""
           }
           ${extraRight}
@@ -1216,7 +1227,11 @@ function questionLearnPayload(subject, skillId, q) {
 function recentScoresSummary(id) {
   const p = state.profiles[id] || defaultProfile(id);
   const L = LEARNERS[id];
-  const subjects = ["maths", "english", "science"].map((sub) => {
+  const subjects = (
+    typeof subjectsForLearner === "function"
+      ? subjectsForLearner(id)
+      : CORE_SUBJECTS
+  ).map((sub) => {
     const d = p.diagnostics?.[sub];
     const prog = subjectProgressSummary(p, sub);
     return {
@@ -1249,10 +1264,10 @@ function scoreBoardCard(id) {
   const { p, L, subjects, lastLesson, avg } = recentScoresSummary(id);
   const bars = subjects
     .map((s) => {
-      const pct = s.started ? s.stagePct : 0;
+      const pct = s.started ? s.pathwayPct : 0;
       const label = !s.started
         ? "Not started"
-        : `${s.stageEmoji} ${s.stageName} · ${pct}%`;
+        : `${s.stageEmoji} ${s.stageName} · ${pct}% to A*`;
       return `
         <div class="home-score-row">
           <span>${s.emoji} ${s.name}</span>
@@ -1553,27 +1568,29 @@ function renderDashboard() {
         <span class="qa-emoji">⚡</span>
         <span class="qa-label">Power 5 Science</span>
       </button>
+      ${
+        L.id === "george"
+          ? `<button type="button" class="quick-act" id="btnPower5Fun" title="5 quick Go-karting questions">
+        <span class="qa-emoji">🏎️</span>
+        <span class="qa-label">Power 5 Karting</span>
+      </button>`
+          : `<button type="button" class="quick-act" id="btnPower5Fun" title="5 quick Horses questions">
+        <span class="qa-emoji">🐴</span>
+        <span class="qa-label">Power 5 Horses</span>
+      </button>`
+      }
+      <button type="button" class="quick-act" id="btnInvestCalc" title="Compound investing calculator">
+        <span class="qa-emoji">💰</span>
+        <span class="qa-label">Money machine</span>
+      </button>
     </div>
 
     <h2 class="section-title">Your subjects</h2>
-    <p class="lead">Short lessons. Clear next steps. All the way to <strong>GCSE A*</strong>.</p>
+    <p class="lead">Maths, English and Science — plus fun extras, including money &amp; investing for both of you.</p>
     <div class="grid-3 mb-2">
-      ${subjectDashCard("maths")}
-      ${subjectDashCard("english")}
-      ${subjectDashCard("science")}
-    </div>
-
-    ${stageLegendHtml()}
-
-    <div class="card mb-2 pathway-card-art">
-      <div class="pathway-art-wrap">
-        <img src="${illustFor("pathway").src}" alt="${escapeHtml(
-    illustFor("pathway").alt
-  )}" class="pathway-art" />
-      </div>
-      <h3 style="margin-top:0.85rem;font-family:var(--display)">Your pathway map</h3>
-      <p class="muted" style="margin-top:0">Finish each stage to unlock the next — all the way to A*.</p>
-      ${pathwayMapHtml(p)}
+      ${subjectsForLearner(L.id)
+        .map((sub) => subjectDashCard(sub))
+        .join("")}
     </div>
 
     <div class="card mb-2">
@@ -1592,7 +1609,29 @@ function renderDashboard() {
   bindShell();
   bindCoachPanel(p, L, nextAct);
   appEl.querySelectorAll("[data-subject]").forEach((el) => {
+    if (el.classList.contains("climb-next")) return;
     el.addEventListener("click", () => go("subject", { subject: el.dataset.subject }));
+  });
+  appEl.querySelectorAll(".climb-next").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const subject = btn.dataset.subject;
+      const type = btn.dataset.climbType;
+      if (type === "diagnostic") return go("diagnostic", { subject });
+      if (type === "lesson") {
+        return go("lesson", {
+          subject,
+          skillId: btn.dataset.skill,
+          stage: Number(btn.dataset.stage) || 1,
+        });
+      }
+      if (type === "unlock") {
+        startCourseStage(p, subject, Number(btn.dataset.stage) || 1);
+        save().then(() => go("subject", { subject }));
+        return;
+      }
+      go("subject", { subject });
+    });
   });
   document.getElementById("btnContinue")?.addEventListener("click", async () => {
     if (!nextAct) return go("home");
@@ -1629,6 +1668,12 @@ function renderDashboard() {
   );
   document.getElementById("btnPower5Science")?.addEventListener("click", () =>
     go("power5", { subject: "science" })
+  );
+  document.getElementById("btnPower5Fun")?.addEventListener("click", () =>
+    go("power5", { subject: L.id === "george" ? "karting" : "horses" })
+  );
+  document.getElementById("btnInvestCalc")?.addEventListener("click", () =>
+    go("invest")
   );
 }
 
@@ -1950,15 +1995,19 @@ function subjectDashCard(subject) {
       const active = getActiveStage(p, subject);
       const stageMeta = COURSE_STAGES[active] || COURSE_STAGES[1];
       next = nextLesson(p, subject, active);
+      const maxS =
+        typeof maxStageWithContent === "function"
+          ? maxStageWithContent(subject)
+          : MAX_COURSE_STAGE;
       if (next) {
         const meta = getLessonMeta(subject, next, active);
         status = `${stageMeta.emoji} ${stageMeta.name}: ${meta.title || next}`;
-      } else if (active < MAX_COURSE_STAGE && isStageComplete(p, subject, active)) {
+      } else if (active < maxS && isStageComplete(p, subject, active)) {
         const nextMeta = COURSE_STAGES[active + 1];
         status = `${stageMeta.name} done — unlock ${nextMeta.name}!`;
       } else if (isStageComplete(p, subject, active)) {
-        status = active >= MAX_COURSE_STAGE
-          ? "⭐ A* pathway complete — revise anytime"
+        status = active >= maxS
+          ? "⭐ Path complete — revise anytime"
           : `${stageMeta.name} complete — revise anytime`;
       } else {
         const pct = pathwayProgressPct(p, subject);
@@ -1982,10 +2031,18 @@ function subjectDashCard(subject) {
         <h3>${S.name}</h3>
         <p class="muted" style="margin:0;font-size:0.85rem;min-height:2.4em">${status}</p>
         <div class="skill-meter">
-          <div class="skill-fill" style="width:${overall ?? 5}%"></div>
+          <div class="skill-fill" style="width:${overall ?? 0}%"></div>
         </div>
         <div class="muted" style="font-size:0.78rem;font-weight:800">
-          ${overall == null ? "Not assessed yet" : `Skill level ~${overall}%`}
+          ${
+            overall == null
+              ? "Not started — 0% of the way to A*"
+              : escapeHtml(
+                  typeof subjectWorkStats === "function"
+                    ? subjectWorkStats(p, subject).label
+                    : `${overall}% of the way to A*`
+                )
+          }
         </div>
       </div>
     </article>`;
@@ -2419,7 +2476,7 @@ function renderExamResult({
 function pathwayMapHtml(p) {
   const stages = [];
   for (let s = 1; s <= MAX_COURSE_STAGE; s++) stages.push(COURSE_STAGES[s]);
-  const subjectRows = Object.keys(SUBJECTS)
+  const subjectRows = CORE_SUBJECTS
     .map((sub) => {
       const pct = pathwayProgressPct(p, sub);
       const cells = stages
@@ -2490,8 +2547,12 @@ function renderSubject({ subject }) {
   const stageComplete = path.length > 0 && path.every((id) => completedMap[id]);
   const nextId = path.length ? nextLesson(p, subject, activeStage) : null;
   const nextMeta = nextId ? getLessonMeta(subject, nextId, activeStage) : null;
+  const maxS =
+    typeof maxStageWithContent === "function"
+      ? maxStageWithContent(subject)
+      : MAX_COURSE_STAGE;
   const nextStageNum =
-    stageComplete && activeStage < MAX_COURSE_STAGE ? activeStage + 1 : null;
+    stageComplete && activeStage < maxS ? activeStage + 1 : null;
   const nextStageMeta = nextStageNum ? COURSE_STAGES[nextStageNum] : null;
   const pathPct = pathwayProgressPct(p, subject);
   const kidName = learner().name;
@@ -2526,7 +2587,7 @@ function renderSubject({ subject }) {
         </button>
         <p class="muted level-complete-hint">Tap the big button to continue</p>
       </div>`;
-  } else if (stageComplete && activeStage >= MAX_COURSE_STAGE) {
+  } else if (stageComplete && activeStage >= maxS) {
     nextStepHtml = `
       <div class="card level-complete-card next-step-done mb-2">
         <p class="level-complete-kicker">Progress bar full · 100%</p>
@@ -2562,9 +2623,15 @@ function renderSubject({ subject }) {
   }
 
   // Stage progress chips (simple for kids)
+  const stageCount =
+    typeof maxStageWithContent === "function"
+      ? maxStageWithContent(subject)
+      : isFunSubject(subject)
+        ? 1
+        : MAX_COURSE_STAGE;
   const stageChips = diag?.completed
     ? `<div class="stage-chip-row" role="list">
-        ${Array.from({ length: MAX_COURSE_STAGE }, (_, i) => i + 1)
+        ${Array.from({ length: stageCount }, (_, i) => i + 1)
           .map((s) => {
             const meta = COURSE_STAGES[s];
             const unlocked = s === 1 ? true : canAccessStage(p, subject, s);
@@ -2581,9 +2648,8 @@ function renderSubject({ subject }) {
           .join("")}
       </div>
       <p class="stage-chip-caption muted">
-        ${escapeHtml(stageMeta.emoji + " " + stageMeta.name)} · ${doneCount} of ${
-        path.length
-      } lessons done · whole path to A* <strong style="color:var(--gold)">${pathPct}%</strong>
+        ${escapeHtml(stageMeta.emoji + " " + stageMeta.name + " · " + doneCount + " of " + path.length + " lessons done")}
+         · whole path <strong style="color:var(--gold)">${pathPct}%</strong>
       </p>`
     : "";
 
@@ -2683,6 +2749,16 @@ function renderSubject({ subject }) {
       </div>
     </div>
 
+    ${
+      subject === "investing"
+        ? `<div class="card next-step-card mb-2" style="border-color:rgba(212,175,55,0.45)">
+        <p class="next-step-label">💰 Compound calculator</p>
+        <h2 class="next-step-title">Money machine</h2>
+        <p class="next-step-desc">Put in a sum, pick weekly or monthly, and see how Gold, the S&amp;P 500 and Bitcoin could grow if past years repeated — and what 20% of your money can become by the age you choose.</p>
+        <button class="btn btn-primary btn-xl" type="button" id="btnOpenInvestCalc">Open the money machine →</button>
+      </div>`
+        : ""
+    }
     ${nextStepHtml}
     ${
       /* Keep stage chips small — not the main focus for kids */
@@ -2713,7 +2789,11 @@ function renderSubject({ subject }) {
     ensureCourseReady(p, subject);
     const stNow = Number(p.courses[subject]?.activeStage) || activeStage;
     const stageDone = isStageComplete(p, subject, stNow);
-    if (stageDone && stNow < MAX_COURSE_STAGE) {
+    const maxSRegen =
+      typeof maxStageWithContent === "function"
+        ? maxStageWithContent(subject)
+        : MAX_COURSE_STAGE;
+    if (stageDone && stNow < maxSRegen) {
       startCourseStage(p, subject, stNow + 1);
       ensureCourseReady(p, subject);
     } else {
@@ -2744,6 +2824,9 @@ function renderSubject({ subject }) {
   });
   document.getElementById("btnSubjectPower5")?.addEventListener("click", () =>
     go("power5", { subject })
+  );
+  document.getElementById("btnOpenInvestCalc")?.addEventListener("click", () =>
+    go("invest")
   );
 
   appEl.querySelectorAll("[data-exam-stage]").forEach((btn) => {
@@ -3021,6 +3104,15 @@ function renderDiagnostic({ subject }) {
       revealDiag(ok, false);
     };
 
+    const idkBtn = document.getElementById("btnDontKnow");
+    if (idkBtn) {
+      idkBtn.onclick = () => {
+        if (revealed) return;
+        answers[q.id] = q.type === "multi" ? -1 : "__idk__";
+        document.getElementById("btnCheck")?.click();
+      };
+    }
+
     document.getElementById("btnNext").onclick = () => {
       if (window.__diagKeyHandler) {
         window.removeEventListener("keydown", window.__diagKeyHandler);
@@ -3091,9 +3183,9 @@ function renderDiagnosticResult({ subject, result }) {
       <p class="muted">${escapeHtml(randomEncouragement())}</p>
     </div>
     <div class="card mb-2">
-      <h3 style="margin-top:0;font-family:var(--display)">Skill breakdown</h3>
+      <h3 style="margin-top:0;font-family:var(--display)">How this placement went</h3>
       <div class="skill-bars">${skillHtml}</div>
-      <p class="muted mt-1" style="font-size:0.85rem">Your course prioritises the lowest bars first — just like a tutor would.</p>
+      <p class="muted mt-1" style="font-size:0.85rem">This is today’s quiz, not the whole GCSE. 100% here does not mean A* — the climb still starts at the bottom.</p>
     </div>
     <button class="btn btn-primary btn-lg btn-block" type="button" id="toCourse">See my personalised ${
       S.name
@@ -3505,6 +3597,15 @@ function renderLesson({ subject, skillId, stage }) {
         }
       }
     };
+
+    const idkLesson = document.getElementById("btnDontKnow");
+    if (idkLesson) {
+      idkLesson.onclick = () => {
+        if (revealed) return;
+        answerVal = q.type === "multi" ? -1 : "__idk__";
+        document.getElementById("btnCheck")?.click();
+      };
+    }
   }
 
   async function finishSession() {
@@ -3627,7 +3728,11 @@ function renderLevelComplete({ subject, stage, skillId, scorePct }) {
   const L = learner();
   const stageNum = Number(stage) || getActiveStage(p, subject) || 1;
   const stageMeta = COURSE_STAGES[stageNum] || COURSE_STAGES[1];
-  const nextStage = stageNum < MAX_COURSE_STAGE ? stageNum + 1 : null;
+  const maxS =
+    typeof maxStageWithContent === "function"
+      ? maxStageWithContent(subject)
+      : MAX_COURSE_STAGE;
+  const nextStage = stageNum < maxS ? stageNum + 1 : null;
   const nextMeta = nextStage ? COURSE_STAGES[nextStage] : null;
   const celeb =
     state.activeLearner === "bella"
@@ -4089,7 +4194,9 @@ function parentKid(id) {
   const p = state.profiles[id];
   const mem = ensureTutorMemory(p);
   const struggles = topStruggles(p, 3);
-  const subjectCards = Object.keys(SUBJECTS)
+  const subjectCards = (
+    typeof subjectsForLearner === "function" ? subjectsForLearner(id) : Object.keys(SUBJECTS)
+  )
     .map((sub) => {
       const s = subjectProgressSummary(p, sub);
       const barPct = s.started ? s.stagePct : 0;
@@ -4154,7 +4261,7 @@ function parentKid(id) {
           : ""
       }
       <h4 class="parent-subjects-title">Subjects &amp; levels</h4>
-      <p class="muted parent-subjects-legend">“This level” = lessons on their current stage (Foundation → A*). “Path to A*” = overall journey. Placement test score is separate.</p>
+      <p class="muted parent-subjects-legend">“This level” = lessons on their current stage. “Path to A*” is the whole climb — a high quiz score is not 100% of the course.</p>
       <div class="parent-subjects-grid">${subjectCards}</div>
     </div>`;
 }
@@ -4303,7 +4410,7 @@ node worker/local-voice-proxy.mjs
     vMsg.textContent = "Playing Grok Voice…";
     try {
       const which = await speakText(
-        "Hello! I’m Coach, powered by Grok. Ready for a quick learning win today?",
+        "Hello! I’m your AI coach, powered by Grok. Ready for a quick learning win today?",
         { force: true, allowBrowserFallback: false }
       );
       vMsg.textContent =

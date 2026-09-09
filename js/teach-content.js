@@ -113,9 +113,9 @@ const SVG = {
     <svg viewBox="0 0 280 100" class="teach-svg" aria-hidden="true">
       <line x1="40" y1="50" x2="240" y2="50" stroke="#5b8cff" stroke-width="4"/>
       <circle cx="140" cy="50" r="6" fill="#ffd166"/>
-      <text x="70" y="40" fill="#3dd6c6" font-size="16" font-weight="700">2x + 4</text>
-      <text x="190" y="40" fill="#ff8c5a" font-size="16" font-weight="700">18</text>
-      <text x="100" y="85" fill="#a8b0d6" font-size="12">Keep both sides equal</text>
+      <text x="70" y="40" fill="#3dd6c6" font-size="16" font-weight="700">3 + □</text>
+      <text x="190" y="40" fill="#ff8c5a" font-size="16" font-weight="700">7</text>
+      <text x="90" y="85" fill="#a8b0d6" font-size="12">3 and what make 7?</text>
     </svg>`,
   heart: `
     <svg viewBox="0 0 120 110" class="teach-svg" aria-hidden="true" style="max-width:140px">
@@ -160,328 +160,392 @@ const SVG = {
 const TEACH_MODULES = {
   maths: {
     number: {
-      title: "Number & place value",
-      blurb: "Know what each digit is worth — GCSE Number foundation.",
+      title: "Counting & numbers",
+      blurb: "Count forwards, compare, and know tens and ones.",
       videoKey: "placevalue",
       teach: {
         points: [
-          "Every digit has a place: ones, tens, hundreds, thousands…",
-          "In 4,720 the 2 is worth 20 (2 tens), not 2.",
-          "Rounding: look at the digit to the right — 5 or more rounds up.",
+          "Numbers tell us how many. 1, 2, 3, 4… keep going.",
+          "Bigger means more. 9 is bigger than 4.",
+          "10 ones make 1 ten. 20 is 2 tens.",
         ],
         visual: SVG.placeValue,
       },
       example: {
         title: "Worked example",
         steps: [
-          "Number: 4,762",
-          "Nearest hundred → look at the tens digit (6).",
-          "6 ≥ 5, so round the hundreds up: 4,800.",
+          "Count from 6: 6, 7, 8 — so 8 comes after 7.",
+          "Compare 5 and 2: 5 is more.",
+          "14 is 1 ten and 4 ones.",
         ],
       },
       practice: [
         {
-          q: "What is the value of 5 in 5,403?",
+          q: "What number comes after 11?",
+          type: "typed",
+          answer: "12",
+          explain: "11, then 12.",
+        },
+        {
+          q: "Which is bigger?",
           type: "multi",
-          options: ["5", "50", "500", "5,000"],
-          answer: 3,
-          explain: "5 is in the thousands place → 5,000.",
+          options: ["3", "8", "1", "6"],
+          answer: 1,
+          explain: "8 is the biggest.",
         },
         {
-          q: "Round 3,450 to the nearest hundred.",
+          q: "How many tens in 30?",
           type: "typed",
-          answer: "3500",
-          accept: ["3500", "3,500"],
-          explain: "Tens digit is 5 → round up to 3,500.",
-        },
-        {
-          q: "What is 10³?",
-          type: "typed",
-          answer: "1000",
-          accept: ["1000", "1,000"],
-          explain: "10×10×10 = 1,000.",
+          answer: "3",
+          explain: "30 is 3 tens.",
         },
       ],
       struggle: {
         points: [
-          "Think of a number like money: £4,720 — the 7 is hundreds of pounds.",
-          "Cover other digits with your finger and ask: what is this digit worth alone?",
+          "Use your fingers. Hold up 7, then one more is 8.",
+          "Draw the numbers in a line: 1 2 3 4 5 6 7 8 9 10.",
         ],
         practice: [
           {
-            q: "In 380, the 8 is worth…",
+            q: "What comes after 4?",
             type: "multi",
-            options: ["8", "80", "800", "3"],
-            answer: 1,
-            explain: "8 tens = 80.",
+            options: ["3", "4", "5", "6"],
+            answer: 2,
+            explain: "4, then 5.",
+          },
+          {
+            q: "Which is smaller: 2 or 7?",
+            type: "multi",
+            options: ["2", "7"],
+            answer: 0,
+            explain: "2 is smaller.",
+          },
+          {
+            q: "What number is this: ten?",
+            type: "typed",
+            answer: "10",
+            explain: "Ten is 10.",
           },
         ],
       },
     },
     operations: {
-      title: "Four operations",
-      blurb: "Add, subtract, multiply, divide accurately.",
+      title: "Add, take away, times",
+      blurb: "Small sums first. Fingers are allowed.",
       videoKey: "multiply",
       teach: {
         points: [
-          "Multiplication is repeated addition: 7×8 = 7 groups of 8.",
-          "Division splits into equal groups: 144÷12 = how many 12s in 144.",
-          "Estimate first — does your answer look sensible?",
+          "Add means put together: 2 + 3 = 5.",
+          "Take away means how many are left: 5 − 2 = 3.",
+          "Times means groups: 2 × 4 is two groups of 4 = 8.",
         ],
         visual: "",
       },
       example: {
         title: "Worked example",
-        steps: ["48 × 6", "50 × 6 = 300", "2 × 6 = 12", "300 − 12 = 288"],
+        steps: ["4 + 3", "Start at 4. Count on 3: 5, 6, 7.", "So 4 + 3 = 7."],
       },
       practice: [
         {
-          q: "Calculate 144 ÷ 12.",
+          q: "What is 5 + 2?",
           type: "typed",
-          answer: "12",
-          explain: "12 × 12 = 144.",
+          answer: "7",
+          explain: "5 and 2 more is 7.",
         },
         {
-          q: "7 packs of 8 pencils. Total?",
+          q: "What is 8 − 3?",
           type: "typed",
-          answer: "56",
-          explain: "7 × 8 = 56.",
+          answer: "5",
+          explain: "Take 3 from 8 → 5.",
         },
         {
-          q: "What is 15²?",
-          type: "typed",
-          answer: "225",
-          explain: "15 × 15 = 225.",
+          q: "What is 3 × 2?",
+          type: "multi",
+          options: ["5", "6", "8", "32"],
+          answer: 1,
+          explain: "Three 2s: 2 + 2 + 2 = 6.",
         },
       ],
       struggle: {
         points: [
-          "Use a fact you know: 10×15=150, so 15×15 = 150+75 = 225.",
-          "Draw equal groups for smaller multiplications.",
+          "Use fingers or draw dots.",
+          "For take away, start with the bigger number and count backwards.",
         ],
         practice: [
           {
-            q: "6 × 7 = ?",
+            q: "What is 1 + 1?",
             type: "typed",
-            answer: "42",
-            explain: "6×7=42.",
+            answer: "2",
+            explain: "1 and 1 more is 2.",
+          },
+          {
+            q: "What is 4 − 1?",
+            type: "typed",
+            answer: "3",
+            explain: "Take 1 from 4 → 3.",
+          },
+          {
+            q: "What is 2 × 2?",
+            type: "multi",
+            options: ["2", "3", "4", "22"],
+            answer: 2,
+            explain: "Two 2s make 4.",
           },
         ],
       },
     },
     fractions: {
-      title: "Fractions, decimals & %",
-      blurb: "Parts of a whole — huge GCSE topic.",
+      title: "Halves & quarters",
+      blurb: "Sharing into 2 or 4 equal pieces.",
       videoKey: "fractions",
       teach: {
         points: [
-          "A fraction is part of a whole: ¾ means 3 parts out of 4 equal parts.",
-          "Percent means out of 100: 25% = 25/100 = ¼.",
-          "0.5 = ½ = 50% — same idea, different form.",
+          "Half means 2 equal parts. Half of 8 is 4.",
+          "A quarter means 4 equal parts. A quarter of 8 is 2.",
+          "If you share a cake equally with a friend, you each get a half.",
         ],
         visual: SVG.fractionBars,
       },
       example: {
         title: "Worked example",
         steps: [
-          "Find 25% of 80.",
-          "25% = ¼.",
-          "80 ÷ 4 = 20.",
+          "Half of 10.",
+          "Split 10 into 2 equal groups.",
+          "Each group is 5.",
         ],
       },
       practice: [
         {
-          q: "Convert ¾ to a percentage.",
+          q: "What is half of 4?",
           type: "typed",
-          answer: "75",
-          accept: ["75", "75%"],
-          explain: "¾ = 0.75 = 75%.",
+          answer: "2",
+          explain: "4 split into 2 equal groups is 2.",
         },
         {
-          q: "Which is larger: 0.6 or 2/3?",
+          q: "A pizza cut into 4 equal slices. One slice is…",
           type: "multi",
-          options: ["0.6", "2/3", "Equal"],
+          options: ["a half", "a quarter", "the whole pizza", "none"],
           answer: 1,
-          explain: "2/3 ≈ 0.667 > 0.6.",
+          explain: "1 of 4 equal parts is a quarter.",
         },
         {
-          q: "Find 10% of 250.",
+          q: "What is a quarter of 4?",
           type: "typed",
-          answer: "25",
-          explain: "10% → divide by 10.",
+          answer: "1",
+          explain: "4 ÷ 4 = 1.",
         },
       ],
       struggle: {
         points: [
-          "Draw a bar. Shade 1 of 4 parts for ¼.",
-          "10% tip: move the digit one place (250 → 25).",
+          "Fold a paper in two — that is a half.",
+          "Fold it again — each piece is a quarter.",
         ],
         practice: [
           {
-            q: "What is ½ of 20?",
+            q: "Half of 2 is…",
             type: "typed",
-            answer: "10",
-            explain: "Half of 20 is 10.",
+            answer: "1",
+            explain: "2 split into 2 groups is 1.",
+          },
+          {
+            q: "Two halves make…",
+            type: "multi",
+            options: ["nothing", "a quarter", "a whole", "three"],
+            answer: 2,
+            explain: "Two halves make one whole.",
           },
         ],
       },
     },
     algebra: {
-      title: "Algebra adventure",
-      blurb: "Letters stand for numbers — GCSE Algebra core.",
+      title: "Missing numbers",
+      blurb: "Find the number that belongs in the box. Not GCSE algebra.",
       videoKey: "algebra",
       teach: {
         points: [
-          "A letter (like x) is a mystery number.",
-          "Whatever you do to one side of an equation, do to the other.",
-          "3a means 3 × a.",
+          "A box □ is a number we have not written yet.",
+          "3 + □ = 5 means: 3 and what make 5?",
+          "The answer is 2, because 3 + 2 = 5.",
         ],
         visual: SVG.balance,
       },
       example: {
         title: "Worked example",
-        steps: ["2x + 4 = 18", "Subtract 4 from both sides: 2x = 14", "Divide by 2: x = 7"],
+        steps: ["5 + □ = 9", "Start at 5. Count up to 9: 6, 7, 8, 9.", "That was 4 jumps. So □ is 4."],
       },
       practice: [
         {
-          q: "If y = 5, what is 3y + 1?",
+          q: "2 + □ = 6. What is □?",
           type: "typed",
-          answer: "16",
-          explain: "3×5+1=16.",
+          answer: "4",
+          explain: "2 and 4 make 6.",
         },
         {
-          q: "Expand: 2(x + 4)",
+          q: "□ + 1 = 4. What is □?",
+          type: "typed",
+          answer: "3",
+          explain: "3 and 1 make 4.",
+        },
+        {
+          q: "10 − □ = 7. What is □?",
           type: "multi",
-          options: ["2x + 4", "2x + 8", "x + 8", "2x + 6"],
+          options: ["2", "3", "4", "17"],
           answer: 1,
-          explain: "2×x and 2×4 → 2x+8.",
-        },
-        {
-          q: "Solve: x − 7 = 12",
-          type: "typed",
-          answer: "19",
-          explain: "x = 12 + 7 = 19.",
+          explain: "10 take away 3 is 7.",
         },
       ],
       struggle: {
         points: [
-          "Think of a balance scale — both sides must stay equal.",
-          "Undo operations in reverse: if something was added, subtract.",
+          "Use counters or fingers.",
+          "Ask: what do I add to the first number to reach the total?",
         ],
         practice: [
           {
-            q: "△ + 5 = 12. What is △?",
+            q: "1 + □ = 2. What is □?",
             type: "typed",
-            answer: "7",
-            explain: "12 − 5 = 7.",
+            answer: "1",
+            explain: "1 and 1 make 2.",
+          },
+          {
+            q: "5 − □ = 5. What is □?",
+            type: "typed",
+            answer: "0",
+            explain: "Take away 0 and 5 stays 5.",
+          },
+          {
+            q: "□ + 0 = 3. What is □?",
+            type: "multi",
+            options: ["0", "1", "3", "30"],
+            answer: 2,
+            explain: "3 and 0 make 3.",
           },
         ],
       },
     },
     geometry: {
-      title: "Shape & measure",
-      blurb: "Angles, perimeter, area.",
+      title: "Shapes",
+      blurb: "Name shapes and count sides.",
       videoKey: "angles",
       teach: {
         points: [
-          "Angles in a triangle always add to 180°.",
-          "Perimeter = distance around. Area = space inside.",
-          "Rectangle area = length × width.",
+          "A triangle has 3 sides. A square has 4 equal sides.",
+          "A circle is round, like a wheel.",
+          "A rectangle has 4 sides — two long and two short, or all looking like a door.",
         ],
         visual: SVG.triangle,
       },
       example: {
         title: "Worked example",
         steps: [
-          "Triangle angles 50° and 60°.",
-          "Third angle = 180 − 50 − 60 = 70°.",
+          "Look at a square window.",
+          "Count the sides: 1, 2, 3, 4.",
+          "Four equal sides → square.",
         ],
       },
       practice: [
         {
-          q: "Area of rectangle 9 cm by 4 cm?",
+          q: "How many sides does a triangle have?",
           type: "typed",
-          answer: "36",
-          accept: ["36", "36cm2", "36 cm2"],
-          explain: "9×4=36 cm².",
+          answer: "3",
+          explain: "Tri means 3.",
         },
         {
-          q: "A straight line is…",
+          q: "A circle is…",
           type: "multi",
-          options: ["90°", "180°", "270°", "360°"],
-          answer: 1,
-          explain: "Straight line = 180°.",
+          options: ["round", "a square", "three-sided", "a cube"],
+          answer: 0,
+          explain: "A circle is round.",
         },
         {
-          q: "Full turn in degrees?",
+          q: "How many sides does a square have?",
           type: "typed",
-          answer: "360",
-          explain: "Full turn = 360°.",
+          answer: "4",
+          explain: "A square has 4 sides.",
         },
       ],
       struggle: {
         points: [
-          "Sketch the shape and label what you know.",
-          "Triangle: if you know two angles, subtract from 180.",
+          "Trace the shape with your finger and count each side once.",
+          "Triangle = 3, square = 4, pentagon = 5.",
         ],
         practice: [
           {
-            q: "Angles 90° and 40° in a triangle. Third angle?",
-            type: "typed",
-            answer: "50",
-            explain: "180−90−40=50.",
+            q: "How many sides does a circle have?",
+            type: "multi",
+            options: ["0 — it is round", "3", "4", "100"],
+            answer: 0,
+            explain: "A circle is a round line, not straight sides.",
+          },
+          {
+            q: "A square has 4…",
+            type: "multi",
+            options: ["sides", "wheels", "flavours", "hours"],
+            answer: 0,
+            explain: "4 sides.",
           },
         ],
       },
     },
     data: {
-      title: "Data detectives",
-      blurb: "Averages and probability.",
+      title: "Sorting & pictograms",
+      blurb: "More, less, and simple pictures of numbers.",
       videoKey: "averages",
       teach: {
         points: [
-          "Mean = add up, divide by how many.",
-          "Median = middle when ordered.",
-          "Mode = most frequent. Probability of fair coin heads = ½.",
+          "More means a bigger amount. 6 is more than 2.",
+          "A tally mark | means 1. Four marks |||| means 4.",
+          "If 3 children like red and 1 likes blue, red is more popular.",
         ],
         visual: "",
       },
       example: {
         title: "Worked example",
-        steps: ["Data: 3, 9, 5", "Order: 3, 5, 9", "Median (middle) = 5"],
+        steps: [
+          "Apples: 2. Bananas: 5.",
+          "5 is more than 2.",
+          "So there are more bananas.",
+        ],
       },
       practice: [
         {
-          q: "Median of 3, 9, 5?",
-          type: "typed",
-          answer: "5",
-          explain: "Ordered middle is 5.",
-        },
-        {
-          q: "Mode of 2, 4, 4, 7, 9?",
-          type: "typed",
-          answer: "4",
-          explain: "4 appears most.",
-        },
-        {
-          q: "P(rolling a 6) on a fair die?",
+          q: "Which is more: 4 or 1?",
           type: "multi",
-          options: ["1/2", "1/6", "6/1", "1/3"],
+          options: ["4", "1", "the same"],
+          answer: 0,
+          explain: "4 is more than 1.",
+        },
+        {
+          q: "A tally ||| means…",
+          type: "typed",
+          answer: "3",
+          explain: "Three marks = 3.",
+        },
+        {
+          q: "2 children like cats, 6 like dogs. Which is more popular?",
+          type: "multi",
+          options: ["cats", "dogs", "the same"],
           answer: 1,
-          explain: "1 of 6 faces.",
+          explain: "6 is more than 2.",
         },
       ],
       struggle: {
         points: [
-          "Always order numbers before finding the median.",
-          "Probability = how many successful ÷ how many possible.",
+          "Count the pictures. The taller pile is more.",
+          "Each tally mark is one.",
         ],
         practice: [
           {
-            q: "Mean of 2, 4, 6?",
+            q: "Which is less: 9 or 2?",
+            type: "multi",
+            options: ["9", "2"],
+            answer: 1,
+            explain: "2 is less.",
+          },
+          {
+            q: "|||| how many?",
             type: "typed",
             answer: "4",
-            explain: "(2+4+6)÷3=4.",
+            explain: "Four marks.",
           },
         ],
       },
@@ -1545,6 +1609,844 @@ const TEACH_MODULES = {
             options: ["Reliability", "Make gravity stronger", "Skip writing results"],
             answer: 0,
             explain: "Repeats make results more reliable.",
+          },
+        ],
+      },
+    },
+  },
+  karting: {
+    safety: {
+      title: "Track safety",
+      blurb: "Helmet on. Watch the flags. Look after yourself and others.",
+      videoKey: "forces",
+      teach: {
+        points: [
+          "A helmet goes on before you sit in the kart. No helmet, no driving.",
+          "A red flag means stop — something is wrong on the track.",
+          "Keep your hands on the wheel and your feet on the pedals.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "You walk to the kart.",
+          "Put the helmet on and do it up.",
+          "Then you may sit down and wait for the marshal.",
+        ],
+      },
+      practice: [
+        {
+          q: "What must you wear on your head?",
+          type: "multi",
+          options: ["A helmet", "A baseball cap", "Nothing"],
+          answer: 0,
+          explain: "A proper helmet every time.",
+        },
+        {
+          q: "A red flag means…",
+          type: "multi",
+          options: ["Go faster", "Stop", "You won"],
+          answer: 1,
+          explain: "Red = stop. There is a problem.",
+        },
+        {
+          q: "Who helps keep the track safe?",
+          type: "multi",
+          options: ["Marshals", "The ice-cream van", "Nobody"],
+          answer: 0,
+          explain: "Marshals watch the track and wave flags.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Think of a bike helmet — same idea, but for a kart.",
+          "Flags are like traffic lights for racing.",
+        ],
+        practice: [
+          {
+            q: "True or false: you can drive without a helmet.",
+            type: "multi",
+            options: ["True", "False"],
+            answer: 1,
+            explain: "False. Helmet first.",
+          },
+          {
+            q: "Red flag = …",
+            type: "multi",
+            options: ["stop", "speed up"],
+            answer: 0,
+            explain: "Stop.",
+          },
+        ],
+      },
+    },
+    kart: {
+      title: "The kart",
+      blurb: "Steering wheel, two pedals, four tyres.",
+      videoKey: "forces",
+      teach: {
+        points: [
+          "The steering wheel turns the kart left and right.",
+          "One pedal makes you go. The other is the brake — it slows you down.",
+          "Tyres grip the track. If they are bald or flat, tell a marshal.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Want to go? Press the go pedal gently.",
+          "Want to slow? Take your foot off go and press the brake.",
+          "Want to turn? Turn the wheel a little, not a huge yank.",
+        ],
+      },
+      practice: [
+        {
+          q: "The brake pedal…",
+          type: "multi",
+          options: ["makes you faster", "slows you down", "plays music"],
+          answer: 1,
+          explain: "Brake = slower.",
+        },
+        {
+          q: "The steering wheel…",
+          type: "multi",
+          options: ["turns the kart", "opens the engine", "is only for sitting"],
+          answer: 0,
+          explain: "It turns left and right.",
+        },
+        {
+          q: "How many tyres does a kart usually have?",
+          type: "typed",
+          answer: "4",
+          explain: "Four tyres, like a tiny car.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Go pedal = faster. Brake pedal = slower. Wheel = turn.",
+          "Gentle feet. Don’t stamp.",
+        ],
+        practice: [
+          {
+            q: "To slow down you use the…",
+            type: "multi",
+            options: ["brake", "horn", "seat"],
+            answer: 0,
+            explain: "The brake.",
+          },
+        ],
+      },
+    },
+    racing: {
+      title: "Race day",
+      blurb: "Start, laps, flags, finish.",
+      videoKey: "forces",
+      teach: {
+        points: [
+          "A lap is one time all the way round the track.",
+          "The chequered flag (black and white squares) means the race is finished.",
+          "A green flag often means the track is clear — you may go.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Lights go out or green flag: start.",
+          "You drive round and round — each loop is a lap.",
+          "Chequered flag: slow down and head to the pits. You finished!",
+        ],
+      },
+      practice: [
+        {
+          q: "The chequered flag means…",
+          type: "multi",
+          options: ["start", "the race is finished", "rain"],
+          answer: 1,
+          explain: "Black and white squares = finished.",
+        },
+        {
+          q: "One time all the way round the track is a…",
+          type: "multi",
+          options: ["lap", "goal", "chapter"],
+          answer: 0,
+          explain: "A lap.",
+        },
+        {
+          q: "You should wait for the marshal before you…",
+          type: "multi",
+          options: ["leave the pits", "eat lunch only", "go home without asking"],
+          answer: 0,
+          explain: "Marshals say when it is safe to go.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Start → drive laps → chequered flag → stop.",
+          "Watch the people at the side with flags.",
+        ],
+        practice: [
+          {
+            q: "Chequered flag = …",
+            type: "multi",
+            options: ["finish", "start"],
+            answer: 0,
+            explain: "Finish.",
+          },
+        ],
+      },
+    },
+    driving: {
+      title: "How to drive",
+      blurb: "Look where you want to go. Slow for corners.",
+      videoKey: "forces",
+      teach: {
+        points: [
+          "Look ahead, not at your feet.",
+          "Slow down before a corner, then steer, then speed up a little on the straight.",
+          "Leave a gap. Do not bump other karts on purpose.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Straight: look far down the track.",
+          "Corner coming: ease off, press the brake a bit.",
+          "Turn the wheel smoothly. Then go again.",
+        ],
+      },
+      practice: [
+        {
+          q: "Before a corner you should…",
+          type: "multi",
+          options: ["slow down", "speed up as much as you can", "close your eyes"],
+          answer: 0,
+          explain: "Slow in, then turn.",
+        },
+        {
+          q: "Look…",
+          type: "multi",
+          options: ["at your feet", "ahead down the track", "behind you the whole time"],
+          answer: 1,
+          explain: "Look where you want to go.",
+        },
+        {
+          q: "Bumping other karts on purpose is…",
+          type: "multi",
+          options: ["clever", "not allowed", "the way to win"],
+          answer: 1,
+          explain: "Leave a gap. Be fair.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Slow → turn → go. That is the pattern.",
+          "Eyes up.",
+        ],
+        practice: [
+          {
+            q: "Slow down for a…",
+            type: "multi",
+            options: ["corner", "straight with no one on it"],
+            answer: 0,
+            explain: "Corners need less speed.",
+          },
+        ],
+      },
+    },
+  },
+  horses: {
+    care: {
+      title: "Looking after a horse",
+      blurb: "Water, a clean stable, and gentle hands.",
+      videoKey: "scientific",
+      teach: {
+        points: [
+          "A horse needs fresh water every day.",
+          "Grooming means brushing the coat so it is clean and you can check for sore bits.",
+          "Speak softly. Horses notice if you rush or shout.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Check the water bucket is full and clean.",
+          "Brush from neck to tail, the way the hair grows.",
+          "Look at the hooves. Tell an adult if something looks sore.",
+        ],
+      },
+      practice: [
+        {
+          q: "Horses need fresh water…",
+          type: "multi",
+          options: ["every day", "once a year", "never"],
+          answer: 0,
+          explain: "Every day. They drink a lot.",
+        },
+        {
+          q: "Grooming means…",
+          type: "multi",
+          options: ["brushing the coat", "shouting", "racing"],
+          answer: 0,
+          explain: "Brushing and checking the horse.",
+        },
+        {
+          q: "Around a horse you should be…",
+          type: "multi",
+          options: ["calm and kind", "as loud as possible", "running in circles"],
+          answer: 0,
+          explain: "Calm voices, slow moves.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Water, food, shelter, kindness — the same four things you need.",
+          "Brush the way the hair grows.",
+        ],
+        practice: [
+          {
+            q: "A horse’s water should be…",
+            type: "multi",
+            options: ["fresh", "empty"],
+            answer: 0,
+            explain: "Fresh, every day.",
+          },
+        ],
+      },
+    },
+    feeding: {
+      title: "Feeding",
+      blurb: "Hay and grass. Not chocolate.",
+      videoKey: "scientific",
+      teach: {
+        points: [
+          "Horses eat grass and hay most of the time.",
+          "They can have some pony nuts or mix — an adult will measure this.",
+          "Chocolate, onions and lots of human snacks can make a horse very ill.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "In the field: grass.",
+          "In the stable: a hay net, so they can nibble slowly.",
+          "Treats: a carrot or apple slice, not a whole bag of sweets.",
+        ],
+      },
+      practice: [
+        {
+          q: "A horse’s main food is…",
+          type: "multi",
+          options: ["hay and grass", "chocolate", "chips"],
+          answer: 0,
+          explain: "Hay and grass.",
+        },
+        {
+          q: "A safe treat is often…",
+          type: "multi",
+          options: ["a carrot", "a chocolate bar", "an onion"],
+          answer: 0,
+          explain: "Carrot or apple — not chocolate.",
+        },
+        {
+          q: "Who should measure hard feed (pony nuts)?",
+          type: "multi",
+          options: ["An adult who knows the horse", "Anyone, as much as they like"],
+          answer: 0,
+          explain: "Too much hard feed is not kind.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Grass and hay = yes. Chocolate = no.",
+          "Small treats. Not a feast.",
+        ],
+        practice: [
+          {
+            q: "Chocolate for horses?",
+            type: "multi",
+            options: ["No", "Yes, lots"],
+            answer: 0,
+            explain: "No.",
+          },
+        ],
+      },
+    },
+    riding: {
+      title: "Riding basics",
+      blurb: "Hat on. Mount calmly. Walk first.",
+      videoKey: "scientific",
+      teach: {
+        points: [
+          "A riding hat / helmet every time you sit on a horse.",
+          "Walk is the slow pace. Trot is bouncier. Canter is faster — later.",
+          "Hold the reins gently. The horse feels your hands.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Hat on. Check the girth with an adult.",
+          "Mount from the left, using a block if you have one.",
+          "Walk a circle. Sit tall. Smile — you are riding!",
+        ],
+      },
+      practice: [
+        {
+          q: "Before you ride, wear a…",
+          type: "multi",
+          options: ["riding hat", "flip-flops", "no hat"],
+          answer: 0,
+          explain: "Hat on. Every ride.",
+        },
+        {
+          q: "The slowest pace is…",
+          type: "multi",
+          options: ["walk", "canter", "gallop"],
+          answer: 0,
+          explain: "Walk first.",
+        },
+        {
+          q: "Hands on the reins should be…",
+          type: "multi",
+          options: ["gentle", "as hard as you can yank"],
+          answer: 0,
+          explain: "Soft hands. The horse feels everything.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Hat. Walk. Kind hands.",
+          "An instructor helps you mount.",
+        ],
+        practice: [
+          {
+            q: "Walk is…",
+            type: "multi",
+            options: ["slow", "the fastest pace"],
+            answer: 0,
+            explain: "Slow and steady.",
+          },
+        ],
+      },
+    },
+    history: {
+      title: "History of horses",
+      blurb: "How horses helped people long before cars.",
+      videoKey: "reading",
+      teach: {
+        points: [
+          "For thousands of years horses helped people travel, farm and carry loads.",
+          "Knights rode horses. So did messengers and farmers.",
+          "Today we still ride for sport and fun, and some horses still work on farms and with police.",
+        ],
+        visual: "",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Before cars: a horse and cart took you to market.",
+          "In war and tournaments: knights sat on horses.",
+          "Now: riding schools, racing, and police horses in towns.",
+        ],
+      },
+      practice: [
+        {
+          q: "Before cars, horses helped people…",
+          type: "multi",
+          options: ["travel and farm", "send emails", "charge phones"],
+          answer: 0,
+          explain: "Travel, farm, carry things.",
+        },
+        {
+          q: "Knights often rode…",
+          type: "multi",
+          options: ["horses", "bicycles", "trains"],
+          answer: 0,
+          explain: "Horses.",
+        },
+        {
+          q: "Today you might see a police horse…",
+          type: "multi",
+          options: ["in a town or at a crowd", "only on the moon"],
+          answer: 0,
+          explain: "Police horses still work with people.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Old job: travel and farm. New job: sport, riding schools, police.",
+          "People and horses have been a team for a very long time.",
+        ],
+        practice: [
+          {
+            q: "A horse and cart was used…",
+            type: "multi",
+            options: ["before cars were common", "only in space"],
+            answer: 0,
+            explain: "To travel and carry goods.",
+          },
+        ],
+      },
+    },
+  },
+  investing: {
+    compound: {
+      title: "The money snowball",
+      blurb: "Leave money in. Growth can earn more growth. That is compound investing.",
+      videoKey: "number",
+      teach: {
+        points: [
+          "If you hide £10 under the bed, next year you still have £10.",
+          "If you invest £10 and it grows 10%, you have £11. Next year 10% of £11 is more than 10% of £10.",
+          "That extra-on-the-extra is the snowball. The longer you leave it, the bigger it can get.",
+        ],
+        visual: "£10 → grows → £11 → grows → £12.10 → and so on.",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Start with £10.",
+          "It grows 10% → add £1 → £11.",
+          "Next year 10% of £11 is £1.10 → £12.10. The snowball got a little bigger.",
+        ],
+      },
+      practice: [
+        {
+          q: "Compound investing is like a…",
+          type: "multi",
+          options: ["snowball that can grow", "hole that eats money", "game you always win"],
+          answer: 0,
+          explain: "Growth can earn more growth if you leave it in.",
+        },
+        {
+          q: "The snowball works best when you…",
+          type: "multi",
+          options: ["leave the money in for a long time", "spend it the same day", "change your mind every week"],
+          answer: 0,
+          explain: "Time is the secret. Start young.",
+        },
+        {
+          q: "£10 under the bed after a year is still…",
+          type: "typed",
+          answer: "10",
+          explain: "It did not grow. Investing is how a pot can grow.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Bed = same number. Invested pot = number can grow.",
+          "Snowball = new growth sits on old growth.",
+        ],
+        practice: [
+          {
+            q: "Leaving money in to grow is called…",
+            type: "multi",
+            options: ["compound investing", "spending"],
+            answer: 0,
+            explain: "Compound = snowball.",
+          },
+        ],
+      },
+    },
+    twenty: {
+      title: "The 20% rule",
+      blurb: "Pay yourself first: 20p of every £1 you get goes in the pot.",
+      videoKey: "fractions",
+      teach: {
+        points: [
+          "20% means 20 in every 100 — or 1 in every 5. So 20% of £10 is £2.",
+          "If you always put 20% of pocket money, birthday money or later a job into the pot, you still have 80% to use.",
+          "The 20% is not for sweets today. It is the snowball for Future You.",
+        ],
+        visual: "£10 → £2 in the pot, £8 to spend.",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "You get £10.",
+          "Split into 5 equal parts of £2.",
+          "One part (£2) goes in the pot. That is 20%.",
+        ],
+      },
+      practice: [
+        {
+          q: "20% of £10 is…",
+          type: "typed",
+          answer: "2",
+          explain: "£10 ÷ 5 = £2.",
+        },
+        {
+          q: "20% of £5 is…",
+          type: "typed",
+          answer: "1",
+          explain: "£5 ÷ 5 = £1.",
+        },
+        {
+          q: "The 20% rule means you…",
+          type: "multi",
+          options: [
+            "put 20p of every £1 into the pot",
+            "spend every penny",
+            "give all your money away",
+          ],
+          answer: 0,
+          explain: "Pay yourself first. 20% saved, 80% for now.",
+        },
+      ],
+      struggle: {
+        points: [
+          "20% = 1 out of 5.",
+          "£10 → five lots of £2 → one lot in the pot.",
+        ],
+        practice: [
+          {
+            q: "20% of £20 is…",
+            type: "typed",
+            answer: "4",
+            explain: "£20 ÷ 5 = £4.",
+          },
+        ],
+      },
+    },
+    metals: {
+      title: "Gold & silver",
+      blurb: "Old metals. People still buy them as a store of value.",
+      videoKey: "materials",
+      teach: {
+        points: [
+          "Gold and silver are metals. Kings, coins and jewellery have used them for thousands of years.",
+          "You can buy small coins or bars, or a gold/silver fund. You do not need a chest of treasure.",
+          "Prices go up and down. Gold does not pay you a wage — you hope the metal is worth more later.",
+        ],
+        visual: "Gold coin + silver bar = metals people treat as money.",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Long ago people paid with gold and silver coins.",
+          "Today we use pounds, but some people still keep gold or silver.",
+          "It is one way to save — not the only way, and not a magic trick.",
+        ],
+      },
+      practice: [
+        {
+          q: "Gold and silver are…",
+          type: "multi",
+          options: ["metals", "types of bread", "computer apps"],
+          answer: 0,
+          explain: "They are metals people have used as money.",
+        },
+        {
+          q: "Gold prices…",
+          type: "multi",
+          options: ["can go up and down", "never change", "only go up"],
+          answer: 0,
+          explain: "Some years gold falls. Past years are not a promise.",
+        },
+        {
+          q: "A store of value means you hope it…",
+          type: "multi",
+          options: ["keeps worth for later", "tastes nice", "runs fast"],
+          answer: 0,
+          explain: "You keep it so Future You might still find it useful.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Gold = yellow metal. Silver = grey-white metal.",
+          "People like them because they are rare and last a long time.",
+        ],
+        practice: [
+          {
+            q: "Which is a metal people use as money?",
+            type: "multi",
+            options: ["gold", "paper aeroplanes"],
+            answer: 0,
+            explain: "Gold (and silver).",
+          },
+        ],
+      },
+    },
+    bitcoin: {
+      title: "Bitcoin",
+      blurb: "Internet money. Only a set amount can ever exist. It is jumpy.",
+      videoKey: "energy",
+      teach: {
+        points: [
+          "Bitcoin is digital money on computers around the world. Nobody can print extra forever — there is a cap.",
+          "In some past years it grew very fast. In other years it crashed. Both can happen.",
+          "Never put in money you cannot lose. Past speed cannot keep going forever.",
+        ],
+        visual: "Bitcoin = internet money with a limited amount.",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Imagine a sticker album that will only ever have 21 million stickers.",
+          "If lots of people want one, the price can jump. If they stop wanting it, the price can drop.",
+          "That is why Bitcoin is exciting and risky.",
+        ],
+      },
+      practice: [
+        {
+          q: "Bitcoin is…",
+          type: "multi",
+          options: ["internet money", "a kind of horse", "a sandwich"],
+          answer: 0,
+          explain: "Digital money with a limited amount.",
+        },
+        {
+          q: "Bitcoin’s price can…",
+          type: "multi",
+          options: ["shoot up or crash", "only go up", "never move"],
+          answer: 0,
+          explain: "It is jumpy. Past years are not a promise.",
+        },
+        {
+          q: "True or false: Bitcoin will grow 50% every year forever.",
+          type: "multi",
+          options: ["False", "True"],
+          answer: 0,
+          explain: "Nothing grows that fast forever. The calculator shows a past picture only.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Internet money ≠ coins in your pocket.",
+          "Limited amount + lots of people wanting it = price can jump. Fear = price can drop.",
+        ],
+        practice: [
+          {
+            q: "Should you put in money you cannot lose?",
+            type: "multi",
+            options: ["No", "Yes, all of it"],
+            answer: 0,
+            explain: "Only money you can afford to lose.",
+          },
+        ],
+      },
+    },
+    etf: {
+      title: "ETFs & the S&P 500",
+      blurb: "Buy a bundle of many companies in one go.",
+      videoKey: "data",
+      teach: {
+        points: [
+          "ETF means a basket you can buy like one thing. Inside are lots of pieces.",
+          "The S&P 500 is a famous basket of 500 big companies in the United States.",
+          "Owning a little of many companies is usually steadier than betting on just one.",
+        ],
+        visual: "One ETF ticket → 500 companies inside.",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "Instead of picking one shop, you buy a tiny slice of 500 shops.",
+          "If one shop has a bad year, the others can still help.",
+          "Over many years that basket has grown — but some years it falls too.",
+        ],
+      },
+      practice: [
+        {
+          q: "An ETF is a…",
+          type: "multi",
+          options: ["basket of many things", "single sweet", "type of horse"],
+          answer: 0,
+          explain: "A bundle you buy in one go.",
+        },
+        {
+          q: "The S&P 500 is about…",
+          type: "multi",
+          options: ["500 big US companies", "500 footballers", "500 horses"],
+          answer: 0,
+          explain: "A famous US company basket.",
+        },
+        {
+          q: "A basket of many companies is usually…",
+          type: "multi",
+          options: ["steadier than one company", "always a loss", "illegal"],
+          answer: 0,
+          explain: "Spreading out is the idea. Still not a promise.",
+        },
+      ],
+      struggle: {
+        points: [
+          "ETF = basket. S&P 500 = a famous basket of 500.",
+          "Many slices beat one slice if that one slice goes wrong.",
+        ],
+        practice: [
+          {
+            q: "S&P 500 is an example of an…",
+            type: "multi",
+            options: ["ETF / basket", "ice cream"],
+            answer: 0,
+            explain: "A company basket.",
+          },
+        ],
+      },
+    },
+    stocks: {
+      title: "One company",
+      blurb: "Buying one firm can win — or you can lose that money.",
+      videoKey: "writing",
+      teach: {
+        points: [
+          "A share is a tiny slice of one company. If the company does well, the slice can be worth more.",
+          "If the company does badly or closes, that slice can be worth little or nothing.",
+          "Grown-ups sometimes pick a few companies they understand — but a basket (ETF) is the calmer first step.",
+        ],
+        visual: "One shop vs a street of shops.",
+      },
+      example: {
+        title: "Worked example",
+        steps: [
+          "You buy a slice of one toy shop.",
+          "If kids love the toys, the slice might grow.",
+          "If the shop closes, the slice can vanish. That is the risk of one company.",
+        ],
+      },
+      practice: [
+        {
+          q: "A share is a…",
+          type: "multi",
+          options: ["tiny slice of a company", "slice of cake you must eat today", "free prize"],
+          answer: 0,
+          explain: "You own a little bit of that firm.",
+        },
+        {
+          q: "If one company fails, you can…",
+          type: "multi",
+          options: ["lose that money", "never lose", "print more shares at home"],
+          answer: 0,
+          explain: "One-company bets can go to zero.",
+        },
+        {
+          q: "A calmer first step is often…",
+          type: "multi",
+          options: ["an ETF basket", "one mystery company", "spending the 20%"],
+          answer: 0,
+          explain: "Many companies in one go.",
+        },
+      ],
+      struggle: {
+        points: [
+          "Share = slice of one firm.",
+          "One firm can fail. A basket spreads the risk.",
+        ],
+        practice: [
+          {
+            q: "True or false: one company can fail.",
+            type: "multi",
+            options: ["True", "False"],
+            answer: 0,
+            explain: "Yes. That is why spreading money matters.",
           },
         ],
       },
