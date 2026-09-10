@@ -841,6 +841,7 @@ function onHashNavigation() {
     "lesson",
     "exam",
     "power5",
+    "invest",
     "parent",
     "sync",
     "aiSettings",
@@ -1489,13 +1490,11 @@ function renderDashboard() {
   } catch (_) {
     /* ignore */
   }
-  const timeBonusPts = ensureTimeBonus(p).points;
   const nextAct = findNextAction(p);
   touchTutorVisit(p);
   window.__coachGreetSpoken = false; // allow auto-speak greeting this visit
   save({ quiet: true }).catch(() => {});
 
-  const isBella = L.id === "bella";
   appEl.innerHTML = `
     ${topbar()}
     <div class="welcome-banner ${L.theme} welcome-with-art">
@@ -1504,63 +1503,24 @@ function renderDashboard() {
   )}" width="120" height="120" />
       <div class="welcome-copy">
         <h2>Hey ${escapeHtml(L.name)}! ${L.emoji}</h2>
-        <p class="muted" style="margin:0.35rem 0 0">${
-          isBella
-            ? "Your path to GCSE A* — tailored around how you learn"
-            : "Your path to GCSE A* — Coach is with you"
-        }</p>
-        ${isBella ? bellaThemeChip() : ""}
+        <p class="muted" style="margin:0.35rem 0 0">Pick a subject. Start easy. It gets harder as you go.</p>
       </div>
       <div class="xp-ring">
         <div class="lvl">Level ${p.level}</div>
         <div class="xp-bar"><div class="xp-fill" style="width:${xpInLevel}%"></div></div>
         <div class="muted" style="font-size:0.75rem;margin-top:0.25rem">${xpInLevel}/100 XP</div>
-        <div class="time-bonus-chip" title="From active learning minutes — separate from XP">★ ${timeBonusPts} Time Bonus</div>
       </div>
     </div>
 
-    ${coachPanelHtml(p, L, nextAct)}
-
-    ${progressGraphsHtml(p, { kidMode: true })}
-
-    ${(() => {
-      const g = typeof allGoalsProgress === "function" ? allGoalsProgress(p) : null;
-      return g
-        ? `<div class="card mb-2 hub-goals-echo">
-        <h3 style="margin:0 0 0.35rem;font-family:var(--display)">Your goals live up top ☝️</h3>
-        <p class="muted" style="margin:0;font-size:0.9rem">
-          Today <strong style="color:var(--gold)">${g.daily.done}/${g.daily.goal}</strong>${
-            g.daily.met ? " ✅" : ""
-          }
-          · Week <strong style="color:var(--gold)">${g.week.done}/${g.week.goal}</strong>${
-            g.week.met ? " ✅" : ""
-          }
-          · Month <strong style="color:var(--gold)">${g.month.done}/${g.month.goal}</strong>${
-            g.month.met ? " ✅" : ""
-          }
-          ${g.allMet ? " · <strong>🎯 Triple Goal badge!</strong>" : ""}
-          ${
-            p.streak
-              ? ` · 🔥 ${p.streak}-day streak${p.streak >= 7 ? " (Week Warrior)" : ""}`
-              : ""
-          }
-        </p>
-        <p class="muted" style="margin:0.4rem 0 0;font-size:0.8rem">
-          Parent can set daily / weekly / monthly targets in Parent zone. Hit a goal → earn a badge 🏅
-        </p>
-      </div>`
-        : "";
-    })()}
-
     <div class="card continue-card mb-2">
-      <h3 style="margin-top:0;font-family:var(--display)">▶️ Do this next</h3>
-      <p class="muted" style="margin:0 0 0.75rem;min-height:2.4em">${escapeHtml(
-        nextAct?.label || "Open a subject to begin"
-      )}</p>
+      <p class="next-step-label">👆 Do this next</p>
+      <h3 class="next-step-title" style="margin:0 0 0.5rem">${escapeHtml(
+        nextAct?.label || "Open a subject"
+      )}</h3>
       <button class="btn btn-primary btn-lg btn-xl" type="button" id="btnContinue" style="max-width:100%">
         ${
           nextAct?.type === "unlock"
-            ? "Unlock next stage →"
+            ? "Unlock next level →"
             : nextAct?.type === "power5"
               ? "⚡ Power 5 →"
               : "Let's go →"
@@ -1568,55 +1528,38 @@ function renderDashboard() {
       </button>
     </div>
 
-    <div class="quick-actions mb-2" role="group" aria-label="Quick actions">
-      <button type="button" class="quick-act" id="btnPower5Maths" title="5 quick Maths questions">
-        <span class="qa-emoji">⚡</span>
-        <span class="qa-label">Power 5 Maths</span>
-      </button>
-      <button type="button" class="quick-act" id="btnPower5English" title="5 quick English questions">
-        <span class="qa-emoji">⚡</span>
-        <span class="qa-label">Power 5 English</span>
-      </button>
-      <button type="button" class="quick-act" id="btnPower5Science" title="5 quick Science questions">
-        <span class="qa-emoji">⚡</span>
-        <span class="qa-label">Power 5 Science</span>
-      </button>
-      ${
-        L.id === "george"
-          ? `<button type="button" class="quick-act" id="btnPower5Fun" title="5 quick Go-karting questions">
-        <span class="qa-emoji">🏎️</span>
-        <span class="qa-label">Power 5 Karting</span>
-      </button>`
-          : `<button type="button" class="quick-act" id="btnPower5Fun" title="5 quick Horses questions">
-        <span class="qa-emoji">🐴</span>
-        <span class="qa-label">Power 5 Horses</span>
-      </button>`
-      }
-      <button type="button" class="quick-act" id="btnInvestCalc" title="Compound investing calculator">
-        <span class="qa-emoji">💰</span>
-        <span class="qa-label">Money machine</span>
-      </button>
-    </div>
-
-    <h2 class="section-title">Your subjects</h2>
-    <p class="lead">Maths, English and Science — plus fun extras, including money &amp; investing for both of you.</p>
     <div class="grid-3 mb-2">
       ${subjectsForLearner(L.id)
         .map((sub) => subjectDashCard(sub))
         .join("")}
     </div>
 
-    <div class="card mb-2">
-      <h3 style="margin-top:0;font-family:var(--display)">Badges</h3>
-      <div class="badge-list">
-        ${BADGES.map((b) => {
-          const on = p.badges.includes(b.id);
-          return `<span class="badge ${on ? "" : "locked"}" title="${escapeHtml(
-            b.desc
-          )}">${b.emoji} ${escapeHtml(b.name)}</span>`;
-        }).join("")}
+    ${coachPanelHtml(p, L, nextAct)}
+
+    <details class="card more-options mb-2">
+      <summary>Badges &amp; extra practice</summary>
+      <div class="more-options-body">
+        <div class="badge-list" style="margin-bottom:1rem">
+          ${BADGES.map((b) => {
+            const on = p.badges.includes(b.id);
+            return `<span class="badge ${on ? "" : "locked"}" title="${escapeHtml(
+              b.desc
+            )}">${b.emoji} ${escapeHtml(b.name)}</span>`;
+          }).join("")}
+        </div>
+        <div class="quick-actions" role="group" aria-label="Extra practice">
+          <button type="button" class="quick-act" id="btnPower5Maths">⚡ Maths</button>
+          <button type="button" class="quick-act" id="btnPower5English">⚡ English</button>
+          <button type="button" class="quick-act" id="btnPower5Science">⚡ Science</button>
+          ${
+            L.id === "george"
+              ? `<button type="button" class="quick-act" id="btnPower5Fun">🏎️ Karting</button>`
+              : `<button type="button" class="quick-act" id="btnPower5Fun">🐴 Horses</button>`
+          }
+          <button type="button" class="quick-act" id="btnInvestCalc">💰 Money machine</button>
+        </div>
       </div>
-    </div>
+    </details>
     ${siteFooter()}
   `;
   bindShell();
@@ -2045,17 +1988,6 @@ function subjectDashCard(subject) {
         <p class="muted" style="margin:0;font-size:0.85rem;min-height:2.4em">${status}</p>
         <div class="skill-meter">
           <div class="skill-fill" style="width:${overall ?? 0}%"></div>
-        </div>
-        <div class="muted" style="font-size:0.78rem;font-weight:800">
-          ${
-            overall == null
-              ? "Not started — 0% of the way to A*"
-              : escapeHtml(
-                  typeof subjectWorkStats === "function"
-                    ? subjectWorkStats(p, subject).label
-                    : `${overall}% of the way to A*`
-                )
-          }
         </div>
       </div>
     </article>`;
@@ -2683,7 +2615,7 @@ function renderSubject({ subject }) {
           </div>
         </div>
         <p class="muted" style="margin:0.5rem 0 1rem;font-size:0.9rem">
-          Finish them in order. Green = done. The bright one is next.
+          Green = done. The bright one is next.
         </p>
         <div class="lesson-stack">
           ${path
@@ -2762,17 +2694,14 @@ function renderSubject({ subject }) {
       </div>
     </div>
 
+    ${nextStepHtml}
     ${
       subject === "investing"
-        ? `<div class="card next-step-card mb-2" style="border-color:rgba(212,175,55,0.45)">
-        <p class="next-step-label">💰 Compound calculator</p>
-        <h2 class="next-step-title">Money machine</h2>
-        <p class="next-step-desc">Put in a sum, pick weekly or monthly, and see how Gold, the S&amp;P 500 and Bitcoin could grow if past years repeated — and what 20% of your money can become by the age you choose.</p>
-        <button class="btn btn-primary btn-xl" type="button" id="btnOpenInvestCalc">Open the money machine →</button>
-      </div>`
+        ? `<p class="muted" style="margin:0 0 1rem;font-size:0.9rem">
+        <button class="btn btn-ghost" type="button" id="btnOpenInvestCalc">💰 Open money machine</button>
+      </p>`
         : ""
     }
-    ${nextStepHtml}
     ${
       /* Keep stage chips small — not the main focus for kids */
       stageChips

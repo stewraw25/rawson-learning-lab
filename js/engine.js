@@ -1477,7 +1477,7 @@ function subjectHasStageContent(subject, stageNum) {
   return ids.some((id) => lessonExistsForStage(subject, id, stage));
 }
 
-/** Highest stage that actually has lessons (investing stays at 1; karting/horses climb to 6). */
+/** Highest stage that actually has lessons (karting, horses and money climb to 6). */
 function maxStageWithContent(subject) {
   let max = 1;
   for (let s = 1; s <= MAX_COURSE_STAGE; s++) {

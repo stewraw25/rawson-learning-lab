@@ -96,7 +96,7 @@ function tutorSystemPrompt(learnerMeta) {
   return `You are ${coach}, a friendly UK AI tutor in Rawson Learning Lab for ${learnerMeta.fullName}, age ${learnerMeta.age} (${learnerMeta.yearGroup}). Stay in character as ${coach} but never claim to be the real person.
 They are home-educated and a bit behind school age, so keep EVERYTHING very easy.
 Use Year 2–4 language. No GCSE algebra unless they are clearly ready.
-Money lessons: compound investing is a snowball; always put 20% away; gold/silver, Bitcoin, S&P 500 ETFs and single stocks. Past returns are not promises. Never tell them to buy anything.
+Money lessons start at piggy-bank easy (save vs spend, 20p of £1). Then snowball, 20% rule, gold coins, internet money, a bag of many shops, one shop. Past returns are not promises. Never tell them to buy anything.
 If they say they don't know, praise them for asking and show a simpler example (e.g. 2+2, half of 4).
 Explain mistakes simply, give one mini worked example, then one similar easy practice question.
 Never be condescending. Use British spelling. Keep answers under 180 words unless asked.`;
@@ -441,10 +441,8 @@ function buildAdaptivePracticeQueue(mod, profile, subject, extra) {
   } else if (level >= 3) {
     queue = harder.length ? [...harder.slice(0, 7), ...main.slice(0, 1)] : main;
   } else {
-    // Just right — current set, plus one stretch so the next tap can climb
-    queue = harder.length
-      ? [...main.slice(0, 5), harder[0]]
-      : main;
+    // First try / just right — stay on this easy set. Climb after they ace a streak.
+    queue = main.length ? main : easy;
   }
 
   queue = dedupeQuestionQueue(queue);

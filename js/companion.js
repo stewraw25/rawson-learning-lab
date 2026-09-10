@@ -347,7 +347,6 @@ function pushChat(profile, role, text) {
  */
 function coachPanelHtml(profile, learnerMeta, nextAct, opts) {
   opts = opts || {};
-  const m = ensureTutorMemory(profile);
   const speech =
     opts.speech || buildCoachGreeting(profile, learnerMeta, nextAct);
   // Cool teacher avatar (learner-themed), not racing cars / animals in the chat row
@@ -374,24 +373,17 @@ function coachPanelHtml(profile, learnerMeta, nextAct, opts) {
           </div>
           <div class="speech-bubble" id="coachSpeech">${escapeHtmlCoach(speech)}</div>
           ${struggleLine}
-          <div class="coach-goals muted">
-            Week ${m.weekDone}/${m.weeklyGoal} · Month ${m.monthDone}/${m.monthlyGoal}
-            ${voiceOn ? "" : " · Chat only (voice off until Grok Voice is ready)"}
-          </div>
           ${voiceOn ? `<div class="voice-status-slot" id="voiceStatusBanner"></div>` : ""}
         </div>
       </div>
       <div class="coach-ask">
         <input type="text" class="coach-input" id="coachInput" maxlength="280"
-          placeholder="Type a message… e.g. What should I do next?" autocomplete="off" />
+          placeholder="Ask your coach…" autocomplete="off" />
         <button type="button" class="btn btn-primary" id="coachSend">Send</button>
       </div>
       <div class="coach-chips">
         <button type="button" class="coach-chip" data-coach-q="What should I do next?">What next?</button>
         <button type="button" class="coach-chip" data-coach-q="Where did I leave off?">Where did I leave off?</button>
-        <button type="button" class="coach-chip" data-coach-q="What am I struggling with?">What am I stuck on?</button>
-        <button type="button" class="coach-chip" data-coach-q="Tell me about Power 5">⚡ Power 5?</button>
-        <button type="button" class="coach-chip" data-coach-q="What do F I S C H A* mean?">What do the letters mean?</button>
       </div>
       <div id="coachChatLog" class="coach-chat-log" hidden></div>
     </div>`;

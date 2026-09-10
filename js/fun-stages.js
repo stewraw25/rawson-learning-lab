@@ -733,6 +733,533 @@ const FUN_HORSES_STAGES = {
   },
 };
 
+/**
+ * Money & investing — stages 2–6 (stage 1 is pocket-money First steps).
+ * Same six ideas, a bit harder each level. Never recycle the piggy-bank set.
+ */
+const FUN_INVESTING_STAGES = {
+  2: {
+    compound: funMod(
+      "The snowball starts",
+      "Leave money in. A little growth can earn a little more.",
+      [
+        "If £10 grows by £1, you have £11.",
+        "Next time, growth is on £11 — not just the first £10. That extra-on-the-extra is the snowball.",
+        "Spending it stops the snowball.",
+      ],
+      ["Start with £10.", "It grows to £11.", "Next growth is on £11."],
+      [
+        funQ("A money snowball grows when you…", ["leave it in", "spend it all today", "hide it in a sandwich"], 0, "Leave it in."),
+        funQ("£10 grows by £1. You now have…", ["£11", "£9", "£100"], 0, "10 + 1 = 11."),
+        funQ("The next bit of growth sits on…", ["the new bigger pot", "nothing", "only the sweets"], 0, "Growth on growth."),
+      ],
+      ["Leave it in.", "New growth sits on the new total."],
+      funQ("Spending the pot…", ["stops the snowball", "makes it bigger"], 0, "Gone money cannot grow.")
+    ),
+    twenty: funMod(
+      "20% of a tenner",
+      "Same rule, bigger pocket money.",
+      [
+        "20% still means 1 in every 5, or 20p in every £1.",
+        "£10 → five lots of £2 → £2 in the pot.",
+        "You still have £8 to use now.",
+      ],
+      ["You get £10.", "Split into five £2 piles.", "One pile (£2) goes in the pot."],
+      [
+        funTyped("20% of £10 is…", "2", "£10 ÷ 5 = £2."),
+        funQ("After putting 20% of £10 aside, you have…", ["£8 to use", "£0", "£10 extra"], 0, "£10 − £2 = £8."),
+        funQ("The 20% is for…", ["Future You", "the bin", "a joke"], 0, "Pay yourself first."),
+      ],
+      ["£10 → £2 in the pot.", "£8 left."],
+      funTyped("20% of £5 is…", "1", "£5 ÷ 5 = £1.")
+    ),
+    metals: funMod(
+      "Why people keep gold",
+      "It lasts. It is hard to make more. Price can still wobble.",
+      [
+        "Gold does not go rusty. People have wanted it for thousands of years.",
+        "You cannot print gold in a kitchen. That is why some people keep a little.",
+        "The price can still go down some years. It is not magic.",
+      ],
+      ["Gold lasts.", "It is rare.", "The price can still wobble."],
+      [
+        funQ("People like gold because it…", ["lasts and is hard to make more of", "tastes of chocolate", "runs fast"], 0, "Rare and lasting."),
+        funQ("Gold prices…", ["can go up or down", "only go up", "never move"], 0, "They wobble."),
+        funQ("Keeping gold is one way to…", ["save for later", "buy lunch today automatically", "skip school"], 0, "A store for later — not a promise."),
+      ],
+      ["Lasts. Rare. Price still wobbles."],
+      funQ("Is gold a metal?", ["Yes", "No"], 0, "Yes.")
+    ),
+    bitcoin: funMod(
+      "Up and down",
+      "Internet money can jump. It can crash. Both have happened.",
+      [
+        "Bitcoin is still internet money — not a 20p in your pocket.",
+        "Some years the price shot up. Some years it fell hard.",
+        "Never use money you need for lunch, shoes or this week.",
+      ],
+      ["It can jump.", "It can fall.", "Only spare money — never this week's."],
+      [
+        funQ("Bitcoin’s price can…", ["shoot up or crash", "only go up forever", "never move"], 0, "It is jumpy."),
+        funQ("Should you use this week's lunch money?", ["No", "Yes, all of it"], 0, "Never money you need."),
+        funQ("Past fast years…", ["are not a promise", "must happen again", "mean it is a sandwich"], 0, "The past is a picture, not a deal."),
+      ],
+      ["Jumpy.", "Spare money only."],
+      funQ("Bitcoin lives…", ["on computers", "in a lunch box"], 0, "Digital.")
+    ),
+    etf: funMod(
+      "The big basket",
+      "One ticket, lots of companies inside.",
+      [
+        "An ETF is a grown-up bag: you buy one thing, lots of companies sit inside.",
+        "The S&P 500 is a famous bag of 500 big US companies.",
+        "If one company has a bad year, the others can still help.",
+      ],
+      ["One ticket.", "500 companies inside.", "One bad shop does not empty the bag."],
+      [
+        funQ("An ETF is a…", ["basket of many companies", "single sweet", "horse"], 0, "A bundle."),
+        funQ("The S&P 500 is about…", ["500 big US companies", "500 footballers", "500 horses"], 0, "A famous US basket."),
+        funQ("Many companies in one bag is usually…", ["steadier than one company", "always a loss", "illegal"], 0, "Spreading out. Still not a promise."),
+      ],
+      ["ETF = basket.", "S&P 500 = 500 companies."],
+      funQ("S&P 500 is an example of an…", ["ETF / basket", "ice cream"], 0, "A company basket.")
+    ),
+    stocks: funMod(
+      "One shop can close",
+      "A share is a slice of one company. That company can fail.",
+      [
+        "A share = a tiny slice of one shop.",
+        "If the shop does well, the slice can grow. If it closes, the slice can vanish.",
+        "A bag of many shops is the calmer first step.",
+      ],
+      ["One toy shop.", "It might boom — or close.", "That is the risk of one slice."],
+      [
+        funQ("A share is a…", ["tiny slice of one company", "free prize", "sandwich"], 0, "One firm."),
+        funQ("If that company fails you can…", ["lose that money", "never lose", "print more at home"], 0, "One bet can go to zero."),
+        funQ("A calmer first step is often…", ["a bag of many companies", "one mystery shop", "spending the 20%"], 0, "Spread it out."),
+      ],
+      ["One shop can fail.", "A bag shares the risk."],
+      funQ("True or false: one company can fail.", ["True", "False"], 0, "True.")
+    ),
+  },
+  3: {
+    compound: funMod(
+      "Year after year",
+      "The longer you leave it, the more the extra-on-the-extra can add up.",
+      [
+        "Time is the secret. Starting young means more years of snowball.",
+        "Taking money out early stops those extra years.",
+        "A calculator can show a picture of the past — it is not a promise.",
+      ],
+      ["Leave it.", "Years add extra-on-the-extra.", "Pictures of the past are not deals."],
+      [
+        funQ("The snowball works best when you…", ["leave it in for a long time", "take it out every week", "spend it the same day"], 0, "Time."),
+        funQ("Starting young helps because you have…", ["more years", "fewer years", "no piggy bank"], 0, "More time."),
+        funQ("A past picture in a calculator is…", ["not a promise", "a contract", "always the future"], 0, "Illustration only."),
+      ],
+      ["Time.", "Leave it in."],
+      funQ("Taking it out early…", ["stops extra years of growth", "adds extra years"], 0, "Stops the snowball.")
+    ),
+    twenty: funMod(
+      "Pay yourself first",
+      "The 20% goes in the pot before sweets, games or apps.",
+      [
+        "Pay yourself first: 20% in the pot, then spend the rest.",
+        "Birthday money and later a job use the same rule.",
+        "80% is still a lot for now.",
+      ],
+      ["Money in.", "20% in the pot first.", "Then spend the 80%."],
+      [
+        funQ("Pay yourself first means…", ["pot first, then spend", "spend first, save nothing", "give it all away"], 0, "20% first."),
+        funTyped("20% of £20 is…", "4", "£20 ÷ 5 = £4."),
+        funQ("The 80% is…", ["still yours to use now", "thrown away", "illegal"], 0, "Most of the money is for now."),
+      ],
+      ["Pot first.", "Then spend."],
+      funQ("Birthday money should…", ["follow the same 20% rule", "all be spent that hour"], 0, "Same rule.")
+    ),
+    metals: funMod(
+      "Not a wage",
+      "Gold does not pay you every week. You hope it keeps worth.",
+      [
+        "A job pays a wage. Gold just sits there.",
+        "You hope it is still useful later. That is a store of value — not a payday.",
+        "Some years it falls. Do not put the whole pot in gold.",
+      ],
+      ["No weekly wage.", "Hope it keeps worth.", "Only a slice of the pot."],
+      [
+        funQ("Gold pays you a weekly wage?", ["No", "Yes, every Friday"], 0, "It just sits there."),
+        funQ("A store of value means you hope it…", ["keeps worth for later", "tastes nice", "runs fast"], 0, "For Future You."),
+        funQ("Put the whole piggy bank into gold?", ["No — only a slice", "Yes, all of it"], 0, "Spread it."),
+      ],
+      ["Not a wage.", "Only a slice."],
+      funQ("Some years gold can…", ["fall in price", "only rise"], 0, "It wobbles.")
+    ),
+    bitcoin: funMod(
+      "Only so many",
+      "There is a cap. That does not mean the price only goes up.",
+      [
+        "Only a set amount of Bitcoin can ever exist. Nobody can print extra forever.",
+        "A cap can make people want it. Fear can still make the price drop.",
+        "Exciting is not the same as safe.",
+      ],
+      ["Limited amount.", "Want + fear move the price.", "Not a piggy bank."],
+      [
+        funQ("Bitcoin has…", ["a limited amount", "unlimited printing forever", "a smell of bread"], 0, "A cap."),
+        funQ("A cap means the price…", ["can still crash", "can only go up", "never moves"], 0, "Limited ≠ only-up."),
+        funQ("Is Bitcoin as calm as a piggy bank?", ["No", "Yes"], 0, "It is jumpy."),
+      ],
+      ["Capped.", "Still jumpy."],
+      funQ("Never use money you…", ["cannot lose", "saved for later in the 20% pot as a toy"], 0, "Spare only.")
+    ),
+    etf: funMod(
+      "Own a little of many",
+      "The basket idea, with the S&P 500 as the example.",
+      [
+        "Owning a little of many companies is the basket idea.",
+        "The S&P 500 is 500 large US companies in one ETF.",
+        "Some years the basket falls too. It is calmer than one shop — not a magic shield.",
+      ],
+      ["Many slices.", "One famous basket.", "Still can have down years."],
+      [
+        funQ("The S&P 500 lets you own…", ["a little of 500 companies", "one sweet", "a horse"], 0, "A bundle."),
+        funQ("The basket can still…", ["have a down year", "never fall", "print money"], 0, "Calmer, not magic."),
+        funQ("One company vs 500 is usually…", ["jumpy vs steadier", "always better as one", "the same"], 0, "Many is usually steadier."),
+      ],
+      ["500 slices.", "Still not a promise."],
+      funQ("ETF means…", ["a basket you buy in one go", "a type of coin you chew"], 0, "Bundle.")
+    ),
+    stocks: funMod(
+      "Spread it out",
+      "One company you love can still have a bad year.",
+      [
+        "Picking one shop you understand is still a bet on that shop.",
+        "Grown-ups sometimes hold a few companies — and a basket as the base.",
+        "Never the money for this week's food.",
+      ],
+      ["One shop = one bet.", "Basket as the base.", "Never this week's food."],
+      [
+        funQ("Loving a shop means it cannot fail?", ["False", "True"], 0, "Love ≠ safety."),
+        funQ("A calmer base is often…", ["the basket / ETF", "one mystery ticker", "cash under the bed only"], 0, "Many companies."),
+        funQ("Food money for this week should be…", ["left out of bets", "put into one shop"], 0, "Never gamble the shopping."),
+      ],
+      ["One bet can fail.", "Basket first."],
+      funQ("Spreading money is usually…", ["safer than one bet", "a way to print cash"], 0, "Diversify.")
+    ),
+  },
+  4: {
+    compound: funMod(
+      "Time is the secret",
+      "Years in the pot beat clever timing you cannot do yet.",
+      [
+        "Leaving money in for years usually beats taking it in and out.",
+        "You cannot know the best day to jump in. Time in the pot matters more.",
+        "The calculator’s past picture assumes you left it. Taking it out changes the story.",
+      ],
+      ["Leave it.", "Do not chase the perfect day.", "Past pictures assume you stayed in."],
+      [
+        funQ("Usually better:", ["leave it in for years", "jump in and out every week", "spend it"], 0, "Time in."),
+        funQ("The perfect day to jump in is…", ["something you cannot know", "always Monday", "printed on the coin"], 0, "Nobody knows."),
+        funQ("A calculator past picture assumes you…", ["left the money in", "spent it", "changed it every hour"], 0, "Stayed in."),
+      ],
+      ["Time in the pot.", "Not timing the pot."],
+      funQ("In-and-out every week…", ["stops the snowball working well", "always wins"], 0, "Stay in.")
+    ),
+    twenty: funMod(
+      "The 20% habit",
+      "Same rule when pocket money grows — and later a job.",
+      [
+        "The rule does not change when the number gets bigger: 20% still in the pot.",
+        "£50 → £10 in the pot, £40 for now.",
+        "Habits beat one-off bursts.",
+      ],
+      ["Bigger money, same split.", "£50 → £10 aside.", "Every time, not once."],
+      [
+        funTyped("20% of £50 is…", "10", "£50 ÷ 5 = £10."),
+        funQ("When you earn more, the 20% rule…", ["stays the same split", "stops", "becomes 100%"], 0, "Same habit."),
+        funQ("Doing it every time is…", ["a habit", "a trick", "optional forever with no effect"], 0, "Habits build pots."),
+      ],
+      ["Same split.", "Every time."],
+      funQ("£50 → pot first is…", ["£10", "£50", "£0"], 0, "20%.")
+    ),
+    metals: funMod(
+      "Prices wobble",
+      "Gold can have a bad year. It is a slice of a plan, not the whole plan.",
+      [
+        "Some years gold falls even if the world feels scary.",
+        "It does not pay a wage, so you are waiting, not earning weekly.",
+        "A little gold plus a basket plus cash you need this month is calmer than gold-only.",
+      ],
+      ["Wobbles.", "No wage.", "Only a slice."],
+      [
+        funQ("Gold can have a…", ["bad year", "perfect year every year", "taste of orange"], 0, "It falls sometimes."),
+        funQ("Gold-only is…", ["risky as a whole plan", "the only grown-up plan", "required by school"], 0, "Slice, not all."),
+        funQ("This month’s spending money should sit in…", ["cash you can use", "only gold bars"], 0, "Cash for now."),
+      ],
+      ["Wobble.", "Slice."],
+      funQ("Does gold pay a weekly wage?", ["No", "Yes"], 0, "No.")
+    ),
+    bitcoin: funMod(
+      "Never money you need",
+      "If you cannot lose it, it does not belong in Bitcoin.",
+      [
+        "A crash can last a long time. You might need the money before it comes back — if it does.",
+        "Spare long-term money only. Never rent, food, or shoes.",
+        "FOMO (fear of missing out) is not a plan.",
+      ],
+      ["Crashes can last.", "Spare only.", "FOMO ≠ plan."],
+      [
+        funQ("Money for rent or food in Bitcoin?", ["No", "Yes, all of it"], 0, "Never."),
+        funQ("FOMO means…", ["fear of missing out — not a plan", "a type of coin", "a safe wage"], 0, "Feelings are not a plan."),
+        funQ("A crash might…", ["last a long time", "always bounce next morning", "turn into gold"], 0, "You may need the money first."),
+      ],
+      ["Spare long-term only.", "No FOMO."],
+      funQ("If you cannot lose it…", ["do not put it in Bitcoin", "put it all in"], 0, "Spare only.")
+    ),
+    etf: funMod(
+      "Index funds",
+      "An index is a list. An index fund buys the list.",
+      [
+        "The S&P 500 is a list of 500. An index fund/ETF tries to own that list.",
+        "You are not picking a hero shop. You own the street.",
+        "Fees should be small. The idea is boring on purpose.",
+      ],
+      ["List of companies.", "Buy the list.", "Boring is the point."],
+      [
+        funQ("An index fund tries to own…", ["the list (like 500 companies)", "one mystery shop only", "a sandwich shop on the moon"], 0, "The list."),
+        funQ("Owning the street means…", ["many companies, not a hero pick", "standing in the road", "one shop"], 0, "The basket."),
+        funQ("Boring and low-fee is often…", ["the point", "a failure", "illegal"], 0, "Calm on purpose."),
+      ],
+      ["Own the list.", "Keep fees small."],
+      funQ("S&P 500 is a…", ["list / index of companies", "type of horse"], 0, "An index.")
+    ),
+    stocks: funMod(
+      "Do you understand the shop?",
+      "If you cannot say what the company does, it is a guess.",
+      [
+        "A grown-up rule: only pick a company you can explain in one sentence.",
+        "Even then, that one sentence can still fail. Size the bet small.",
+        "The basket stays the base.",
+      ],
+      ["Explain it in one sentence.", "Still can fail.", "Keep the bet small."],
+      [
+        funQ("If you cannot explain the company, buying it is…", ["a guess", "always clever", "required"], 0, "Guessing."),
+        funQ("Even a company you understand can…", ["fail", "never fail", "print your lunch"], 0, "Still a risk."),
+        funQ("The base of a simple plan is often…", ["the basket", "one guess", "Bitcoin only"], 0, "ETF/index."),
+      ],
+      ["Understand it.", "Bet small.", "Basket base."],
+      funQ("A one-sentence test is: can you say…", ["what the company does", "the CEO's favourite colour"], 0, "What it does.")
+    ),
+  },
+  5: {
+    compound: funMod(
+      "The long game",
+      "Years beat tips. Taking it out for a fad resets the clock.",
+      [
+        "A long game means years, not days.",
+        "Every time you empty the pot for a fad, you restart the snowball.",
+        "Past 10-year pictures look calmer than one wild month — still not a promise.",
+      ],
+      ["Years.", "Fads reset the clock.", "Long pictures look calmer."],
+      [
+        funQ("The long game is measured in…", ["years", "minutes", "one weekend"], 0, "Years."),
+        funQ("Emptying the pot for a fad…", ["restarts the snowball", "helps it", "is required"], 0, "Resets time."),
+        funQ("One wild month is…", ["not the whole story", "the only number that matters", "a wage"], 0, "Zoom out."),
+      ],
+      ["Stay in.", "Ignore fads."],
+      funQ("Tips and fads vs years in the pot:", ["years usually win", "fads always win"], 0, "Time.")
+    ),
+    twenty: funMod(
+      "Future You",
+      "The 20% is a person: older you. Do not steal from them every week.",
+      [
+        "Future You is the person who gets the pot.",
+        "Spending the 20% on every want is stealing from that person.",
+        "When money goes up (a job), raise the pounds in the pot — keep 20%.",
+      ],
+      ["Future You owns the 20%.", "Do not nick it weekly.", "Same % when pay rises."],
+      [
+        funQ("The 20% belongs to…", ["Future You", "every advert", "the bin"], 0, "Later you."),
+        funQ("Spending the 20% on every want is…", ["stealing from Future You", "clever", "required"], 0, "Protect it."),
+        funQ("When pay rises, keep…", ["the same 20% split", "0%", "100% spending"], 0, "Same habit."),
+      ],
+      ["Protect Future You.", "Same %."],
+      funTyped("20% of £100 is…", "20", "£100 ÷ 5 = £20.")
+    ),
+    metals: funMod(
+      "A slice, not the whole pot",
+      "Gold can be a small slice beside a basket and cash.",
+      [
+        "Think of three jars: cash for soon, basket for years, a little metal if you want.",
+        "All-in gold is a bet that gold will do well. That bet can lose for years.",
+        "Jewellery you wear is not the same as an investment plan.",
+      ],
+      ["Three jars.", "All-in is a bet.", "Wearing gold ≠ a plan."],
+      [
+        funQ("A simple set of jars is…", ["cash + basket + maybe a little metal", "gold only", "bitcoin only"], 0, "Mix."),
+        funQ("All-in gold can…", ["lose for years", "never lose", "pay a weekly wage"], 0, "It is a bet."),
+        funQ("A necklace you wear is…", ["not automatically an investing plan", "the S&P 500", "a wage"], 0, "Jewellery ≠ plan."),
+      ],
+      ["Slice.", "Not the whole pot."],
+      funQ("Cash you need soon should be in…", ["cash you can use", "only gold"], 0, "Cash.")
+    ),
+    bitcoin: funMod(
+      "FOMO is not a plan",
+      "Buying because friends got rich last year is how people buy the top.",
+      [
+        "FOMO buys after a jump, when it feels easy. That is often the dangerous moment.",
+        "A plan says how much (tiny), why (spare), and when you would not add more.",
+        "No plan = a guess with feelings.",
+      ],
+      ["FOMO buys late.", "Write a tiny spare-only rule.", "Feelings are not a plan."],
+      [
+        funQ("Buying because friends got rich last year is…", ["FOMO, not a plan", "always wise", "required"], 0, "FOMO."),
+        funQ("A plan should say…", ["how much, why, and when to stop adding", "just yeet it all", "nothing"], 0, "Rules."),
+        funQ("The dangerous feeling is often…", ["it feels easy after a jump", "boredom with a basket", "saving 20%"], 0, "After the jump."),
+      ],
+      ["No FOMO.", "Tiny spare-only rules."],
+      funQ("No written rule means…", ["a guess with feelings", "a perfect system"], 0, "Guess.")
+    ),
+    etf: funMod(
+      "Stay in the basket",
+      "Selling the basket after a scary year locks in the scare.",
+      [
+        "Scary years happen. Selling then turns a paper drop into a real one.",
+        "Staying in is how long pictures were made — if you had sold, you would not have that picture.",
+        "Rebalancing later is a grown-up extra. First skill: do not panic-sell.",
+      ],
+      ["Scary years happen.", "Selling locks it in.", "Stay in."],
+      [
+        funQ("Selling after a scary year often…", ["locks in the drop", "always wins", "prints cash"], 0, "Panic-sell."),
+        funQ("Long pictures of the S&P 500 assume you…", ["stayed in", "sold every dip", "spent it"], 0, "Stayed."),
+        funQ("First skill in a scary year:", ["do not panic-sell", "sell everything at 3am", "buy a horse"], 0, "Stay."),
+      ],
+      ["Do not panic-sell.", "Stay in the basket."],
+      funQ("Paper drop vs sold drop:", ["sold makes it real", "they are the same if you stay in"], 0, "Selling makes it real.")
+    ),
+    stocks: funMod(
+      "One bet is a gamble",
+      "Size it so a zero does not wreck Future You.",
+      [
+        "If one share going to zero would wreck you, the bet is too big.",
+        "A tiny slice you could shrug at is the only size that belongs next to a basket.",
+        "Tips from the internet are adverts in disguise more often than homework.",
+      ],
+      ["Zero should not wreck you.", "Tiny or none.", "Internet tips ≠ homework."],
+      [
+        funQ("If a zero would wreck you, the bet is…", ["too big", "perfect", "required"], 0, "Too big."),
+        funQ("Beside a basket, one company should be…", ["tiny or none", "the whole pot", "this week's food"], 0, "Tiny."),
+        funQ("Random internet tips are often…", ["adverts, not homework", "always research", "wages"], 0, "Be sceptical."),
+      ],
+      ["Size it to shrug.", "Basket first."],
+      funQ("A gamble that can go to zero should be…", ["small enough to shrug", "your whole 20%"], 0, "Small.")
+    ),
+  },
+  6: {
+    compound: funMod(
+      "Leaving it beats timing it",
+      "A* money sense: you will not pick every top and bottom. Stay invested.",
+      [
+        "Timing the market (jumping in and out) is a skill almost nobody has.",
+        "Time in the market — years of staying in — is the snowball you can actually do.",
+        "The 20% habit + a boring basket + years is the simple A* plan. Everything else is extra.",
+      ],
+      ["Do not time it.", "Stay in.", "Habit + basket + years."],
+      [
+        funQ("Timing every top and bottom is…", ["something almost nobody can do", "easy homework", "required"], 0, "Don't try."),
+        funQ("Time in the market means…", ["years of staying in", "one lucky afternoon", "selling every Monday"], 0, "Stay."),
+        funQ("The simple A* plan is…", ["20% + basket + years", "FOMO + one shop + fads", "gold only"], 0, "Habit, basket, time."),
+      ],
+      ["Stay invested.", "Simple plan."],
+      funQ("Jumping in and out usually…", ["hurts the snowball", "guarantees extra"], 0, "Hurts.")
+    ),
+    twenty: funMod(
+      "Keep the rule when you earn more",
+      "The % stays. The pounds get bigger. That is how pots get serious.",
+      [
+        "A job of £200 a week: 20% is £40 a week in the pot. Same rule, bigger pounds.",
+        "Lifestyle creep is spending every raise. The 20% is how you refuse that.",
+        "Future You with a habit beats Future You who waited until they felt rich.",
+      ],
+      ["Same %.", "Bigger pounds.", "Do not spend every raise."],
+      [
+        funTyped("20% of £200 is…", "40", "£200 ÷ 5 = £40."),
+        funQ("Lifestyle creep means…", ["spending every raise", "saving more", "the 20% rule"], 0, "Spending the raise."),
+        funQ("Waiting until you feel rich to save…", ["usually never starts", "is the A* plan", "beats a habit"], 0, "Start the habit now."),
+      ],
+      ["Same %.", "Refuse creep."],
+      funQ("When pay rises, the 20%…", ["stays 20%, so pounds rise", "must stop"], 0, "Pounds rise.")
+    ),
+    metals: funMod(
+      "Insurance, not a lottery",
+      "A little metal can be a rainy-day slice. A lottery is all-in.",
+      [
+        "Insurance thinking: a small slice in case other things wobble.",
+        "Lottery thinking: all-in because last year looked pretty.",
+        "A* is insurance thinking. Lottery thinking is a bet.",
+      ],
+      ["Small slice = insurance idea.", "All-in = lottery.", "Pick insurance."],
+      [
+        funQ("A small metal slice is closer to…", ["insurance thinking", "a lottery ticket", "a wage"], 0, "Insurance."),
+        funQ("All-in because last year looked pretty is…", ["lottery thinking", "the A* plan", "required"], 0, "A bet."),
+        funQ("A* metals sense is…", ["a small slice, not the pot", "100% gold", "0% thinking"], 0, "Slice."),
+      ],
+      ["Insurance, not lottery."],
+      funQ("Last year's pretty chart is…", ["not a promise", "a contract"], 0, "Not a promise.")
+    ),
+    bitcoin: funMod(
+      "Speculation vs saving",
+      "Saving is the piggy bank and the basket. Speculation is a tiny maybe.",
+      [
+        "Saving: 20% + boring basket + years. That is the job.",
+        "Speculation: a tiny extra you could lose and still sleep.",
+        "If Bitcoin is the whole plan, it is not saving. It is a bet.",
+      ],
+      ["Saving = habit + basket.", "Speculation = tiny maybe.", "Whole plan in Bitcoin = a bet."],
+      [
+        funQ("Saving is mostly…", ["20% + basket + years", "Bitcoin only", "one shop"], 0, "The job."),
+        funQ("Speculation should be…", ["tiny enough to lose and sleep", "the rent", "100%"], 0, "Tiny."),
+        funQ("Bitcoin as the whole plan is…", ["a bet, not saving", "the 20% rule", "an ETF"], 0, "A bet."),
+      ],
+      ["Saving first.", "Tiny maybe last."],
+      funQ("Sleep test: if a crash would ruin sleep, it is…", ["too big", "perfect"], 0, "Too big.")
+    ),
+    etf: funMod(
+      "Own the whole street",
+      "A* basket: you do not need a hero pick. Own the list and keep adding the 20%.",
+      [
+        "Owning the street (the index) is how you skip hero-picking.",
+        "Keep buying the basket with the 20%. That is the snowball plus spreading out.",
+        "Hero picks can wait until the boring plan is on rails — if ever.",
+      ],
+      ["Own the list.", "Add 20% to it.", "Heroes are extra."],
+      [
+        funQ("Owning the whole street means…", ["the index / basket", "one hero shop", "gold only"], 0, "The list."),
+        funQ("The 20% should mostly go into…", ["the boring basket, over years", "every fad", "lunch"], 0, "Basket + time."),
+        funQ("Hero picks are…", ["extra, if ever", "the first step", "required at Year 5"], 0, "Extra."),
+      ],
+      ["Index + 20% + years."],
+      funQ("Skip hero-picking by…", ["owning the list", "guessing daily"], 0, "Index.")
+    ),
+    stocks: funMod(
+      "Never money for this week's food",
+      "The last A* rule: size, understand, and never the shopping.",
+      [
+        "Three gates: Can I explain it? Can I shrug if it hits zero? Is this week's food safe?",
+        "If any gate is ‘no’, skip the single stock.",
+        "The basket plus 20% plus years does the heavy lifting. One shop is optional spice.",
+      ],
+      ["Three gates.", "Any ‘no’ → skip.", "Spice, not the meal."],
+      [
+        funQ("This week's food money in one stock?", ["No", "Yes"], 0, "Never."),
+        funQ("If you cannot shrug at a zero…", ["skip it", "double it", "use the rent"], 0, "Skip."),
+        funQ("One shop compared to the plan is…", ["optional spice", "the meal", "the 20% rule itself"], 0, "Spice."),
+      ],
+      ["Gates.", "Skip if no.", "Spice only."],
+      funQ("The heavy lifting is…", ["20% + basket + years", "one internet tip"], 0, "The simple plan.")
+    ),
+  },
+};
+
 function funInstallStages() {
   const packs = [
     [2, typeof TEACH_MODULES_STAGE2 !== "undefined" ? TEACH_MODULES_STAGE2 : null],
@@ -745,6 +1272,9 @@ function funInstallStages() {
     if (!bank) continue;
     bank.karting = FUN_KARTING_STAGES[stage];
     bank.horses = FUN_HORSES_STAGES[stage];
+    if (typeof FUN_INVESTING_STAGES !== "undefined" && FUN_INVESTING_STAGES[stage]) {
+      bank.investing = FUN_INVESTING_STAGES[stage];
+    }
   }
 }
 

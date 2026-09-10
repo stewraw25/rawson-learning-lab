@@ -360,12 +360,12 @@ const SKILLS = {
     history: { name: "History of horses", gcse: "Fun" },
   },
   investing: {
-    compound: { name: "The money snowball", gcse: "Fun" },
-    twenty: { name: "The 20% rule", gcse: "Fun" },
-    metals: { name: "Gold & silver", gcse: "Fun" },
-    bitcoin: { name: "Bitcoin", gcse: "Fun" },
-    etf: { name: "ETFs & the S&P 500", gcse: "Fun" },
-    stocks: { name: "One company", gcse: "Fun" },
+    compound: { name: "Your piggy bank", gcse: "Fun" },
+    twenty: { name: "Put some aside", gcse: "Fun" },
+    metals: { name: "Gold & silver coins", gcse: "Fun" },
+    bitcoin: { name: "Internet money", gcse: "Fun" },
+    etf: { name: "A bag of many shops", gcse: "Fun" },
+    stocks: { name: "One shop", gcse: "Fun" },
   },
 };
 
@@ -897,85 +897,61 @@ const DIAGNOSTICS = {
       id: "i1",
       skill: "compound",
       stage: "both",
-      q: "A money snowball means your money…",
+      q: "If you put £1 in a piggy bank and leave it there, you still have…",
       type: "multi",
-      options: [
-        "gets smaller every year",
-        "earns a bit, then that bit can earn a bit too",
-        "turns into ice",
-        "only works if you spend it all",
-      ],
-      answer: 1,
-      explain: "Compound investing is a snowball: growth can earn more growth if you leave it.",
+      options: ["£1", "£0", "£100", "a sandwich"],
+      answer: 0,
+      explain: "Leaving it in the piggy bank keeps the £1. Spending it means it is gone.",
     },
     {
       id: "i2",
       skill: "twenty",
       stage: "both",
-      q: "20% of £10 is…",
+      q: "You get £1. You put 20p in the pot. How much is left to spend?",
       type: "typed",
-      answer: "2",
-      explain: "20% means 20 in every 100, or 1 in every 5. £10 ÷ 5 = £2.",
+      answer: "80",
+      accept: ["80", "80p", "£0.80", "0.80"],
+      explain: "£1 is 100p. 100p − 20p = 80p left.",
     },
     {
       id: "i3",
       skill: "metals",
       stage: "both",
-      q: "Gold and silver are…",
+      q: "Gold coins are made of…",
       type: "multi",
-      options: [
-        "metals people have used as money for a very long time",
-        "types of fruit",
-        "computer games",
-        "only found on the moon",
-      ],
+      options: ["a yellow metal", "bread", "water", "paper only"],
       answer: 0,
-      explain: "People have used gold and silver as money for thousands of years.",
+      explain: "Gold is a metal. People have used gold coins for a very long time.",
     },
     {
       id: "i4",
       skill: "bitcoin",
       stage: "both",
-      q: "Bitcoin is…",
+      q: "Bitcoin is a kind of…",
       type: "multi",
-      options: [
-        "internet money with a limited amount",
-        "a kind of horse",
-        "a school subject",
-        "a type of sandwich",
-      ],
+      options: ["internet money", "horse", "sandwich", "school jumper"],
       answer: 0,
-      explain: "Bitcoin is digital money. Only a set number can ever exist. It can go up and down a lot.",
+      explain: "It is money that lives on computers, not coins in your pocket.",
     },
     {
       id: "i5",
       skill: "etf",
       stage: "both",
-      q: "An ETF like the S&P 500 lets you…",
+      q: "A bag with many shops inside is usually…",
       type: "multi",
-      options: [
-        "own a little bit of lots of companies at once",
-        "buy one sweet",
-        "print your own money",
-        "skip saving",
-      ],
+      options: ["safer than one shop", "a type of cake", "against the rules", "only for horses"],
       answer: 0,
-      explain: "An ETF is a bundle. The S&P 500 bundle is 500 big US companies.",
+      explain: "If one shop has a bad day, the others can still help.",
     },
     {
       id: "i6",
       skill: "stocks",
       stage: "both",
-      q: "If you buy shares in one company and that company fails…",
+      q: "If one shop closes, the money you put in that shop can…",
       type: "multi",
-      options: [
-        "you can lose that money",
-        "the bank always pays you extra",
-        "you win a prize",
-        "nothing can go wrong",
-      ],
+      options: ["be lost", "turn into gold automatically", "never go wrong", "print itself"],
       answer: 0,
-      explain: "One company can fail. Spreading money (like an ETF) is usually safer than betting on just one.",
+      explain: "One shop can fail. That is why a bag of many shops is calmer.",
     },
   ],
 };
@@ -1546,8 +1522,8 @@ const LESSONS = {
   },
   investing: {
     compound: {
-      title: "The money snowball",
-      blurb: "Leave money in, and growth can earn more growth.",
+      title: "Your piggy bank",
+      blurb: "Money you keep is still yours.",
       items: [
         {
           q: "A money snowball grows when you…",
@@ -1559,8 +1535,8 @@ const LESSONS = {
       ],
     },
     twenty: {
-      title: "The 20% rule",
-      blurb: "Put 20p of every £1 you get into the pot.",
+      title: "Put some aside",
+      blurb: "Pop 20p of every £1 in the pot.",
       items: [
         {
           q: "20% of £10 is…",
@@ -1571,8 +1547,8 @@ const LESSONS = {
       ],
     },
     metals: {
-      title: "Gold & silver",
-      blurb: "Old metals people still use as a store of value.",
+      title: "Gold & silver coins",
+      blurb: "Shiny metals people used as money.",
       items: [
         {
           q: "Gold and silver are…",
@@ -1584,8 +1560,8 @@ const LESSONS = {
       ],
     },
     bitcoin: {
-      title: "Bitcoin",
-      blurb: "Internet money. It can shoot up or crash.",
+      title: "Internet money",
+      blurb: "Money on a computer, not in your pocket.",
       items: [
         {
           q: "Bitcoin can…",
@@ -1597,8 +1573,8 @@ const LESSONS = {
       ],
     },
     etf: {
-      title: "ETFs & the S&P 500",
-      blurb: "A bundle of many companies in one go.",
+      title: "A bag of many shops",
+      blurb: "One bag with lots of shops inside.",
       items: [
         {
           q: "The S&P 500 is a bundle of…",
@@ -1610,8 +1586,8 @@ const LESSONS = {
       ],
     },
     stocks: {
-      title: "One company",
-      blurb: "Buying one firm can win big — or lose.",
+      title: "One shop",
+      blurb: "One shop can do well — or close.",
       items: [
         {
           q: "One company can…",
