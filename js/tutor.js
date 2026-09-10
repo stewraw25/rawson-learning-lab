@@ -295,12 +295,11 @@ function rawStageModule(subject, skillId, stageNum) {
 }
 
 /**
- * Current-stage easy/main plus later-stage stretch questions for the same skill.
- * This is how F1 / horse courses actually get harder instead of looping set 1.
+ * Current-stage easy/main only.
+ * Later stages are what Unlock is for — never mix stage 2–6 into First steps.
  */
 function collectAdaptiveBanks(subject, skillId, learnerId, currentStage) {
   const stage = Number(currentStage) || 1;
-  const maxStage = typeof MAX_COURSE_STAGE === "number" ? MAX_COURSE_STAGE : 6;
   const current =
     rawStageModule(subject, skillId, stage) ||
     (typeof getTeachModule === "function"
@@ -320,28 +319,7 @@ function collectAdaptiveBanks(subject, skillId, learnerId, currentStage) {
     stage
   );
 
-  const harder = [];
-  const seen = new Set(
-    main.concat(easy).map((q) => String(q.q || "").trim().toLowerCase())
-  );
-  for (let s = stage + 1; s <= maxStage; s++) {
-    const raw = rawStageModule(subject, skillId, s);
-    if (!raw || !Array.isArray(raw.practice) || !raw.practice.length) continue;
-    const diff = s === stage + 1 ? 2 : 3;
-    const tagged = _tagQs(
-      _filterQsForLearner(raw.practice, learnerId),
-      "stretch",
-      diff,
-      s
-    );
-    for (const q of tagged) {
-      const fp = String(q.q || "").trim().toLowerCase();
-      if (!fp || seen.has(fp)) continue;
-      seen.add(fp);
-      harder.push(q);
-    }
-  }
-  return { main, easy, harder };
+  return { main, easy, harder: [] };
 }
 
 function _qSeenFp(q) {
@@ -379,8 +357,8 @@ function dedupeQuestionQueue(queue) {
 }
 
 /**
- * Build practice queue shaped by adaptive difficulty.
- * Getting better MUST pull later-stage questions — never recycle the first set.
+ * Build practice queue from THIS stage’s teach bank only.
+ * Getting better does not pull later-stage questions — Unlock does that.
  */
 function buildAdaptivePracticeQueue(mod, profile, subject, extra) {
   extra = extra || {};
@@ -660,8 +638,8 @@ function easeRemainingQueue(session, mod) {
 }
 
 /**
- * Rebuild remaining questions to be harder (later-stage stretch).
- * Called after a correct streak so the lesson climbs instead of looping set 1.
+ * Rebuild remaining questions from unused items on THIS stage.
+ * Do not inject later-stage banks (that mixed A* into First steps).
  */
 function hardenRemainingQueue(session, mod) {
   if (!session) return false;

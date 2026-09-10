@@ -1147,6 +1147,32 @@ function parseStageStorageKey(k) {
   return Number.isFinite(n) ? n : NaN;
 }
 
+/** Ticks without a stage field are First steps only — never copy them onto stage 2+. */
+function completionBelongsToStage(rec, stageNum) {
+  const stage = Number(stageNum) || 1;
+  if (!rec) return false;
+  if (typeof rec === "object" && rec.stage != null && rec.stage !== "") {
+    return Number(rec.stage) === stage;
+  }
+  return stage === 1;
+}
+
+function filterCompletionsForStage(completed, stageNum) {
+  const src =
+    completed && typeof completed === "object" && !Array.isArray(completed) ? completed : {};
+  const out = {};
+  for (const [id, rec] of Object.entries(src)) {
+    if (completionBelongsToStage(rec, stageNum)) out[id] = rec;
+  }
+  return out;
+}
+
+function sanitiseStageCompletions(st, stageNum) {
+  if (!st || typeof st !== "object") return st;
+  st.completed = filterCompletionsForStage(st.completed, stageNum);
+  return st;
+}
+
 function normaliseStageRecord(st) {
   if (!st || typeof st !== "object") {
     return { path: [], completed: {}, generatedAt: 0, focusMessage: "" };
@@ -1378,7 +1404,9 @@ function recoverCompletionsFromHistory(profile, subject) {
   const hist = Array.isArray(profile.lessonHistory) ? profile.lessonHistory : [];
   for (const h of hist) {
     if (!h || h.subject !== subject || !h.skillId) continue;
-    const stage = Number(h.stage) || 1;
+    // Missing stage = old First steps work. Never stamp those ticks onto stage 2+.
+    const stage = h.stage == null || h.stage === "" ? 1 : Number(h.stage);
+    if (!Number.isFinite(stage) || stage < 1) continue;
     if (!c.stages[stage]) {
       c.stages[stage] = normaliseStageRecord(null);
     }
@@ -1457,12 +1485,15 @@ function ensureCourseReady(profile, subject) {
   const stage = Number(c.activeStage) || 1;
   c.activeStage = stage;
   let st = c.stages[stage];
-  const keptCompleted = (st && st.completed) || {};
+  const keptCompleted = filterCompletionsForStage((st && st.completed) || {}, stage);
   if (!st || !Array.isArray(st.path) || st.path.length === 0) {
     buildCourse(profile, subject, stage);
     st = c.stages[stage];
     if (st) {
-      st.completed = { ...keptCompleted, ...(st.completed || {}) };
+      st.completed = filterCompletionsForStage(
+        { ...keptCompleted, ...(st.completed || {}) },
+        stage
+      );
     }
   }
   // Still empty? only skills that actually have this stage (never recycle First steps)
@@ -1472,7 +1503,10 @@ function ensureCourseReady(profile, subject) {
     );
     c.stages[stage] = {
       path: skillIds,
-      completed: { ...keptCompleted, ...((st && st.completed) || {}) },
+      completed: filterCompletionsForStage(
+        { ...keptCompleted, ...((st && st.completed) || {}) },
+        stage
+      ),
       generatedAt: Date.now(),
       focusMessage:
         (st && st.focusMessage) ||
@@ -1506,7 +1540,9 @@ function getCourseStageData(profile, subject, stageNum) {
   const c = ensureCourseShape(profile, subject);
   if (!c) return null;
   const stage = Number(stageNum) || Number(c.activeStage) || 1;
-  return c.stages[stage] || c.stages[String(stage)] || null;
+  const st = c.stages[stage] || c.stages[String(stage)] || null;
+  if (st) sanitiseStageCompletions(st, stage);
+  return st;
 }
 
 function getActiveStage(profile, subject) {
@@ -1604,7 +1640,10 @@ function buildCourse(profile, subject, stageNum) {
 
   const path = ranked.map((s) => s.id);
   const filtered = path.filter((id) => lessonExistsForStage(subject, id, stage));
-  const prevCompleted = existing.stages[stage]?.completed || {};
+  const prevCompleted = filterCompletionsForStage(
+    existing.stages[stage]?.completed || {},
+    stage
+  );
 
   const focus =
     stage <= 1
@@ -1658,15 +1697,19 @@ function startCourseStage(profile, subject, stageNum) {
     profile.courses[subject] = migrateCourseEntry(profile.courses[subject]);
   }
   profile.courses[subject].activeStage = stage;
-  const kept = profile.courses[subject].stages[stage]?.completed || {};
+  // Only ticks recorded on THIS stage. First steps completions must not fill stage 2.
+  const kept = filterCompletionsForStage(
+    profile.courses[subject].stages[stage]?.completed || {},
+    stage
+  );
   buildCourse(profile, subject, stage);
   const live = profile.courses[subject];
   live.activeStage = stage;
   if (live.stages[stage]) {
-    live.stages[stage].completed = {
-      ...kept,
-      ...(live.stages[stage].completed || {}),
-    };
+    live.stages[stage].completed = filterCompletionsForStage(
+      { ...kept, ...(live.stages[stage].completed || {}) },
+      stage
+    );
   }
   profile.courses[subject] = live;
   profile.updatedAt = Date.now();
@@ -2182,6 +2225,51 @@ function subjectOverall(profile, subject) {
   return s.overall;
 }
 
+/** Why a locked stage chip is locked (empty string if it is open). */
+function stageLockReason(profile, subject, stageNum) {
+  const stage = Number(stageNum) || 1;
+  if (stage <= 1) {
+    if (!profile?.diagnostics?.[subject]?.completed) return "Take the placement test first";
+    return "";
+  }
+  if (!subjectHasStageContent(subject, stage)) return "This level has no lessons yet";
+  if (canAccessStage(profile, subject, stage)) return "";
+  const prevMeta =
+    typeof courseStageMeta === "function"
+      ? courseStageMeta(subject, stage - 1)
+      : COURSE_STAGES[stage - 1] || COURSE_STAGES[1];
+  const prevName = (prevMeta && prevMeta.name) || "the previous level";
+  const st = getCourseStageData(profile, subject, stage - 1);
+  const path = (st && Array.isArray(st.path) && st.path) || [];
+  const done = path.filter((id) => st && st.completed && st.completed[id]).length;
+  const total = path.length;
+  if (total) {
+    return `Finish the ${total} ${prevName} lessons first (${done}/${total} done)`;
+  }
+  return `Finish every ${prevName} lesson first`;
+}
+
+/** Lesson 1 on this stage’s teach-bank path. Unlock must open this, not the hub. */
+function firstLessonOfStage(profile, subject, stageNum) {
+  const stage = Number(stageNum) || 1;
+  if (!profile || !subject) return null;
+  if (!profile.courses || !profile.courses[subject]) {
+    buildCourse(profile, subject, stage);
+  } else {
+    profile.courses[subject] = migrateCourseEntry(profile.courses[subject]);
+  }
+  const course = profile.courses[subject];
+  course.activeStage = stage;
+  let st = course.stages[stage];
+  if (!st || !Array.isArray(st.path) || !st.path.length) {
+    buildCourse(profile, subject, stage);
+    st = course.stages[stage];
+  }
+  if (st) sanitiseStageCompletions(st, stage);
+  if (!st || !Array.isArray(st.path) || !st.path.length) return null;
+  return st.path[0];
+}
+
 /** Next incomplete skill on the active stage (null if stage path finished) */
 function nextLesson(profile, subject, stageNum, skipSkillId) {
   recoverCompletionsFromHistory(profile, subject);
@@ -2197,6 +2285,7 @@ function nextLesson(profile, subject, stageNum, skipSkillId) {
     st = course.stages[stage];
   }
   if (!st || !Array.isArray(st.path)) return null;
+  sanitiseStageCompletions(st, stage);
   if (!st.completed || typeof st.completed !== "object" || Array.isArray(st.completed)) {
     st.completed = {};
   }

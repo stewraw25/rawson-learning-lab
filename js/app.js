@@ -252,12 +252,22 @@ function progressGraphsHtml(profile, opts) {
       const levelNow = s.started ? s.stageNum : 0;
       const chips = Array.from({ length: MAX_COURSE_STAGE }, (_, i) => {
         const n = i + 1;
-        const meta = COURSE_STAGES[n];
+        const meta =
+          typeof courseStageMeta === "function"
+            ? courseStageMeta(sub, n)
+            : COURSE_STAGES[n];
         let cls = "climb-chip is-locked";
+        let why = "";
         if (s.started && n < levelNow) cls = "climb-chip is-done";
         else if (s.started && n === levelNow) cls = "climb-chip is-here";
+        else if (typeof stageLockReason === "function") {
+          why = stageLockReason(profile, sub, n) || "Finish the previous level first";
+        } else {
+          why = "Finish the previous level first";
+        }
+        const label = (meta && meta.name) || "Level " + n;
         return `<span class="${cls}" title="${escapeHtml(
-          (meta && meta.name) || "Level " + n
+          why ? label + " — " + why : label
         )}">${n === 6 ? "A*" : n}</span>`;
       }).join("");
       const where = !s.started
@@ -2445,8 +2455,17 @@ function pathwayMapHtml(p) {
           else if (active) cls += " path-active";
           else if (unlocked) cls += " path-open";
           else cls += " path-locked";
+          const why =
+            !done && !unlocked && typeof stageLockReason === "function"
+              ? stageLockReason(p, sub, meta.id)
+              : "";
           return `<span class="${cls}" title="${escapeHtml(
-            SUBJECTS[sub].name + " · " + meta.name + " · " + meta.gradeBand
+            SUBJECTS[sub].name +
+              " · " +
+              meta.name +
+              " · " +
+              meta.gradeBand +
+              (why ? " — " + why : "")
           )}">${done ? "✓" : meta.short}</span>`;
         })
         .join("");
@@ -2588,6 +2607,13 @@ function renderSubject({ subject }) {
       : isFunSubject(subject)
         ? 1
         : MAX_COURSE_STAGE;
+  const firstLockedStage = Array.from({ length: stageCount }, (_, i) => i + 1).find(
+    (n) => n > 1 && !canAccessStage(p, subject, n)
+  );
+  const lockWhy =
+    firstLockedStage && typeof stageLockReason === "function"
+      ? stageLockReason(p, subject, firstLockedStage)
+      : "";
   const stageChips = diag?.completed
     ? `<div class="stage-chip-row" role="list">
         ${Array.from({ length: stageCount }, (_, i) => i + 1)
@@ -2599,11 +2625,16 @@ function renderSubject({ subject }) {
             const unlocked = s === 1 ? true : canAccessStage(p, subject, s);
             const isActive = activeStage === s;
             const done = isStageComplete(p, subject, s);
+            const why =
+              !unlocked && typeof stageLockReason === "function"
+                ? stageLockReason(p, subject, s)
+                : "";
+            const tip = why ? `${meta.name} — ${why}` : meta.name;
             return `<button type="button" role="listitem" class="stage-chip ${
               isActive ? "is-active" : ""
             } ${done ? "is-done" : ""} ${!unlocked ? "is-locked" : ""}"
               data-switch-stage="${s}" ${unlocked ? "" : "disabled"}
-              title="${escapeHtml(meta.name)}">${
+              title="${escapeHtml(tip)}" aria-label="${escapeHtml(tip)}">${
               done ? "✓" : meta.short
             }</button>`;
           })
@@ -2611,7 +2642,9 @@ function renderSubject({ subject }) {
       </div>
       <p class="stage-chip-caption muted">
         ${escapeHtml(stageMeta.emoji + " " + stageMeta.name + " · " + doneCount + " of " + path.length + " lessons done")}
-         · whole path <strong style="color:var(--gold)">${pathPct}%</strong>
+         · whole path <strong style="color:var(--gold)">${pathPct}%</strong>${
+        lockWhy ? `<br />🔒 ${escapeHtml(lockWhy)}` : ""
+      }
       </p>`
     : "";
 
@@ -2655,10 +2688,12 @@ function renderSubject({ subject }) {
                 action = isNext ? "Start →" : "Open";
               } else {
                 badge = String(i + 1);
+                action = "Finish the lesson above first";
               }
               return `
                 <button type="button" class="lesson-row ${stateClass}"
                   data-lesson="${skillId}" data-stage="${activeStage}"
+                  title="${escapeHtml(canDo ? action : "Finish the lesson above first")}"
                   ${canDo ? "" : "disabled"}>
                   <span class="lesson-badge">${badge}</span>
                   <span class="lesson-copy">
@@ -2753,8 +2788,8 @@ function renderSubject({ subject }) {
         ? maxStageWithContent(subject)
         : MAX_COURSE_STAGE;
     if (stageDone && stNow < maxSRegen) {
-      startCourseStage(p, subject, stNow + 1);
-      ensureCourseReady(p, subject);
+      await unlockAndOpenStage(subject, stNow + 1);
+      return;
     } else {
       const kept = { ...(p.courses[subject].stages[stNow]?.completed || {}) };
       buildCourse(p, subject, stNow);
@@ -2819,11 +2854,18 @@ function renderSubject({ subject }) {
         ensureCourseShape(p, subject);
         p.courses[subject].activeStage = 1;
         ensureCourseReady(p, subject);
-      } else {
-        if (!canAccessStage(p, subject, s)) return;
-        startCourseStage(p, subject, s);
-        ensureCourseReady(p, subject);
+        await save();
+        go("subject", { subject });
+        return;
       }
+      if (!canAccessStage(p, subject, s)) return;
+      const current = Number(p.courses[subject]?.activeStage) || 1;
+      if (s > current) {
+        await unlockAndOpenStage(subject, s);
+        return;
+      }
+      startCourseStage(p, subject, s);
+      ensureCourseReady(p, subject);
       await save();
       go("subject", { subject });
     });
@@ -3795,12 +3837,11 @@ function renderLevelComplete({ subject, stage, skillId, scorePct }) {
   });
 }
 
-/** Unlock the next level and open the first new lesson — never a dead click. */
+/** Unlock the next level and open lesson 1 of that stage’s teach bank. */
 async function unlockAndOpenStage(subject, nextStage) {
   const p = profile();
   if (!p || !SUBJECTS[subject]) return;
   const stage = Number(nextStage) || 2;
-  recoverCompletionsFromHistory(p, subject);
   startCourseStage(p, subject, stage);
   if (!p.courses[subject]) {
     p.courses[subject] = { activeStage: stage, stages: {} };
@@ -3809,11 +3850,18 @@ async function unlockAndOpenStage(subject, nextStage) {
   if (!p.courses[subject].stages[stage]?.path?.length) {
     buildCourse(p, subject, stage);
   }
+  const live = p.courses[subject].stages[stage];
+  if (live && typeof sanitiseStageCompletions === "function") {
+    sanitiseStageCompletions(live, stage);
+  }
   p.updatedAt = Date.now();
   await save({ quiet: false });
-  const nextId = nextLesson(p, subject, stage);
-  if (nextId) {
-    go("lesson", { subject, skillId: nextId, stage });
+  const firstId =
+    (typeof firstLessonOfStage === "function" && firstLessonOfStage(p, subject, stage)) ||
+    (live && Array.isArray(live.path) && live.path[0]) ||
+    nextLesson(p, subject, stage);
+  if (firstId) {
+    go("lesson", { subject, skillId: firstId, stage });
   } else {
     go("subject", { subject });
   }
