@@ -206,7 +206,10 @@ function climbNextFor(profile, subject) {
       ? maxStageWithContent(subject)
       : MAX_COURSE_STAGE;
   if (s.stagePct >= 100 && s.stageNum < maxS) {
-    const nxt = COURSE_STAGES[s.stageNum + 1];
+    const nxt =
+      typeof courseStageMeta === "function"
+        ? courseStageMeta(subject, s.stageNum + 1)
+        : COURSE_STAGES[s.stageNum + 1];
     return {
       type: "unlock",
       subject,
@@ -1582,8 +1585,7 @@ function renderDashboard() {
         });
       }
       if (type === "unlock") {
-        startCourseStage(p, subject, Number(btn.dataset.stage) || 1);
-        save().then(() => go("subject", { subject }));
+        unlockAndOpenStage(subject, Number(btn.dataset.stage) || 1);
         return;
       }
       go("subject", { subject });
@@ -1600,9 +1602,8 @@ function renderDashboard() {
       });
     }
     if (nextAct.type === "unlock") {
-      startCourseStage(p, nextAct.subject, nextAct.stage);
-      await save();
-      return go("subject", { subject: nextAct.subject });
+      await unlockAndOpenStage(nextAct.subject, nextAct.stage);
+      return;
     }
     if (nextAct.type === "exam") {
       return go("exam", {
@@ -1949,7 +1950,10 @@ function subjectDashCard(subject) {
     if (diag && diag.completed) {
       ensureCourseShape(p, subject);
       const active = getActiveStage(p, subject);
-      const stageMeta = COURSE_STAGES[active] || COURSE_STAGES[1];
+      const stageMeta =
+        typeof courseStageMeta === "function"
+          ? courseStageMeta(subject, active)
+          : COURSE_STAGES[active] || COURSE_STAGES[1];
       next = nextLesson(p, subject, active);
       const maxS =
         typeof maxStageWithContent === "function"
@@ -1959,7 +1963,10 @@ function subjectDashCard(subject) {
         const meta = getLessonMeta(subject, next, active);
         status = `${stageMeta.emoji} ${stageMeta.name}: ${meta.title || next}`;
       } else if (active < maxS && isStageComplete(p, subject, active)) {
-        const nextMeta = COURSE_STAGES[active + 1];
+        const nextMeta =
+          typeof courseStageMeta === "function"
+            ? courseStageMeta(subject, active + 1)
+            : COURSE_STAGES[active + 1];
         status = `${stageMeta.name} done — unlock ${nextMeta.name}!`;
       } else if (isStageComplete(p, subject, active)) {
         status = active >= maxS
@@ -2477,7 +2484,10 @@ function renderSubject({ subject }) {
 
   const courseRoot = p.courses[subject] ? ensureCourseShape(p, subject) : null;
   const activeStage = Number(courseRoot?.activeStage) || 1;
-  const stageMeta = COURSE_STAGES[activeStage] || COURSE_STAGES[1];
+  const stageMeta =
+    typeof courseStageMeta === "function"
+      ? courseStageMeta(subject, activeStage)
+      : COURSE_STAGES[activeStage] || COURSE_STAGES[1];
   let stageData = courseRoot?.stages?.[activeStage] || null;
   if (diag?.completed && (!stageData || !stageData.path?.length)) {
     ensureCourseReady(p, subject);
@@ -2498,7 +2508,11 @@ function renderSubject({ subject }) {
       : MAX_COURSE_STAGE;
   const nextStageNum =
     stageComplete && activeStage < maxS ? activeStage + 1 : null;
-  const nextStageMeta = nextStageNum ? COURSE_STAGES[nextStageNum] : null;
+  const nextStageMeta = nextStageNum
+    ? typeof courseStageMeta === "function"
+      ? courseStageMeta(subject, nextStageNum)
+      : COURSE_STAGES[nextStageNum]
+    : null;
   const pathPct = pathwayProgressPct(p, subject);
   const kidName = learner().name;
 
@@ -2578,7 +2592,10 @@ function renderSubject({ subject }) {
     ? `<div class="stage-chip-row" role="list">
         ${Array.from({ length: stageCount }, (_, i) => i + 1)
           .map((s) => {
-            const meta = COURSE_STAGES[s];
+            const meta =
+              typeof courseStageMeta === "function"
+                ? courseStageMeta(subject, s)
+                : COURSE_STAGES[s];
             const unlocked = s === 1 ? true : canAccessStage(p, subject, s);
             const isActive = activeStage === s;
             const done = isStageComplete(p, subject, s);
@@ -2751,10 +2768,7 @@ function renderSubject({ subject }) {
   });
   document.getElementById("startNextStage")?.addEventListener("click", async (e) => {
     const n = Number(e.currentTarget.dataset.nextStage) || activeStage + 1;
-    startCourseStage(p, subject, n);
-    ensureCourseReady(p, subject);
-    await save();
-    go("subject", { subject });
+    await unlockAndOpenStage(subject, n);
   });
   document.getElementById("btnDoNext")?.addEventListener("click", (e) => {
     const btn = e.currentTarget;
@@ -3149,7 +3163,10 @@ function renderLesson({ subject, skillId, stage }) {
     Number(stage) ||
     (p.courses?.[subject] ? getActiveStage(p, subject) : 1) ||
     1;
-  const stageMeta = COURSE_STAGES[stageNum] || COURSE_STAGES[1];
+  const stageMeta =
+    typeof courseStageMeta === "function"
+      ? courseStageMeta(subject, stageNum)
+      : COURSE_STAGES[stageNum] || COURSE_STAGES[1];
   if (!SKILLS[subject]?.[skillId]) {
     return go("subject", { subject });
   }
@@ -3705,13 +3722,20 @@ function renderLevelComplete({ subject, stage, skillId, scorePct }) {
   const p = profile();
   const L = learner();
   const stageNum = Number(stage) || getActiveStage(p, subject) || 1;
-  const stageMeta = COURSE_STAGES[stageNum] || COURSE_STAGES[1];
+  const stageMeta =
+    typeof courseStageMeta === "function"
+      ? courseStageMeta(subject, stageNum)
+      : COURSE_STAGES[stageNum] || COURSE_STAGES[1];
   const maxS =
     typeof maxStageWithContent === "function"
       ? maxStageWithContent(subject)
       : MAX_COURSE_STAGE;
   const nextStage = stageNum < maxS ? stageNum + 1 : null;
-  const nextMeta = nextStage ? COURSE_STAGES[nextStage] : null;
+  const nextMeta = nextStage
+    ? typeof courseStageMeta === "function"
+      ? courseStageMeta(subject, nextStage)
+      : COURSE_STAGES[nextStage]
+    : null;
   const celeb =
     state.activeLearner === "bella"
       ? illustFor("celebrate", "bella")
@@ -3763,17 +3787,36 @@ function renderLevelComplete({ subject, stage, skillId, scorePct }) {
 
   document.getElementById("btnUnlockLevel")?.addEventListener("click", async () => {
     if (nextStage && nextMeta) {
-      startCourseStage(p, subject, nextStage);
-      if (!p.courses[subject].stages[nextStage]?.path?.length) {
-        buildCourse(p, subject, nextStage);
-      }
-      await save({ quiet: false });
-      go("subject", { subject });
+      await unlockAndOpenStage(subject, nextStage);
     } else {
       await save({ quiet: true });
       go("subject", { subject });
     }
   });
+}
+
+/** Unlock the next level and open the first new lesson — never a dead click. */
+async function unlockAndOpenStage(subject, nextStage) {
+  const p = profile();
+  if (!p || !SUBJECTS[subject]) return;
+  const stage = Number(nextStage) || 2;
+  recoverCompletionsFromHistory(p, subject);
+  startCourseStage(p, subject, stage);
+  if (!p.courses[subject]) {
+    p.courses[subject] = { activeStage: stage, stages: {} };
+  }
+  p.courses[subject].activeStage = stage;
+  if (!p.courses[subject].stages[stage]?.path?.length) {
+    buildCourse(p, subject, stage);
+  }
+  p.updatedAt = Date.now();
+  await save({ quiet: false });
+  const nextId = nextLesson(p, subject, stage);
+  if (nextId) {
+    go("lesson", { subject, skillId: nextId, stage });
+  } else {
+    go("subject", { subject });
+  }
 }
 
 function renderLessonResult({

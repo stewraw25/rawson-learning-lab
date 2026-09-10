@@ -1062,6 +1062,41 @@ const COURSE_STAGES = {
 
 const MAX_COURSE_STAGE = 6;
 
+/** Kid-facing names for fun courses (not GCSE “Intermediate”). */
+const FUN_STAGE_NAMES = {
+  karting: {
+    1: { name: "First laps", emoji: "🌱", short: "1", gradeBand: "Beginner · helmet on", blurb: "Safety, kit, the kart, and your first slow laps." },
+    2: { name: "Getting quicker", emoji: "🚦", short: "2", gradeBand: "Flags, starts, smoother feet", blurb: "Yellow flags, visors, and lights-out starts." },
+    3: { name: "Race craft", emoji: "🔷", short: "3", gradeBand: "Line, traffic, wet and dry", blurb: "Racing line, blue flags, and using the track." },
+    4: { name: "Club racer", emoji: "🏁", short: "4", gradeBand: "Overtaking, braking, kerbs", blurb: "Leave a kart’s width. Brake in a straight line." },
+    5: { name: "Hot lap", emoji: "🎯", short: "5", gradeBand: "Setup, strategy, grip", blurb: "Tyres, weather, and thinking a corner ahead." },
+    6: { name: "Champion", emoji: "⭐", short: "6", gradeBand: "Season brain · consistent laps", blurb: "Points over one hero crash. Same marks, every lap." },
+  },
+  investing: {
+    1: { name: "Pocket money", emoji: "🌱", short: "1", gradeBand: "Piggy bank · start here", blurb: "Save, the 20% rule, and what money is." },
+    2: { name: "The snowball", emoji: "❄️", short: "2", gradeBand: "Growth on growth", blurb: "Leave it in. Needs vs wants. Time starts to matter." },
+    3: { name: "Real things", emoji: "🔷", short: "3", gradeBand: "Gold, shops, wobble", blurb: "Metals, bags of shops, and it can go down." },
+    4: { name: "Markets", emoji: "📈", short: "4", gradeBand: "Risk, mix, fees", blurb: "Never lunch money. Mix is a seatbelt." },
+    5: { name: "Your plan", emoji: "🎯", short: "5", gradeBand: "Rules on a calm day", blurb: "Write the plan while you are calm. Fees nibble." },
+    6: { name: "Long-term", emoji: "⭐", short: "6", gradeBand: "Years · not headlines", blurb: "20% + mix + cheap + years. Not licensed advice." },
+  },
+  horses: {
+    1: { name: "First yard", emoji: "🌱", short: "1", gradeBand: "Beginner · hat on", blurb: "Water, grooming, the stable, and kind hands." },
+    2: { name: "Daily care", emoji: "🪣", short: "2", gradeBand: "Feet, beds, buckets", blurb: "Hooves, ice in buckets, and a clean bed." },
+    3: { name: "Riding on", emoji: "🔷", short: "3", gradeBand: "Walk, tack, quiet hands", blurb: "Mount from the left. Soft reins. Fit matters." },
+    4: { name: "Horse sports", emoji: "🏇", short: "4", gradeBand: "Yard sense · after work", blurb: "Cool them down. Field checks. Aisle clear." },
+    5: { name: "Yard pro", emoji: "🎯", short: "5", gradeBand: "Health tells · tack care", blurb: "Notice sores. Leather can snap. Tell an adult." },
+    6: { name: "Horsemaster", emoji: "⭐", short: "6", gradeBand: "Care is the job", blurb: "Leave the yard better. Champions still pick feet." },
+  },
+};
+
+function courseStageMeta(subject, stageNum) {
+  const n = Number(stageNum) || 1;
+  const fun = FUN_STAGE_NAMES[subject] && FUN_STAGE_NAMES[subject][n];
+  if (fun) return { id: n, ...fun };
+  return COURSE_STAGES[n] || COURSE_STAGES[1];
+}
+
 /** XP base per lesson by stage (higher stages reward more) */
 function stageXpBase(stageNum) {
   const s = Number(stageNum) || 1;
@@ -1219,12 +1254,17 @@ function mergeCourseEntry(a, b) {
       focusMessage: sa.focusMessage || sb.focusMessage || "",
     };
   }
+  const versions = [A.contentVersion, B.contentVersion].filter(Boolean);
+  let contentVersion = A.contentVersion || B.contentVersion || "";
+  if (typeof FUN_COURSE_VERSION === "string" && versions.includes(FUN_COURSE_VERSION)) {
+    contentVersion = FUN_COURSE_VERSION;
+  } else if (versions.includes(FIRST_STEPS_VERSION)) {
+    contentVersion = FIRST_STEPS_VERSION;
+  }
   return {
     activeStage: Math.max(Number(A.activeStage) || 1, Number(B.activeStage) || 1),
     stages,
-    contentVersion: A.contentVersion === FIRST_STEPS_VERSION || B.contentVersion === FIRST_STEPS_VERSION
-      ? FIRST_STEPS_VERSION
-      : A.contentVersion || B.contentVersion || "",
+    contentVersion,
   };
 }
 
@@ -1376,6 +1416,8 @@ function ensureCourseShape(profile, subject) {
 
 /** Bump this when Stage 1 content is rewritten so kids restart First steps (not skip to hard work). */
 const FIRST_STEPS_VERSION = "first-steps-v1";
+/** Fun courses: long beginner path. Keep ticks; send them back to stage 1. */
+const FUN_COURSE_VERSION = "fun-long-v1";
 
 /**
  * After placement: always ensure a non-empty lesson path for the active stage.
@@ -1390,13 +1432,24 @@ function ensureCourseReady(profile, subject) {
   } else {
     ensureCourseShape(profile, subject);
   }
-  const course = profile.courses[subject];
-  if (course && course.contentVersion !== FIRST_STEPS_VERSION) {
+  let course = profile.courses[subject];
+  const funSubject =
+    typeof isFunSubject === "function" ? isFunSubject(subject) : !!(SUBJECTS[subject] && SUBJECTS[subject].fun);
+  if (funSubject && course && course.contentVersion !== FUN_COURSE_VERSION) {
+    const keep = (course.stages && course.stages[1] && course.stages[1].completed) || {};
+    buildCourse(profile, subject, 1);
+    course = profile.courses[subject];
+    course.activeStage = 1;
+    if (course.stages && course.stages[1]) {
+      course.stages[1].completed = { ...keep, ...(course.stages[1].completed || {}) };
+    }
+    course.contentVersion = FUN_COURSE_VERSION;
+  } else if (!funSubject && course && course.contentVersion !== FIRST_STEPS_VERSION) {
+    buildCourse(profile, subject, 1);
+    course = profile.courses[subject];
     course.activeStage = 1;
     if (course.stages && course.stages[1]) course.stages[1].completed = {};
-    buildCourse(profile, subject, 1);
     course.contentVersion = FIRST_STEPS_VERSION;
-    course.activeStage = 1;
   }
   if (course) clearCompletionsPastActiveStage(course);
   const c = profile.courses[subject];
@@ -1495,10 +1548,19 @@ function canAccessStage(profile, subject, stageNum) {
   return isStageComplete(profile, subject, stage - 1);
 }
 
+function funStageBank(subject) {
+  if (subject === "karting" && typeof FUN_KARTING_STAGES !== "undefined") return FUN_KARTING_STAGES;
+  if (subject === "horses" && typeof FUN_HORSES_STAGES !== "undefined") return FUN_HORSES_STAGES;
+  if (subject === "investing" && typeof FUN_INVESTING_STAGES !== "undefined") return FUN_INVESTING_STAGES;
+  return null;
+}
+
 function lessonExistsForStage(subject, skillId, stageNum) {
   const stage = Number(stageNum) || 1;
   const bank = getStageTeachBank(stage);
   if (bank && bank[subject] && bank[subject][skillId]) return true;
+  const funBank = funStageBank(subject);
+  if (funBank && funBank[stage] && funBank[stage][skillId]) return true;
   if (stage <= 1) {
     if (typeof TEACH_MODULES !== "undefined" && TEACH_MODULES[subject]?.[skillId]) return true;
     return !!(LESSONS[subject] && LESSONS[subject][skillId]);
@@ -1561,20 +1623,34 @@ function buildCourse(profile, subject, stageNum) {
 
 function makeStageFocusMessage(subject, ranked, diag, stageNum) {
   const subName = SUBJECTS[subject].name;
-  const stageMeta = COURSE_STAGES[stageNum] || COURSE_STAGES[2];
+  const stageMeta =
+    typeof courseStageMeta === "function"
+      ? courseStageMeta(subject, stageNum)
+      : COURSE_STAGES[stageNum] || COURSE_STAGES[2];
   if (!diag) {
-    return `${stageMeta.emoji} ${stageMeta.name} ${subName}: take the placement test first, then climb the GCSE pathway.`;
+    return `${stageMeta.emoji} ${stageMeta.name} ${subName}: take the placement test first.`;
   }
   const weak = ranked.slice(0, 2).map((s) => SKILLS[subject][s.id].name);
+  const fun =
+    typeof isFunSubject === "function" ? isFunSubject(subject) : !!(SUBJECTS[subject] && SUBJECTS[subject].fun);
+  if (fun) {
+    return `${stageMeta.emoji} ${stageMeta.name} ${subName}: next up ${weak.join(
+      " and "
+    )}. Finish this level to keep getting better.`;
+  }
   return `${stageMeta.emoji} ${stageMeta.name} ${subName} (${stageMeta.gradeBand}): prioritising ${weak.join(
     " and "
   )}. Finish this stage to unlock the next step toward A*.`;
 }
 
-/** Start any unlocked stage (2–6) after the previous is complete */
+/** Start a later level. Never silently no-op on the Unlock button. */
 function startCourseStage(profile, subject, stageNum) {
   const stage = Number(stageNum) || 2;
-  if (!canAccessStage(profile, subject, stage)) return null;
+  if (!profile || !subject) return null;
+  if (stage < 1 || stage > MAX_COURSE_STAGE) return null;
+  if (!profile.diagnostics?.[subject]?.completed) return null;
+  if (stage > 1 && !subjectHasStageContent(subject, stage)) return null;
+
   if (!profile.courses) profile.courses = {};
   if (!profile.courses[subject]) {
     profile.courses[subject] = { activeStage: 1, stages: {} };
@@ -1582,9 +1658,18 @@ function startCourseStage(profile, subject, stageNum) {
     profile.courses[subject] = migrateCourseEntry(profile.courses[subject]);
   }
   profile.courses[subject].activeStage = stage;
-  if (!profile.courses[subject].stages[stage]?.path?.length) {
-    buildCourse(profile, subject, stage);
+  const kept = profile.courses[subject].stages[stage]?.completed || {};
+  buildCourse(profile, subject, stage);
+  const live = profile.courses[subject];
+  live.activeStage = stage;
+  if (live.stages[stage]) {
+    live.stages[stage].completed = {
+      ...kept,
+      ...(live.stages[stage].completed || {}),
+    };
   }
+  profile.courses[subject] = live;
+  profile.updatedAt = Date.now();
   unlockBadge(profile, "pathway_climber");
   unlockBadge(profile, `stage_${stage}_start`);
   if (stage === 2) unlockBadge(profile, `intermediate_${subject}`);
@@ -1678,6 +1763,11 @@ function makeFocusMessage(subject, ranked, diag) {
   const strong = ranked
     .slice(-1)
     .map((s) => SKILLS[subject][s.id].name);
+  const fun =
+    typeof isFunSubject === "function" ? isFunSubject(subject) : !!(SUBJECTS[subject] && SUBJECTS[subject].fun);
+  if (fun) {
+    return `We'll start with ${weak.join(" and ")}. This is a whole beginner course — not a handful of questions.`;
+  }
   return `Based on your test, we'll boost ${weak.join(" and ")} first (GCSE: ${
     SKILLS[subject][ranked[0].id].gcse
   }). You're already stronger on ${strong[0]} — we'll keep that sharp too!`;

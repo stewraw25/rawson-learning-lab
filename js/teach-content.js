@@ -2328,6 +2328,9 @@ function getTeachModule(subject, skillId, stageNum, learnerId) {
     ];
     raw = banks[stage]?.[subject]?.[skillId] || null;
   }
+  if (!raw && stage >= 2 && typeof funStageBank === "function") {
+    raw = funStageBank(subject)?.[stage]?.[skillId] || null;
+  }
   // Never recycle First steps for later levels — that stuck F1 / horse on set 1
   if (!raw && stage <= 1) raw = TEACH_MODULES[subject]?.[skillId] || null;
   if (!raw) return null;
