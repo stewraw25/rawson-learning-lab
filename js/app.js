@@ -3238,6 +3238,33 @@ function renderDiagnosticResult({ subject, result }) {
   document.getElementById("toCourse").onclick = () => go("subject", { subject });
 }
 
+/** Teach-screen only. Never used on practice questions. */
+function teachClipPanelHtml(mod, skipped) {
+  if (skipped) return "";
+  const vid = typeof getVideoForModule === "function" ? getVideoForModule(mod) : null;
+  if (!vid) return "";
+  const title = escapeHtml(vid.title || "Watch a clip");
+  let media = "";
+  if (vid.embed) {
+    media = `<div class="clip-frame"><iframe src="${escapeHtml(
+      vid.embed
+    )}" title="${title}" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+  } else if (vid.url) {
+    media = `<p class="muted" style="margin:0 0 0.65rem">${title}</p>
+      <a class="btn btn-secondary" href="${escapeHtml(
+        vid.url
+      )}" target="_blank" rel="noopener noreferrer">▶ Watch clip (new tab)</a>`;
+  } else {
+    media = `<p class="muted" style="margin:0 0 0.65rem">${title}</p>`;
+  }
+  return `
+    <div class="clip-panel" id="teachClipPanel">
+      <p class="clip-kicker">Watch a clip</p>
+      ${media}
+      <button type="button" class="btn btn-primary btn-lg clip-skip" id="btnSkipClip" style="margin-top:0.75rem">Skip →</button>
+    </div>`;
+}
+
 // —— ADAPTIVE LESSON (Teach → Example → Practice → branch if stuck) ——
 function renderLesson({ subject, skillId, stage }) {
   if (!state.activeLearner) return go("home");
@@ -3296,6 +3323,15 @@ function renderLesson({ subject, skillId, stage }) {
   let answerVal = null;
   let revealed = false;
   let finishing = false;
+  let clipSkippedThisLesson = false;
+  try {
+    clipSkippedThisLesson = !!(
+      typeof hasSkippedVideo === "function" &&
+      hasSkippedVideo(p, state.activeLearner, subject, skillId, stageNum)
+    );
+  } catch (_) {
+    clipSkippedThisLesson = false;
+  }
   liveLesson = { key: liveKey, session, paint: null };
 
   function paint() {
@@ -3323,6 +3359,7 @@ function renderLesson({ subject, skillId, stage }) {
         <h3 class="teach-heading">${escapeHtml(mod.title)}</h3>
         <p class="muted">${escapeHtml(mod.blurb)}</p>
         ${mod.teach.visual ? `<div class="visual-wrap">${mod.teach.visual}</div>` : ""}
+        ${teachClipPanelHtml(mod, clipSkippedThisLesson)}
         <ul class="teach-points" id="teachPointsList">
           ${mod.teach.points.map((pt) => `<li>${escapeHtml(pt)}</li>`).join("")}
         </ul>
@@ -3430,6 +3467,20 @@ function renderLesson({ subject, skillId, stage }) {
     const backToSubject = () => leaveLessonToSubject(subject, session);
     document.getElementById("btnBackToSubject").onclick = backToSubject;
     document.getElementById("btnExitLesson").onclick = backToSubject;
+    document.getElementById("btnSkipClip")?.addEventListener("click", () => {
+      clipSkippedThisLesson = true;
+      session.videoShown = true;
+      try {
+        if (typeof markVideoSkipped === "function") {
+          markVideoSkipped(profile(), state.activeLearner, subject, skillId, stageNum);
+        }
+      } catch (_) {
+        /* ignore */
+      }
+      const panel = document.getElementById("teachClipPanel");
+      if (panel) panel.remove();
+      save({ quiet: true }).catch(() => {});
+    });
 
     const adv = document.getElementById("btnAdvance");
     if (typeof bindSpeakButtons === "function") bindSpeakButtons(appEl);

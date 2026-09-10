@@ -1162,6 +1162,40 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
 .tutor-card {
   border-top: 3px solid #8d6e63;
 }
+.clip-panel {
+  margin: 0.75rem 0 1rem;
+  padding: 0.9rem 1rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.22);
+}
+.clip-kicker {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.clip-frame {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+  margin-bottom: 0.75rem;
+}
+.clip-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.clip-skip {
+  width: 100%;
+}
 .ai-bubble {
   background: linear-gradient(135deg, rgba(102, 187, 106, 0.15), rgba(255, 213, 79, 0.08)) !important;
   border-color: rgba(102, 187, 106, 0.4) !important;

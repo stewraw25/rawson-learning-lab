@@ -51,6 +51,8 @@ function defaultProfile(learnerId) {
     progressLog: {
       entries: [], // { at, date, subject, skillId, kind, score, adaptLevel }
     },
+    // Teach-screen clip skip: "learner:subject:skill:sN" → true
+    skippedVideos: {},
     // 0 = empty shell — must NOT beat real cloud progress on merge
     updatedAt: 0,
   };
@@ -119,6 +121,9 @@ function normalizeProfile(learnerId, raw) {
     p.recentQuestions = {};
   }
   p.progressLog = ensureProgressLog(p);
+  if (!p.skippedVideos || typeof p.skippedVideos !== "object" || Array.isArray(p.skippedVideos)) {
+    p.skippedVideos = {};
+  }
   return p;
 }
 
@@ -1358,6 +1363,7 @@ function mergeProfiles(localP, remoteP, learnerId) {
   out.learningTime = mergeLearningTime(L.learningTime, R.learningTime);
   out.adapt = mergeAdapt(L.adapt, R.adapt);
   out.timeBonus = mergeTimeBonus(L.timeBonus, R.timeBonus);
+  out.skippedVideos = { ...(R.skippedVideos || {}), ...(L.skippedVideos || {}) };
   out.recentQuestions = {};
   for (const sub of new Set([
     ...Object.keys(L.recentQuestions || {}),

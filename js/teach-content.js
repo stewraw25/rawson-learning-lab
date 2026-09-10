@@ -74,6 +74,22 @@ const VIDEO_LINKS = {
     title: "BBC Bitesize — Working scientifically",
     url: "https://www.bbc.co.uk/bitesize/topics/z2ddmp3",
   },
+  // Proof clips for fun First steps only — not a full library
+  karting_first: {
+    title: "Kart safety briefing (helmet, belts, flags)",
+    url: "https://www.youtube.com/watch?v=JAOCoja2gVA",
+    embed: "https://www.youtube-nocookie.com/embed/JAOCoja2gVA?rel=0&modestbranding=1&mute=1",
+  },
+  horses_first: {
+    title: "Kids learn how to groom a horse",
+    url: "https://www.youtube.com/watch?v=4PBp2Gh0zdM",
+    embed: "https://www.youtube-nocookie.com/embed/4PBp2Gh0zdM?rel=0&modestbranding=1&mute=1",
+  },
+  investing_first: {
+    title: "BBC Bitesize — Money matters (saving and spending)",
+    url: "https://www.bbc.co.uk/bitesize/articles/z2dsp4j",
+    embed: null,
+  },
 };
 
 /** Inline SVG helpers */
@@ -1479,7 +1495,7 @@ const TEACH_MODULES = {
     safety: {
       title: "Track safety",
       blurb: "Helmet on. Watch the flags. Look after yourself and others.",
-      videoKey: "forces",
+      videoKey: "karting_first",
       teach: {
         points: [
           "A helmet goes on before you sit in the kart. No helmet, no driving.",
@@ -1723,7 +1739,7 @@ const TEACH_MODULES = {
     care: {
       title: "Looking after a horse",
       blurb: "Water, a clean stable, and gentle hands.",
-      videoKey: "scientific",
+      videoKey: "horses_first",
       teach: {
         points: [
           "A horse needs fresh water every day.",
@@ -1961,7 +1977,7 @@ const TEACH_MODULES = {
     compound: {
       title: "Your piggy bank",
       blurb: "Money you keep is still yours. Money you spend is gone.",
-      videoKey: "number",
+      videoKey: "investing_first",
       teach: {
         points: [
           "A piggy bank is a pot you put coins in and leave them.",
@@ -2362,4 +2378,24 @@ function getTeachModule(subject, skillId, stageNum, learnerId) {
 function getVideoForModule(mod) {
   if (!mod?.videoKey) return null;
   return VIDEO_LINKS[mod.videoKey] || null;
+}
+
+function videoSkipKey(learnerId, subject, skillId, stage) {
+  return `${learnerId || "x"}:${subject}:${skillId}:s${Number(stage) || 1}`;
+}
+
+function hasSkippedVideo(profile, learnerId, subject, skillId, stage) {
+  if (!profile || !profile.skippedVideos || typeof profile.skippedVideos !== "object") {
+    return false;
+  }
+  return !!profile.skippedVideos[videoSkipKey(learnerId, subject, skillId, stage)];
+}
+
+function markVideoSkipped(profile, learnerId, subject, skillId, stage) {
+  if (!profile) return;
+  if (!profile.skippedVideos || typeof profile.skippedVideos !== "object" || Array.isArray(profile.skippedVideos)) {
+    profile.skippedVideos = {};
+  }
+  profile.skippedVideos[videoSkipKey(learnerId, subject, skillId, stage)] = true;
+  profile.updatedAt = Date.now();
 }
