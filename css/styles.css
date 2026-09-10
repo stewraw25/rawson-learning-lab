@@ -1408,6 +1408,44 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
   position: relative;
   z-index: 1;
 }
+/* Same layout for both kids — photo left, bubble right, no overlap */
+html.theme-learner-bella .coach-row,
+html.theme-learner-george .coach-row,
+html[data-learner="bella"] .coach-row,
+html[data-learner="george"] .coach-row,
+body.theme-learner-bella .coach-row,
+body.theme-learner-george .coach-row,
+body[data-learner="bella"] .coach-row,
+body[data-learner="george"] .coach-row {
+  display: grid !important;
+  grid-template-columns: 128px minmax(0, 1fr) !important;
+  column-gap: 1rem !important;
+  align-items: start !important;
+}
+html.theme-learner-bella .coach-main,
+html.theme-learner-george .coach-main,
+html[data-learner="bella"] .coach-main,
+html[data-learner="george"] .coach-main,
+body.theme-learner-bella .coach-main,
+body.theme-learner-george .coach-main,
+body[data-learner="bella"] .coach-main,
+body[data-learner="george"] .coach-main {
+  grid-column: 2 !important;
+  min-width: 0 !important;
+}
+html.theme-learner-bella .coach-online,
+html.theme-learner-george .coach-online,
+html[data-learner="bella"] .coach-online,
+html[data-learner="george"] .coach-online,
+body.theme-learner-bella .coach-online,
+body.theme-learner-george .coach-online,
+body[data-learner="bella"] .coach-online,
+body[data-learner="george"] .coach-online {
+  position: static !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+}
 .coach-name {
   font-weight: 800;
   font-size: 0.82rem;
@@ -1551,14 +1589,30 @@ table.progress-table th { color: var(--muted); font-size: 0.75rem; text-transfor
 }
 
 @media (max-width: 720px) {
-  .coach-row {
-    grid-template-columns: minmax(0, 1fr);
+  .coach-row,
+  html.theme-learner-bella .coach-row,
+  html.theme-learner-george .coach-row,
+  html[data-learner="bella"] .coach-row,
+  html[data-learner="george"] .coach-row,
+  body.theme-learner-bella .coach-row,
+  body.theme-learner-george .coach-row,
+  body[data-learner="bella"] .coach-row,
+  body[data-learner="george"] .coach-row {
+    grid-template-columns: minmax(0, 1fr) !important;
     justify-items: center;
     text-align: center;
   }
   .coach-avatar-wrap,
-  .coach-main {
-    grid-column: 1;
+  .coach-main,
+  html.theme-learner-bella .coach-main,
+  html.theme-learner-george .coach-main,
+  html[data-learner="bella"] .coach-main,
+  html[data-learner="george"] .coach-main,
+  body.theme-learner-bella .coach-main,
+  body.theme-learner-george .coach-main,
+  body[data-learner="bella"] .coach-main,
+  body[data-learner="george"] .coach-main {
+    grid-column: 1 !important;
     justify-self: center;
   }
   .speech-bubble::before {
