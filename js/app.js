@@ -29,6 +29,8 @@ let currentScreen = "home";
 let liveLesson = null;
 let liveDiag = null;
 let navLock = false;
+/** Subject of the lesson on screen — Browser Back must return here, not the hub. */
+let lastLessonSubject = null;
 
 function stopParentPoll() {
   if (parentPollTimer) {
@@ -734,6 +736,8 @@ function go(screen, params = {}, opts = {}) {
 
   // Browser history: real places get a hash entry; result screens replace
   // so Back returns to the hub/subject instead of a broken empty result.
+  // Opening a lesson plants the subject page underneath so Browser Back
+  // always opens #/subject/{id}, not the hub.
   const ephemeral = new Set([
     "diagnosticResult",
     "lessonResult",
@@ -743,7 +747,19 @@ function go(screen, params = {}, opts = {}) {
   if (!opts.fromHash) {
     const nextHash = hashFor(screen, params);
     try {
-      if (ephemeral.has(screen)) {
+      if (screen === "lesson" && params.subject && SUBJECTS[params.subject]) {
+        const subjectHash = hashFor("subject", { subject: params.subject });
+        if (location.hash !== subjectHash) {
+          history.replaceState(
+            { screen: "subject", params: { subject: params.subject } },
+            "",
+            subjectHash
+          );
+        }
+        if (location.hash !== nextHash) {
+          history.pushState({ screen, params }, "", nextHash);
+        }
+      } else if (ephemeral.has(screen)) {
         history.replaceState({ screen, params }, "", nextHash);
       } else if (location.hash !== nextHash) {
         history.pushState({ screen, params }, "", nextHash);
@@ -809,15 +825,21 @@ function go(screen, params = {}, opts = {}) {
   }
 }
 
+function leaveLessonToSubject(subject, session) {
+  if (session && typeof persistQuizSession === "function") persistQuizSession(session);
+  liveLesson = null;
+  go("subject", { subject });
+}
+
 function onHashNavigation() {
   if (navLock) return;
-  if (
-    currentScreen === "lessonResult" ||
-    currentScreen === "diagnosticResult" ||
-    currentScreen === "examResult"
-  ) {
-    return;
-  }
+  const { screen, params } = parseHashRoute();
+  const leavingLesson =
+    currentScreen === "lesson" || currentScreen === "lessonResult";
+  const lessonSub =
+    (liveLesson && liveLesson.session && liveLesson.session.subject) ||
+    lastLessonSubject ||
+    null;
   // Resume the same in-progress quiz if the hash still points at it.
   // If they navigated away (hub, another lesson), persist and let them leave —
   // trapping every hash change on set 1 felt like the course never moved on.
@@ -827,13 +849,12 @@ function onHashNavigation() {
     !liveLesson.session.finished &&
     typeof liveLesson.paint === "function"
   ) {
-    const route = parseHashRoute();
     const sess = liveLesson.session;
     const sameLesson =
-      route.screen === "lesson" &&
-      route.params.subject === sess.subject &&
-      route.params.skillId === sess.skillId &&
-      Number(route.params.stage || 1) === Number(sess.stage || 1);
+      screen === "lesson" &&
+      params.subject === sess.subject &&
+      params.skillId === sess.skillId &&
+      Number(params.stage || 1) === Number(sess.stage || 1);
     if (sameLesson) {
       liveLesson.paint();
       return;
@@ -841,11 +862,35 @@ function onHashNavigation() {
     if (typeof persistQuizSession === "function") persistQuizSession(sess);
     liveLesson = null;
   }
+  // Only keep a live diagnostic if the hash is still that placement test.
   if (liveDiag && !liveDiag.finished && typeof liveDiag.paint === "function") {
-    liveDiag.paint();
+    const sameDiag =
+      screen === "diagnostic" &&
+      liveDiag.key === `${state.activeLearner}:${params.subject}`;
+    if (sameDiag) {
+      liveDiag.paint();
+      return;
+    }
+    if (typeof liveDiag.persist === "function") {
+      try {
+        liveDiag.persist();
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    liveDiag = null;
+  }
+  // Browser Back from a lesson / lesson-finished screen → that subject page.
+  if (
+    leavingLesson &&
+    lessonSub &&
+    SUBJECTS[lessonSub] &&
+    screen !== "lesson" &&
+    (screen !== "subject" || params.subject !== lessonSub)
+  ) {
+    go("subject", { subject: lessonSub });
     return;
   }
-  const { screen, params } = parseHashRoute();
   const allowed = new Set([
     "home",
     "dashboard",
@@ -2930,7 +2975,6 @@ function renderDiagnostic({ subject }) {
   } catch (_) {
     /* ignore */
   }
-  liveDiag = { key: diagKey, finished: false, paint: null };
   const persistDiag = () => {
     try {
       sessionStorage.setItem(diagStore, JSON.stringify({ index, answers }));
@@ -2938,6 +2982,7 @@ function renderDiagnostic({ subject }) {
       /* ignore */
     }
   };
+  liveDiag = { key: diagKey, finished: false, paint: null, persist: persistDiag };
 
   function paint() {
     const q = qs[index];
@@ -3199,6 +3244,7 @@ function renderLesson({ subject, skillId, stage }) {
   if (!subject || !SUBJECTS[subject] || !skillId) {
     return go(subject && SUBJECTS[subject] ? "subject" : "dashboard", { subject });
   }
+  lastLessonSubject = subject;
   const p = profile();
   if (!p) return go("home");
   const stageNum =
@@ -3360,6 +3406,9 @@ function renderLesson({ subject, skillId, stage }) {
 
     appEl.innerHTML = `
       ${topbar()}
+      <button class="btn btn-ghost mb-1" type="button" id="btnBackToSubject">← Back to ${escapeHtml(
+        SUBJECTS[subject].name
+      )}</button>
       <div class="quiz-header">
         <div>
           <div class="q-meta">${SUBJECTS[subject].emoji} ${escapeHtml(
@@ -3378,11 +3427,9 @@ function renderLesson({ subject, skillId, stage }) {
       <button class="btn btn-ghost mt-1" type="button" id="btnExitLesson">Exit lesson</button>
     `;
     bindShell();
-    document.getElementById("btnExitLesson").onclick = () => {
-      if (typeof persistQuizSession === "function") persistQuizSession(session);
-      if (liveLesson && liveLesson.key === liveKey) liveLesson = null;
-      go("subject", { subject });
-    };
+    const backToSubject = () => leaveLessonToSubject(subject, session);
+    document.getElementById("btnBackToSubject").onclick = backToSubject;
+    document.getElementById("btnExitLesson").onclick = backToSubject;
 
     const adv = document.getElementById("btnAdvance");
     if (typeof bindSpeakButtons === "function") bindSpeakButtons(appEl);
@@ -3876,6 +3923,7 @@ function renderLessonResult({
   stage,
   nextSkill,
 }) {
+  if (subject && SUBJECTS[subject]) lastLessonSubject = subject;
   const stageNum = Number(stage) || 1;
   const p = profile();
   // Re-read next skill AFTER save — never point back at the lesson just finished
@@ -3940,6 +3988,9 @@ function renderLessonResult({
     state.activeLearner === "bella" ? illustFor("celebrate", "bella") : null;
   appEl.innerHTML = `
     ${topbar()}
+    <button class="btn btn-ghost mb-1" type="button" id="btnBackToSubject">← Back to ${escapeHtml(
+      SUBJECTS[subject].name
+    )}</button>
     <div class="card simple-done-card mb-2">
       ${
         celeb
@@ -3970,6 +4021,10 @@ function renderLessonResult({
     if (hint) hint.remove();
   };
 
+  document.getElementById("btnBackToSubject")?.addEventListener("click", () => {
+    clearAuto();
+    go("subject", { subject });
+  });
   document.getElementById("more")?.addEventListener("click", () => {
     clearAuto();
     go("subject", { subject });
