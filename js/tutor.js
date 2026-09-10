@@ -208,8 +208,8 @@ The student got this wrong. Explain gently why, teach the idea in 3 short steps,
  * @param {number} [stageNum=1]
  */
 function quizPersistKey(learnerId, subject, skillId, stage) {
-  // v2: clears sticky old Science queues that only had 3 questions
-  return `rawson-live-quiz-v2:${learnerId || "x"}:${subject}:${skillId}:${stage}`;
+  // v3: old queues never pulled harder (stage+1) questions — drop sticky first-sets
+  return `rawson-live-quiz-v3:${learnerId || "x"}:${subject}:${skillId}:${stage}`;
 }
 
 function persistQuizSession(session) {
@@ -228,6 +228,7 @@ function persistQuizSession(session) {
         helpShownForIndex: session.helpShownForIndex || {},
         struggleUsed: !!session.struggleUsed,
         adaptLevel: session.adaptLevel,
+        extendedHarder: session.extendedHarder || 0,
         queue: session.queue,
         history: session.history,
         startedAt: session.startedAt,
@@ -247,68 +248,209 @@ function clearQuizSession(learnerId, subject, skillId, stage) {
   }
 }
 
+function _shuffleQs(arr) {
+  if (typeof shuffleArray === "function") return shuffleArray(arr);
+  const a = (arr || []).slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function _filterQsForLearner(items, learnerId) {
+  if (!Array.isArray(items)) return [];
+  if (!learnerId || typeof LEARNERS === "undefined" || !LEARNERS[learnerId]) {
+    return items.slice();
+  }
+  const learnerStage = LEARNERS[learnerId].stage;
+  const filtered = items.filter(
+    (q) => !q.stage || q.stage === "both" || q.stage === learnerStage
+  );
+  return filtered.length ? filtered : items.slice();
+}
+
+function _tagQs(items, src, diff, stage) {
+  return (items || []).map((q, i) => ({
+    ...q,
+    _src: src,
+    _i: i,
+    _diff: diff,
+    _stage: stage,
+  }));
+}
+
+/** Raw module for a stage — no Foundation fallback (that recycled the first set). */
+function rawStageModule(subject, skillId, stageNum) {
+  const stage = Number(stageNum) || 1;
+  if (typeof getStageTeachBank === "function") {
+    const bank = getStageTeachBank(stage);
+    const raw = bank?.[subject]?.[skillId] || null;
+    if (raw) return raw;
+  }
+  if (stage <= 1 && typeof TEACH_MODULES !== "undefined") {
+    return TEACH_MODULES[subject]?.[skillId] || null;
+  }
+  return null;
+}
+
+/**
+ * Current-stage easy/main plus later-stage stretch questions for the same skill.
+ * This is how F1 / horse courses actually get harder instead of looping set 1.
+ */
+function collectAdaptiveBanks(subject, skillId, learnerId, currentStage) {
+  const stage = Number(currentStage) || 1;
+  const maxStage = typeof MAX_COURSE_STAGE === "number" ? MAX_COURSE_STAGE : 6;
+  const current =
+    rawStageModule(subject, skillId, stage) ||
+    (typeof getTeachModule === "function"
+      ? getTeachModule(subject, skillId, stage, learnerId)
+      : null);
+
+  const main = _tagQs(
+    _filterQsForLearner(current && current.practice, learnerId),
+    "main",
+    1,
+    stage
+  );
+  const easy = _tagQs(
+    _filterQsForLearner(current && current.struggle && current.struggle.practice, learnerId),
+    "help",
+    0,
+    stage
+  );
+
+  const harder = [];
+  const seen = new Set(
+    main.concat(easy).map((q) => String(q.q || "").trim().toLowerCase())
+  );
+  for (let s = stage + 1; s <= maxStage; s++) {
+    const raw = rawStageModule(subject, skillId, s);
+    if (!raw || !Array.isArray(raw.practice) || !raw.practice.length) continue;
+    const diff = s === stage + 1 ? 2 : 3;
+    const tagged = _tagQs(
+      _filterQsForLearner(raw.practice, learnerId),
+      "stretch",
+      diff,
+      s
+    );
+    for (const q of tagged) {
+      const fp = String(q.q || "").trim().toLowerCase();
+      if (!fp || seen.has(fp)) continue;
+      seen.add(fp);
+      harder.push(q);
+    }
+  }
+  return { main, easy, harder };
+}
+
+function _qSeenFp(q) {
+  return typeof questionFingerprint === "function"
+    ? questionFingerprint(q)
+    : String((q && q.q) || "")
+        .trim()
+        .toLowerCase();
+}
+
+function _freshOnly(pool, profile, subject) {
+  if (!pool || !pool.length) return [];
+  if (typeof preferFreshQuestions === "function") {
+    const recent = new Set(
+      profile && subject && typeof ensureRecentQuestions === "function"
+        ? ensureRecentQuestions(profile, subject)
+        : []
+    );
+    return pool.filter((q) => {
+      const fp = _qSeenFp(q);
+      return fp && !recent.has(fp);
+    });
+  }
+  return pool.slice();
+}
+
+function dedupeQuestionQueue(queue) {
+  const seen = new Set();
+  return (queue || []).filter((q) => {
+    const fp = _qSeenFp(q);
+    if (!fp || seen.has(fp)) return false;
+    seen.add(fp);
+    return true;
+  });
+}
+
 /**
  * Build practice queue shaped by adaptive difficulty.
- * Always shuffles and prefers questions not asked recently (stops Science loops).
+ * Getting better MUST pull later-stage questions — never recycle the first set.
  */
-function buildAdaptivePracticeQueue(mod, profile, subject) {
-  const shuffle =
-    typeof shuffleArray === "function"
-      ? shuffleArray
-      : (arr) => arr.slice().sort(() => Math.random() - 0.5);
-  const freshen =
-    typeof preferFreshQuestions === "function"
-      ? (pool) => preferFreshQuestions(pool, profile, subject)
-      : (pool) => pool.slice();
-
-  let main = (mod.practice || []).map((q, i) => ({
-    ...q,
-    _src: "main",
-    _i: i,
-    _diff: 1,
-  }));
-  let easy = (mod.struggle?.practice || []).map((q, i) => ({
-    ...q,
-    _src: "help",
-    _i: i,
-    _diff: 0,
-  }));
-
-  main = shuffle(freshen(main));
-  easy = shuffle(freshen(easy));
-
+function buildAdaptivePracticeQueue(mod, profile, subject, extra) {
+  extra = extra || {};
+  const skillId = extra.skillId || (mod && mod.skillId) || null;
+  const stage = Number(extra.stage) || 1;
+  const learnerId =
+    extra.learnerId || (profile && profile.id) || null;
   const level =
-    profile && typeof getAdaptLevel === "function"
-      ? getAdaptLevel(profile, subject)
-      : 0;
+    extra.level != null
+      ? Number(extra.level)
+      : profile && typeof getAdaptLevel === "function"
+        ? getAdaptLevel(profile, subject)
+        : 0;
+
+  const banks = skillId
+    ? collectAdaptiveBanks(subject, skillId, learnerId, stage)
+    : {
+        main: _tagQs(_filterQsForLearner(mod && mod.practice, learnerId), "main", 1, stage),
+        easy: _tagQs(
+          _filterQsForLearner(mod && mod.struggle && mod.struggle.practice, learnerId),
+          "help",
+          0,
+          stage
+        ),
+        harder: [],
+      };
+
+  let easy = _freshOnly(banks.easy, profile, subject);
+  let main = _freshOnly(banks.main, profile, subject);
+  let harder = _freshOnly(banks.harder, profile, subject);
+  // Fresh-empty on this stage → use harder, not the same first set again
+  if (!main.length && banks.harder.length) main = banks.harder.slice();
+  else if (!main.length) main = (banks.main || []).slice();
+  if (!easy.length) easy = (banks.easy || []).slice();
+  if (!harder.length) harder = (banks.harder || []).slice();
+
+  easy = _shuffleQs(easy);
+  main = _shuffleQs(main);
+  harder = _shuffleQs(harder);
 
   let queue;
   if (level <= -2) {
-    const softMain = main.slice(0, Math.max(2, Math.ceil(main.length * 0.7)));
+    const softMain = main.slice(0, Math.max(2, Math.ceil(main.length * 0.5)));
     queue = [...easy, ...softMain];
   } else if (level === -1) {
     queue = easy.length
       ? [...easy.slice(0, Math.min(2, easy.length)), ...main]
       : main;
-  } else if (level >= 2) {
-    queue = main; // already shuffled; no forced reverse (that caused repeats)
+  } else if (level === 1) {
+    queue = [
+      ...main.slice(0, Math.max(3, Math.min(4, main.length))),
+      ...harder.slice(0, 4),
+    ];
+  } else if (level === 2) {
+    queue = harder.length
+      ? [...main.slice(0, 2), ...harder.slice(0, 6)]
+      : main;
+  } else if (level >= 3) {
+    queue = harder.length ? [...harder.slice(0, 7), ...main.slice(0, 1)] : main;
   } else {
-    queue = main;
+    // Just right — current set, plus one stretch so the next tap can climb
+    queue = harder.length
+      ? [...main.slice(0, 5), harder[0]]
+      : main;
   }
 
-  // De-dupe by question text inside this queue
-  const seen = new Set();
-  queue = queue.filter((q) => {
-    const fp =
-      typeof questionFingerprint === "function"
-        ? questionFingerprint(q)
-        : String(q.q || "");
-    if (!fp || seen.has(fp)) return false;
-    seen.add(fp);
-    return true;
-  });
-
-  // Cap length but keep variety
+  queue = dedupeQuestionQueue(queue);
+  if (!queue.length) {
+    queue = dedupeQuestionQueue([...main, ...easy, ...harder]);
+  }
   if (queue.length > 8) queue = queue.slice(0, 8);
   return queue;
 }
@@ -321,7 +463,11 @@ function createTutorSession(subject, skillId, learnerId, stageNum) {
     typeof state !== "undefined" && state.profiles && state.profiles[learnerId]
       ? state.profiles[learnerId]
       : null;
-  const queue = buildAdaptivePracticeQueue(mod, profile, subject);
+  const queue = buildAdaptivePracticeQueue(mod, profile, subject, {
+    skillId,
+    stage,
+    learnerId,
+  });
   const adaptLevel =
     profile && typeof getAdaptLevel === "function"
       ? getAdaptLevel(profile, subject)
@@ -334,6 +480,7 @@ function createTutorSession(subject, skillId, learnerId, stageNum) {
     phase: "teach", // teach | example | practice | complete
     /** One queue — wrong answers may INSERT extra help Qs after current, never reset to 0 */
     queue,
+    extendedHarder: 0,
     practiceIndex: 0,
     practiceCorrect: 0,
     practiceTotal: 0,
@@ -365,6 +512,7 @@ function createTutorSession(subject, skillId, learnerId, stageNum) {
           session.helpShownForIndex = saved.helpShownForIndex || {};
           session.struggleUsed = !!saved.struggleUsed;
           if (typeof saved.adaptLevel === "number") session.adaptLevel = saved.adaptLevel;
+          session.extendedHarder = Number(saved.extendedHarder) || 0;
           if (Array.isArray(saved.queue) && saved.queue.length) session.queue = saved.queue;
           if (Array.isArray(saved.history)) session.history = saved.history;
           if (saved.startedAt) session.startedAt = saved.startedAt;
@@ -507,9 +655,104 @@ function easeRemainingQueue(session, mod) {
   if (!dedup.length) return false;
   session.queue = [...kept, ...dedup.slice(0, 6)];
   session.easedAfterIdk = true;
+  session.hardenedAfterCorrect = false;
   session.helpShownForIndex = session.helpShownForIndex || {};
   session.helpShownForIndex[idx] = true;
   return true;
+}
+
+/**
+ * Rebuild remaining questions to be harder (later-stage stretch).
+ * Called after a correct streak so the lesson climbs instead of looping set 1.
+ */
+function hardenRemainingQueue(session, mod) {
+  if (!session) return false;
+  const idx = Math.max(0, Number(session.practiceIndex) || 0);
+  const kept = (session.queue || []).slice(0, idx + 1);
+  const seen = new Set(kept.map((q) => _qFp(q)).filter(Boolean));
+  (session.history || []).forEach((h) => {
+    if (h && h.q) seen.add(String(h.q).trim().toLowerCase());
+  });
+
+  const banks = collectAdaptiveBanks(
+    session.subject,
+    session.skillId,
+    session.learnerId,
+    session.stage || 1
+  );
+  let harder = _shuffleQs(
+    (banks.harder || []).filter((q) => {
+      const fp = _qFp(q);
+      return fp && !seen.has(fp);
+    })
+  );
+  let main = _shuffleQs(
+    (banks.main || []).filter((q) => {
+      const fp = _qFp(q);
+      return fp && !seen.has(fp);
+    })
+  );
+
+  const level = Number(session.adaptLevel) || 0;
+  let tail;
+  if (level >= 2 && harder.length) {
+    tail = [...harder, ...main.slice(0, 1)];
+  } else if (harder.length) {
+    tail = [...harder.slice(0, 5), ...main.slice(0, 2)];
+  } else {
+    tail = main;
+  }
+
+  const dedup = [];
+  const seenTail = new Set(seen);
+  for (const q of tail) {
+    const fp = _qFp(q);
+    if (!fp || seenTail.has(fp)) continue;
+    seenTail.add(fp);
+    dedup.push(q);
+  }
+  if (!dedup.length) return false;
+  session.queue = [...kept, ...dedup.slice(0, 4)];
+  session.hardenedAfterCorrect = true;
+  session.easedAfterIdk = false;
+  session.extendedHarder = (session.extendedHarder || 0) + 1;
+  return true;
+}
+
+/** If they smashed the first set, append a harder round instead of ending. */
+function appendHarderRound(session) {
+  if (!session) return 0;
+  if ((session.extendedHarder || 0) >= 1) return 0;
+  const total = Math.max(1, Number(session.practiceTotal) || 0);
+  const correct = Number(session.practiceCorrect) || 0;
+  const score = Math.round((correct / total) * 100);
+  const level = Number(session.adaptLevel) || 0;
+  if (score < 70 && level < 1) return 0;
+
+  const seen = new Set(
+    (session.queue || [])
+      .map((q) => _qFp(q))
+      .concat((session.history || []).map((h) => String((h && h.q) || "").trim().toLowerCase()))
+      .filter(Boolean)
+  );
+  const banks = collectAdaptiveBanks(
+    session.subject,
+    session.skillId,
+    session.learnerId,
+    session.stage || 1
+  );
+  let harder = _shuffleQs(
+    (banks.harder || []).filter((q) => {
+      const fp = _qFp(q);
+      return fp && !seen.has(fp);
+    })
+  );
+  if (!harder.length) return 0;
+  const add = harder.slice(0, level >= 2 ? 5 : 4);
+  session.queue = [...(session.queue || []), ...add];
+  session.extendedHarder = (session.extendedHarder || 0) + 1;
+  session.hardenedAfterCorrect = true;
+  return add.length;
 }
 
 /**
@@ -575,7 +818,6 @@ function advanceAfterAnswer(session, wasCorrect) {
     session.learnerId
   );
   const idx = session.practiceIndex;
-  const queue = session.queue || [];
   const level = Number(session.adaptLevel) || 0;
   const lastWasIdk = !!(
     session.history &&
@@ -585,10 +827,25 @@ function advanceAfterAnswer(session, wasCorrect) {
   );
 
   // If they just said "I don't know", remaining queue was already rebuilt —
-  // just advance. For normal wrongs, inject help.
+  // just advance. For normal wrongs, inject help. For streaks of correct,
+  // swap remaining to later-stage harder questions.
   if (lastWasIdk) {
     // Ensure ease ran (in case older callers skipped handleDontKnow path)
     if (!session.easedAfterIdk) easeRemainingQueue(session, mod);
+  } else if (wasCorrect) {
+    const trail = (session.history || []).slice().reverse();
+    let consec = 0;
+    for (const h of trail) {
+      if (h && h.ok && !h.dontKnow) consec++;
+      else break;
+    }
+    const remaining = (session.queue || []).slice(idx + 1);
+    const remainingEasy =
+      remaining.length > 0 &&
+      remaining.every((q) => (Number(q._diff) || 1) < 2);
+    if ((consec >= 3 || level >= 1) && remainingEasy) {
+      hardenRemainingQueue(session, mod);
+    }
   } else {
     const allowHelp =
       !wasCorrect &&
@@ -616,9 +873,9 @@ function advanceAfterAnswer(session, wasCorrect) {
       easier = easier.slice(0, level <= -2 ? 2 : 1);
       if (easier.length) {
         session.queue = [
-          ...queue.slice(0, idx + 1),
+          ...(session.queue || []).slice(0, idx + 1),
           ...easier,
-          ...queue.slice(idx + 1),
+          ...(session.queue || []).slice(idx + 1),
         ];
       }
     }
@@ -626,6 +883,12 @@ function advanceAfterAnswer(session, wasCorrect) {
 
   session.practiceIndex++;
   if (session.practiceIndex >= (session.queue || []).length) {
+    const added = appendHarderRound(session);
+    if (added > 0 && session.practiceIndex < (session.queue || []).length) {
+      session.phase = "practice";
+      session.finished = false;
+      return { done: false, leveledUp: true };
+    }
     session.phase = "complete";
     session.finished = true;
     return { done: true };

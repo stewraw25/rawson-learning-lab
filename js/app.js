@@ -805,15 +805,28 @@ function onHashNavigation() {
   ) {
     return;
   }
-  // Never remount an in-progress quiz — that was resetting kids to Q1
+  // Resume the same in-progress quiz if the hash still points at it.
+  // If they navigated away (hub, another lesson), persist and let them leave —
+  // trapping every hash change on set 1 felt like the course never moved on.
   if (
     liveLesson &&
     liveLesson.session &&
     !liveLesson.session.finished &&
     typeof liveLesson.paint === "function"
   ) {
-    liveLesson.paint();
-    return;
+    const route = parseHashRoute();
+    const sess = liveLesson.session;
+    const sameLesson =
+      route.screen === "lesson" &&
+      route.params.subject === sess.subject &&
+      route.params.skillId === sess.skillId &&
+      Number(route.params.stage || 1) === Number(sess.stage || 1);
+    if (sameLesson) {
+      liveLesson.paint();
+      return;
+    }
+    if (typeof persistQuizSession === "function") persistQuizSession(sess);
+    liveLesson = null;
   }
   if (liveDiag && !liveDiag.finished && typeof liveDiag.paint === "function") {
     liveDiag.paint();
@@ -3328,12 +3341,16 @@ function renderLesson({ subject, skillId, stage }) {
         <div class="phase-pill">${
           isHelp || eased
             ? "🛟 Easier question"
-            : "🎯 Practice"
+            : q._src === "stretch" || (Number(q._diff) || 1) >= 2
+              ? "🔥 Harder question"
+              : "🎯 Practice"
         }</div>
         ${
           eased && isHelp
             ? `<p class="adapt-hint muted">Because you said “I don’t know”, the next ones are easier.</p>`
-            : ""
+            : session.hardenedAfterCorrect && (q._src === "stretch" || (Number(q._diff) || 1) >= 2)
+              ? `<p class="adapt-hint muted">You’re flying — these ones are harder now.</p>`
+              : ""
         }
         ${
           q.passage
@@ -3373,8 +3390,11 @@ function renderLesson({ subject, skillId, stage }) {
       <button class="btn btn-ghost mt-1" type="button" id="btnExitLesson">Exit lesson</button>
     `;
     bindShell();
-    document.getElementById("btnExitLesson").onclick = () =>
+    document.getElementById("btnExitLesson").onclick = () => {
+      if (typeof persistQuizSession === "function") persistQuizSession(session);
+      if (liveLesson && liveLesson.key === liveKey) liveLesson = null;
       go("subject", { subject });
+    };
 
     const adv = document.getElementById("btnAdvance");
     if (typeof bindSpeakButtons === "function") bindSpeakButtons(appEl);
@@ -3501,8 +3521,31 @@ function renderLesson({ subject, skillId, stage }) {
           q.explain || "Have a look at this tip, then press Next."
         )}`;
       } else {
+        if (ok && typeof hardenRemainingQueue === "function") {
+          const trail = (session.history || []).slice().reverse();
+          let consec = 0;
+          for (const h of trail) {
+            if (h && h.ok && !h.dontKnow) consec++;
+            else break;
+          }
+          const remainingQs = (session.queue || []).slice(session.practiceIndex + 1);
+          const remainingEasy =
+            remainingQs.length > 0 &&
+            remainingQs.every((item) => (Number(item._diff) || 1) < 2);
+          if ((consec >= 3 || (Number(session.adaptLevel) || 0) >= 1) && remainingEasy) {
+            hardenRemainingQueue(session, mod);
+          }
+        }
+        const nextQ =
+          session.queue && session.queue[session.practiceIndex + 1];
+        const nextHarder =
+          ok &&
+          nextQ &&
+          (nextQ._src === "stretch" || (Number(nextQ._diff) || 1) >= 2);
         fb.innerHTML = ok
-          ? `✓ Nice! ${escapeHtml(q.explain || "Correct!")}`
+          ? `✓ Nice! ${escapeHtml(q.explain || "Correct!")}${
+              nextHarder ? " · 🔥 harder question coming up" : ""
+            }`
           : `Not quite. ${escapeHtml(q.explain || "Read the tip, then press Next.")}`;
       }
 
@@ -3526,9 +3569,15 @@ function renderLesson({ subject, skillId, stage }) {
         !ok &&
         mod.struggle?.practice?.length &&
         !session.helpShownForIndex[session.practiceIndex];
+      const mightExtend =
+        ok &&
+        remaining <= 0 &&
+        (session.extendedHarder || 0) < 2 &&
+        ((session.practiceCorrect / Math.max(1, session.practiceTotal) >= 0.7) ||
+          (Number(session.adaptLevel) || 0) >= 1);
       advBtn.style.display = "inline-flex";
       advBtn.textContent =
-        remaining <= 0 && !willInject ? "Finish lesson →" : "Next →";
+        remaining <= 0 && !willInject && !mightExtend ? "Finish lesson →" : "Next →";
       advBtn.onclick = () => {
         const result = advanceAfterAnswer(session, ok);
         if (typeof persistQuizSession === "function") persistQuizSession(session);

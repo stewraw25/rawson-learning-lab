@@ -472,9 +472,8 @@ function mergeAdapt(a, b) {
     const x = (A.bySubject && A.bySubject[sub]) || {};
     const y = (B.bySubject && B.bySubject[sub]) || {};
     out.bySubject[sub] = {
-      level: Math.round(
-        ((Number(x.level) || 0) + (Number(y.level) || 0)) / 2
-      ),
+      // Keep the higher climb — averaging with a stale device was resetting kids to easy
+      level: Math.max(Number(x.level) || 0, Number(y.level) || 0),
       correctStreak: Math.max(Number(x.correctStreak) || 0, Number(y.correctStreak) || 0),
       missStreak: Math.max(Number(x.missStreak) || 0, Number(y.missStreak) || 0),
       dontKnowCount: Math.max(Number(x.dontKnowCount) || 0, Number(y.dontKnowCount) || 0),
@@ -1072,6 +1071,14 @@ function stageXpBase(stageNum) {
 /** Lookup teach bank for a stage number */
 function getStageTeachBank(stageNum) {
   const stage = Number(stageNum) || 1;
+  // Karting / horses stages 2–6 are patched onto the core banks
+  if (stage >= 2 && typeof funInstallStages === "function") {
+    try {
+      funInstallStages();
+    } catch (_) {
+      /* ignore */
+    }
+  }
   if (stage <= 1) {
     return typeof TEACH_MODULES !== "undefined" ? TEACH_MODULES : null;
   }
@@ -1405,9 +1412,11 @@ function ensureCourseReady(profile, subject) {
       st.completed = { ...keptCompleted, ...(st.completed || {}) };
     }
   }
-  // Still empty? force unfiltered skill path so kids are never stuck
+  // Still empty? only skills that actually have this stage (never recycle First steps)
   if (!st || !st.path || !st.path.length) {
-    const skillIds = Object.keys(SKILLS[subject] || {});
+    const skillIds = Object.keys(SKILLS[subject] || {}).filter((id) =>
+      lessonExistsForStage(subject, id, stage)
+    );
     c.stages[stage] = {
       path: skillIds,
       completed: { ...keptCompleted, ...((st && st.completed) || {}) },
@@ -2412,14 +2421,19 @@ function buildPower5Questions(profile, subject) {
   const weak = Object.keys(SKILLS[subject] || {}).sort(
     (a, b) => (scores[a] ?? 50) - (scores[b] ?? 50)
   );
-  const stagesToTry = [1, 2, 3, 4, 5, 6];
+  const adaptLvEarly =
+    typeof getAdaptLevel === "function" ? getAdaptLevel(profile, subject) : 0;
+  const startStage = adaptLvEarly >= 3 ? 4 : adaptLvEarly >= 2 ? 3 : adaptLvEarly >= 1 ? 2 : 1;
+  const stagesToTry = [];
+  for (let s = startStage; s <= 6; s++) stagesToTry.push(s);
+  for (let s = startStage - 1; s >= 1; s--) stagesToTry.push(s);
   for (const skillId of weak) {
     for (const st of stagesToTry) {
       if (typeof getTeachModule !== "function") continue;
       const mod = getTeachModule(subject, skillId, st, profile.id);
       if (!mod?.practice?.length) continue;
       for (const q of mod.practice) pushQ(q, skillId, st);
-      break;
+      if (bank.length >= 24) break;
     }
   }
 
