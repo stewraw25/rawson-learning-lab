@@ -82,6 +82,29 @@ body[data-learner="bella"] .coach-panel {
     radial-gradient(420px 180px at 0% 0%, rgba(183, 110, 132, 0.18), transparent 65%),
     linear-gradient(165deg, rgba(78, 48, 62, 0.98), rgba(55, 34, 46, 0.98)) !important;
 }
+body.theme-learner-bella .coach-row,
+body.theme-bella .coach-row,
+body[data-learner="bella"] .coach-row {
+  display: grid !important;
+  grid-template-columns: 128px minmax(0, 1fr) !important;
+  column-gap: 1rem !important;
+}
+body.theme-learner-bella .coach-main,
+body[data-learner="bella"] .coach-main {
+  grid-column: 2 !important;
+  min-width: 0 !important;
+}
+@media (max-width: 720px) {
+  body.theme-learner-bella .coach-row,
+  body.theme-bella .coach-row,
+  body[data-learner="bella"] .coach-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  body.theme-learner-bella .coach-main,
+  body[data-learner="bella"] .coach-main {
+    grid-column: 1 !important;
+  }
+}
 body.theme-learner-bella .coach-avatar,
 body[data-learner="bella"] .coach-avatar {
   border-color: rgba(232, 196, 207, 0.55) !important;
