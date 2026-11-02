@@ -362,6 +362,12 @@ function dedupeQuestionQueue(queue) {
  */
 function buildAdaptivePracticeQueue(mod, profile, subject, extra) {
   extra = extra || {};
+  if (
+    (subject === "karting" || subject === "investing") &&
+    typeof buildJourneyQueue === "function"
+  ) {
+    return buildJourneyQueue(mod, profile, subject, extra);
+  }
   const skillId = extra.skillId || (mod && mod.skillId) || null;
   const stage = Number(extra.stage) || 1;
   const learnerId =
@@ -498,6 +504,21 @@ function createTutorSession(subject, skillId, learnerId, stageNum) {
       /* ignore */
     }
   }
+  // Karting and investing: never resume a saved loop of the old tiny bank.
+  // Rebuild from questions he has not got right yet.
+  if (
+    (subject === "karting" || subject === "investing") &&
+    typeof buildJourneyQueue === "function"
+  ) {
+    const phase = session.phase;
+    session.queue = buildJourneyQueue(mod, profile, subject, {
+      skillId,
+      stage,
+      learnerId,
+    });
+    session.practiceIndex = 0;
+    if (phase === "teach" || phase === "example") session.phase = phase;
+  }
   return session;
 }
 
@@ -555,6 +576,12 @@ function handlePracticeAnswer(session, question, userAnswer) {
           ok ? "correct" : "wrong",
           session.skillId
         );
+        if (typeof journeyNoteAnswer === "function") {
+          journeyNoteAnswer(prof, session.subject, question, ok);
+        }
+        if (!ok && typeof journeyScheduleRetry === "function") {
+          journeyScheduleRetry(session, question);
+        }
       }
     }
   } catch (_) {
@@ -769,13 +796,24 @@ function handleDontKnow(session, question) {
   }
 
   try {
-    const mod = getTeachModule(
-      session.subject,
-      session.skillId,
-      session.stage || 1,
-      session.learnerId
-    );
-    easeRemainingQueue(session, mod);
+    if (
+      session.subject === "karting" ||
+      session.subject === "investing"
+    ) {
+      if (typeof journeyNoteAnswer === "function" && state.profiles && session.learnerId) {
+        const prof = state.profiles[session.learnerId];
+        if (prof) journeyNoteAnswer(prof, session.subject, question, false);
+      }
+      if (typeof journeyScheduleRetry === "function") journeyScheduleRetry(session, question);
+    } else {
+      const mod = getTeachModule(
+        session.subject,
+        session.skillId,
+        session.stage || 1,
+        session.learnerId
+      );
+      easeRemainingQueue(session, mod);
+    }
   } catch (_) {
     /* ignore */
   }
@@ -787,6 +825,19 @@ function handleDontKnow(session, question) {
  * Never restarts the full set from the beginning.
  */
 function advanceAfterAnswer(session, wasCorrect) {
+  if (
+    session &&
+    (session.subject === "karting" || session.subject === "investing")
+  ) {
+    session.practiceIndex++;
+    if (session.practiceIndex >= (session.queue || []).length) {
+      session.phase = "complete";
+      session.finished = true;
+      return { done: true };
+    }
+    session.phase = "practice";
+    return { done: false };
+  }
   const mod = getTeachModule(
     session.subject,
     session.skillId,

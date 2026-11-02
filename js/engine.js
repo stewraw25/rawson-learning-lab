@@ -124,6 +124,13 @@ function normalizeProfile(learnerId, raw) {
   if (!p.skippedVideos || typeof p.skippedVideos !== "object" || Array.isArray(p.skippedVideos)) {
     p.skippedVideos = {};
   }
+  if (typeof ensureJourney === "function") {
+    try {
+      ensureJourney(p);
+    } catch (_) {
+      /* ignore */
+    }
+  }
   return p;
 }
 
@@ -1378,6 +1385,11 @@ function mergeProfiles(localP, remoteP, learnerId) {
     out.recentQuestions[sub] = merged.slice(-40);
   }
   out.progressLog = mergeProgressLog(L.progressLog, R.progressLog);
+  if (typeof mergeJourney === "function") {
+    out.journey = mergeJourney(L.journey, R.journey);
+  } else {
+    out.journey = L.journey || R.journey || {};
+  }
   return normalizeProfile(learnerId, out);
 }
 
@@ -2590,6 +2602,12 @@ function findNextAction(profile) {
  */
 function buildPower5Questions(profile, subject) {
   subject = subject || "maths";
+  if (
+    (subject === "karting" || subject === "investing") &&
+    typeof buildJourneyDrill === "function"
+  ) {
+    return buildJourneyDrill(profile, subject, 5);
+  }
   const bank = [];
   const seen = new Set();
 
@@ -2693,6 +2711,18 @@ function fireConfetti() {
  */
 function buildRevisionQuestions(profile, subject, count) {
   count = count || 10;
+  if (
+    (subject === "karting" || subject === "investing") &&
+    typeof buildJourneyDrill === "function"
+  ) {
+    try {
+      if (typeof sessionStorage !== "undefined") sessionStorage.setItem("journey-drill", "retry");
+    } catch (_) {
+      /* ignore */
+    }
+    const misses = buildJourneyDrill(profile, subject, count);
+    return misses && misses.length ? misses : null;
+  }
   const bank = [];
   if (!profile.courses?.[subject]) return null;
   const c = migrateCourseEntry(profile.courses[subject]);
