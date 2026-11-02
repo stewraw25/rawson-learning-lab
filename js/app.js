@@ -1850,6 +1850,9 @@ function renderPower5({ subject }) {
           subject,
           fromIdk ? "dontKnow" : ok ? "correct" : "wrong"
         );
+        if (typeof journeyNoteAnswer === "function") {
+          journeyNoteAnswer(profile(), subject, q, !fromIdk && !!ok);
+        }
       } catch (_) {
         /* ignore */
       }
@@ -2743,6 +2746,18 @@ function renderSubject({ subject }) {
                   <span class="lesson-badge">${badge}</span>
                   <span class="lesson-copy">
                     <strong>${escapeHtml(lesson.title)}</strong>
+                    ${
+                      (subject === "karting" || subject === "investing") &&
+                      typeof journeyStarsFor === "function" &&
+                      journeyStarsFor(p, subject, skillId, activeStage)
+                        ? `<span class="journey-inline-stars">${journeyStarsFor(
+                            p,
+                            subject,
+                            skillId,
+                            activeStage
+                          )}</span>`
+                        : ""
+                    }
                     <span class="muted">${escapeHtml(
                       lesson.blurb || SKILLS[subject][skillId]?.name || ""
                     )}${
@@ -2793,6 +2808,12 @@ function renderSubject({ subject }) {
 
     ${nextStepHtml}
     ${
+      (subject === "karting" || subject === "investing") &&
+      typeof journeyPanelHtml === "function"
+        ? journeyPanelHtml(p, subject)
+        : ""
+    }
+    ${
       subject === "investing"
         ? `<p class="muted" style="margin:0 0 1rem;font-size:0.9rem">
         <button class="btn btn-ghost" type="button" id="btnOpenInvestCalc">💰 Open money machine</button>
@@ -2801,8 +2822,10 @@ function renderSubject({ subject }) {
     }
     ${
       /* Keep stage chips small — not the main focus for kids */
-      stageChips
-        ? `<details class="card mb-2 more-options"><summary>Levels (Foundation → A*)</summary><div class="more-options-body">${stageChips}</div></details>`
+      stageChips && subject !== "karting" && subject !== "investing"
+        ? `<details class="card mb-2 more-options"><summary>${
+            isFunSubject(subject) ? "Rounds" : "Levels (Foundation → A*)"
+          }</summary><div class="more-options-body">${stageChips}</div></details>`
         : ""
     }
     ${lessonsHtml}
@@ -2864,6 +2887,14 @@ function renderSubject({ subject }) {
   document.getElementById("btnOpenInvestCalc")?.addEventListener("click", () =>
     go("invest")
   );
+  document.getElementById("btnJourneyMisses")?.addEventListener("click", () => {
+    try {
+      sessionStorage.setItem("journey-drill", "retry");
+    } catch (_) {
+      /* ignore */
+    }
+    go("power5", { subject });
+  });
 
   appEl.querySelectorAll("[data-exam-stage]").forEach((btn) => {
     btn.addEventListener("click", () =>
@@ -2877,7 +2908,11 @@ function renderSubject({ subject }) {
   document.getElementById("btnRevision")?.addEventListener("click", () => {
     const qs = buildRevisionQuestions(profile(), subject, 10);
     if (!qs?.length) {
-      alert("Complete a lesson first so we have questions to revise.");
+      alert(
+        subject === "karting" || subject === "investing"
+          ? "No missed questions to retry. Open a finished lesson and tap Practice lap if you want to see old ones on purpose."
+          : "Complete a lesson first so we have questions to revise."
+      );
       return;
     }
     go("exam", {
@@ -3323,6 +3358,7 @@ function renderLesson({ subject, skillId, stage }) {
   let answerVal = null;
   let revealed = false;
   let finishing = false;
+  let journeyHold = false;
   let clipSkippedThisLesson = false;
   try {
     clipSkippedThisLesson = !!(
@@ -3400,17 +3436,33 @@ function renderLesson({ subject, skillId, stage }) {
       // practice — linear queue only (never restarts from Q1)
       const list = currentPracticeList(session);
       const q = list[session.practiceIndex];
-      if (!q) {
+      if (
+        !q &&
+        (subject === "karting" || subject === "investing") &&
+        typeof journeyEmptyPracticeHtml === "function"
+      ) {
+        journeyHold = true;
+        bodyHtml = journeyEmptyPracticeHtml(profile(), subject, skillId, stageNum);
+      } else if (!q) {
+        journeyHold = false;
         session.phase = "complete";
         session.finished = true;
         finishSession();
         return;
-      }
+      } else {
+      journeyHold = false;
       const isHelp = q._src === "help" || q._diff === 0;
       const eased = !!session.easedAfterIdk;
+      const journeyPill = q._retry
+        ? "Retry — you missed this one"
+        : q._deliberate
+          ? "Practice lap — you asked to see this again"
+          : "";
       bodyHtml = `
         <div class="phase-pill">${
-          isHelp || eased
+          journeyPill
+            ? journeyPill
+            : isHelp || eased
             ? "🛟 Easier question"
             : q._src === "stretch" || (Number(q._diff) || 1) >= 2
               ? "🔥 Harder question"
@@ -3429,6 +3481,11 @@ function renderLesson({ subject, skillId, stage }) {
             : ""
         }
         <h3 class="teach-heading">${escapeHtml(q.q)}</h3>
+        ${
+          subject === "investing"
+            ? `<p class="muted journey-disclaimer">Learning only — not financial advice. A parent decides what happens to real money.</p>`
+            : ""
+        }
         <div id="qBody"></div>
         ${learnAboutButtonHtml()}
         ${adaptHintHtml(subject)}
@@ -3439,6 +3496,7 @@ function renderLesson({ subject, skillId, stage }) {
           ${idkButtonHtml()}
           <button class="btn btn-ok" type="button" id="btnAdvance" style="display:none">Next →</button>
         </div>`;
+      }
     }
 
     appEl.innerHTML = `
@@ -3515,7 +3573,27 @@ function renderLesson({ subject, skillId, stage }) {
       };
     }
 
-    if (session.phase === "practice") {
+    if (journeyHold) {
+      const refill = (mode) => {
+        session.queue = buildJourneyQueue(mod, profile(), subject, {
+          skillId,
+          stage: stageNum,
+          learnerId: state.activeLearner,
+          mode,
+        });
+        session.practiceIndex = 0;
+        session.phase = "practice";
+        session.finished = false;
+        journeyHold = false;
+        answerVal = null;
+        revealed = false;
+        paint();
+      };
+      document.getElementById("btnJourneyRetry")?.addEventListener("click", () => refill("retry"));
+      document.getElementById("btnJourneyLap")?.addEventListener("click", () => refill("lap"));
+    }
+
+    if (session.phase === "practice" && !journeyHold) {
       wirePracticeQuestion();
     }
   }
@@ -3607,7 +3685,9 @@ function renderLesson({ subject, skillId, stage }) {
           q.explain || "Have a look at this tip, then press Next."
         )}`;
       } else {
-        if (ok && typeof hardenRemainingQueue === "function") {
+        const journeySubject =
+          session.subject === "karting" || session.subject === "investing";
+        if (!journeySubject && ok && typeof hardenRemainingQueue === "function") {
           const trail = (session.history || []).slice().reverse();
           let consec = 0;
           for (const h of trail) {
@@ -3625,6 +3705,7 @@ function renderLesson({ subject, skillId, stage }) {
         const nextQ =
           session.queue && session.queue[session.practiceIndex + 1];
         const nextHarder =
+          !journeySubject &&
           ok &&
           nextQ &&
           (nextQ._src === "stretch" || (Number(nextQ._diff) || 1) >= 2);
@@ -3651,11 +3732,15 @@ function renderLesson({ subject, skillId, stage }) {
 
       const advBtn = document.getElementById("btnAdvance");
       const remaining = session.queue.length - session.practiceIndex - 1;
+      const journeySubject =
+        session.subject === "karting" || session.subject === "investing";
       const willInject =
+        !journeySubject &&
         !ok &&
         mod.struggle?.practice?.length &&
         !session.helpShownForIndex[session.practiceIndex];
       const mightExtend =
+        !journeySubject &&
         ok &&
         remaining <= 0 &&
         (session.extendedHarder || 0) < 2 &&
@@ -3765,6 +3850,13 @@ function renderLesson({ subject, skillId, stage }) {
     }
     const scorePct = scoreSession(session);
     recordLesson(profile(), subject, skillId, scorePct, stageNum);
+    if (typeof journeyAwardLesson === "function") {
+      try {
+        journeyAwardLesson(profile(), subject, skillId, stageNum, scorePct);
+      } catch (_) {
+        /* ignore */
+      }
+    }
     // Store adaptive stats
     if (!profile().tutorStats) profile().tutorStats = {};
     profile().tutorStats[`${subject}:${skillId}:s${stageNum}`] = {
@@ -4051,6 +4143,17 @@ function renderLessonResult({
       <p class="next-step-label" style="margin:0 0 0.5rem">Lesson finished · saved ✓</p>
       <h1 class="simple-done-title">${escapeHtml(mod?.title || "Well done!")}</h1>
       <p class="simple-done-score">${scorePct}%</p>
+      ${
+        (subject === "karting" || subject === "investing") &&
+        typeof journeyStarsFor === "function"
+          ? `<p class="journey-inline-stars">${journeyStarsFor(
+              p,
+              subject,
+              skillId,
+              stageNum
+            ) || "★"}</p>`
+          : ""
+      }
       <p class="muted" style="margin:0 0 1.25rem">${correctCount || 0} of ${
     total || "?"
   } correct</p>

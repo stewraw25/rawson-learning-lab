@@ -1947,6 +1947,18 @@ const BADGES = [
   { id: "power_perfect", name: "Perfect Five", emoji: "💥", desc: "Score 100% on a Power 5" },
   { id: "speed_demon", name: "Speed Demon", emoji: "🏎️", desc: "Finish Power 5 in under 90 seconds" },
   { id: "streak_7", name: "Week Warrior", emoji: "🗓️", desc: "Learn 7 days in a row" },
+  { id: "kart_outlap", name: "Out lap", emoji: "🚦", desc: "Finish a karting lesson" },
+  { id: "kart_first_laps", name: "First laps", emoji: "🌱", desc: "Finish the First laps round" },
+  { id: "kart_podium", name: "Podium", emoji: "🏆", desc: "Finish a karting round" },
+  { id: "kart_hattrick", name: "Hat-trick", emoji: "⭐", desc: "Earn 3 stars on a karting lesson" },
+  { id: "kart_champion", name: "Champion", emoji: "🏁", desc: "Finish the Champion round" },
+  { id: "inv_coin", name: "First coin", emoji: "🪙", desc: "Finish a money lesson" },
+  { id: "inv_pocket", name: "Pocket money", emoji: "🐷", desc: "Finish the Pocket money round" },
+  { id: "inv_snow", name: "Snowball", emoji: "❄️", desc: "Finish The snowball round" },
+  { id: "inv_jar", name: "Piggy jar", emoji: "💷", desc: "Reach £10 on the pretend pot" },
+  { id: "inv_jisa", name: "Junior ISA", emoji: "🏦", desc: "Learn what a Junior ISA is — not advice" },
+  { id: "inv_scam", name: "Scam spotter", emoji: "🛡️", desc: "Learn the tricks to refuse" },
+  { id: "inv_long", name: "Long-term", emoji: "🌟", desc: "Finish the Long-term round" },
 ];
 
 const ENCOURAGEMENT = [
