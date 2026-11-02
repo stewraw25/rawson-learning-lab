@@ -513,7 +513,7 @@ const FUN_HORSES_STAGES = {
       ],
       ["A knight needed a strong horse.", "A coach needed a team.", "Then steam and petrol took a lot of that work."],
       [
-        funQ("Knights often rode…", ["War horses", "Bicycles in armour", "Skateboards"], 0, "Horse and rider as a pair."),
+        funQ("In the Middle Ages, knights usually rode…", ["War horses", "Bicycles in armour", "Skateboards"], 0, "A knight and a horse worked as a pair."),
         funQ("Mail coaches carried…", ["Letters and people", "Only clouds", "Wi-Fi routers"], 0, "Before trains ruled."),
         funQ("Engines meant many horse jobs…", ["Changed or ended", "Grew forever with no change", "Moved to space"], 0, "Technology shifted work."),
       ],

@@ -680,7 +680,7 @@ const TEACH_MODULES_STAGE5 = {
             "zero"
           ],
           "answer": 0,
-          "explain": "2×.",
+          "explain": "The angle at the centre is twice the angle at the circumference when they stand on the same arc.",
           "stage": "both"
         }
       ],
@@ -735,7 +735,7 @@ const TEACH_MODULES_STAGE5 = {
             "time"
           ],
           "answer": 0,
-          "explain": "FD.",
+          "explain": "A histogram uses frequency density (frequency ÷ class width) on the vertical axis.",
           "stage": "both"
         },
         {
@@ -837,16 +837,16 @@ const TEACH_MODULES_STAGE5 = {
         ],
         "practice": [
           {
-            "q": "Histogram vertical axis is…",
+            "q": "Frequency density means frequency divided by…",
             "type": "multi",
             "options": [
-              "frequency density",
-              "always frequency",
-              "probability only",
-              "time"
+              "class width",
+              "the mean",
+              "the title",
+              "the time of day"
             ],
             "answer": 0,
-            "explain": "FD.",
+            "explain": "Frequency density is frequency divided by the class width.",
             "stage": "both"
           }
         ]
@@ -1852,7 +1852,7 @@ const TEACH_MODULES_STAGE5 = {
             "volume"
           ],
           "answer": 0,
-          "explain": "Ea.",
+          "explain": "Activation energy is the minimum energy needed for a reaction to start.",
           "stage": "both"
         }
       ],

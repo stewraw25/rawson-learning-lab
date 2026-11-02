@@ -992,11 +992,11 @@ const DIAGNOSTICS = {
       id: "h7",
       skill: "water",
       stage: "both",
-      q: "A horse needs fresh water…",
+      q: "How often should you look in a horse's water bucket?",
       type: "multi",
-      options: ["every day", "once a year", "never", "only on birthdays"],
+      options: ["At least every day", "Once a year", "Never", "Only on their birthday"],
       answer: 0,
-      explain: "Fresh water every day.",
+      explain: "Buckets empty, freeze or go slimy, so look at least every day.",
     },
     {
       id: "h8",
@@ -1959,6 +1959,12 @@ const BADGES = [
   { id: "inv_jisa", name: "Junior ISA", emoji: "🏦", desc: "Learn what a Junior ISA is — not advice" },
   { id: "inv_scam", name: "Scam spotter", emoji: "🛡️", desc: "Learn the tricks to refuse" },
   { id: "inv_long", name: "Long-term", emoji: "🌟", desc: "Finish the Long-term round" },
+  { id: "horse_hands", name: "Kind hands", emoji: "🤲", desc: "Finish a horse lesson" },
+  { id: "horse_first_yard", name: "First yard", emoji: "🐴", desc: "Finish the First yard round" },
+  { id: "horse_riding", name: "Riding on", emoji: "🏇", desc: "Finish the Riding on round" },
+  { id: "horse_rosette", name: "Rosette", emoji: "🏵️", desc: "Earn 3 stars on a horse lesson" },
+  { id: "horse_master", name: "Horsemaster", emoji: "⭐", desc: "Finish the Horsemaster round" },
+  { id: "week_fresh", name: "Fresh week", emoji: "🌱", desc: "Answer a new question from this week’s set" },
 ];
 
 const ENCOURAGEMENT = [

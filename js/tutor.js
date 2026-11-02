@@ -433,7 +433,12 @@ function buildAdaptivePracticeQueue(mod, profile, subject, extra) {
   if (!queue.length) {
     queue = dedupeQuestionQueue([...main, ...easy, ...harder]);
   }
-  if (queue.length > 8) queue = queue.slice(0, 8);
+  // Keep this week's new questions in the sitting even when the bank is long.
+  const weekQs = queue.filter((q) => q && q.week);
+  const restQs = queue.filter((q) => !(q && q.week));
+  const keepWeek = weekQs.slice(0, 2);
+  const room = 10 - keepWeek.length;
+  queue = [...restQs.slice(0, Math.max(0, room)), ...keepWeek];
   return queue;
 }
 
@@ -578,6 +583,9 @@ function handlePracticeAnswer(session, question, userAnswer) {
         );
         if (typeof journeyNoteAnswer === "function") {
           journeyNoteAnswer(prof, session.subject, question, ok);
+        }
+        if (ok && question && question.week && typeof unlockBadge === "function") {
+          unlockBadge(prof, "week_fresh");
         }
         if (!ok && typeof journeyScheduleRetry === "function") {
           journeyScheduleRetry(session, question);

@@ -196,7 +196,30 @@
   document.getElementById("btnGenerate").onclick = () => generate(false);
   document.getElementById("btnRegenerate").onclick = () => generate(true);
 
+  function mountReport() {
+    if (typeof somethingWrongButtonHtml !== "function") return;
+    const actions = document.querySelector(".learn-actions");
+    if (!actions || actions.querySelector("[data-something-wrong]")) return;
+    actions.insertAdjacentHTML("beforeend", somethingWrongButtonHtml());
+    bindSomethingWrong(document, {
+      learnerName: (ctx && ctx.learnerName) || "",
+      section: (ctx && ctx.subjectName) || "Learn",
+      lesson: (ctx && ctx.skillName) || "Learn about this",
+      stage: "",
+      screen: "Learn window",
+      question: (ctx && ctx.question) || "",
+      onSkip() {
+        const status = document.getElementById("learnStatus");
+        if (status) {
+          status.textContent = "Skipped. Close this window and carry on with the lesson.";
+        }
+        window.close();
+      },
+    });
+  }
+
   loadContext();
+  mountReport();
   // Auto-start guide so kids don't have an extra click if they want
   if (ctx) {
     setTimeout(() => generate(false), 200);

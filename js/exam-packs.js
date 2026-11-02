@@ -162,7 +162,7 @@ const EXAM_PACKS = {
           "stage": "both"
         },
         {
-          "q": "Area 7x4?",
+          "q": "Area of a 7 by 4 rectangle?",
           "type": "multi",
           "options": [
             "28",
@@ -171,7 +171,7 @@ const EXAM_PACKS = {
             "14"
           ],
           "answer": 0,
-          "explain": "28.",
+          "explain": "Area of a rectangle is length times width: 7 × 4 = 28.",
           "stage": "both"
         },
         {
@@ -188,10 +188,10 @@ const EXAM_PACKS = {
           "stage": "both"
         },
         {
-          "q": "12.5% of 80?",
+          "q": "What is 12.5% of 80?",
           "type": "typed",
           "answer": "10",
-          "explain": "10.",
+          "explain": "12.5% is one eighth, and 80 ÷ 8 = 10.",
           "accept": [
             "10"
           ],
@@ -436,7 +436,7 @@ const EXAM_PACKS = {
             "16"
           ],
           "answer": 0,
-          "explain": "k³.",
+          "explain": "Volume scales with the cube of the length. 2³ = 8.",
           "stage": "both"
         },
         {
@@ -563,7 +563,7 @@ const EXAM_PACKS = {
             "6"
           ],
           "answer": 0,
-          "explain": "9.",
+          "explain": "(−3)² = 9. A negative times a negative is positive.",
           "stage": "both"
         },
         {
@@ -576,14 +576,14 @@ const EXAM_PACKS = {
             "6"
           ],
           "answer": 0,
-          "explain": "3.",
+          "explain": "Gradient is rise over run: (7 − 1) ÷ (2 − 0) = 3.",
           "stage": "both"
         },
         {
           "q": "Volume scale lengths x3?",
           "type": "typed",
           "answer": "27",
-          "explain": "27.",
+          "explain": "If lengths are multiplied by 3, volume is multiplied by 3³ = 27.",
           "accept": [
             "27"
           ],
@@ -1155,7 +1155,7 @@ const EXAM_PACKS = {
             "watts"
           ],
           "answer": 0,
-          "explain": "Ω.",
+          "explain": "Resistance (R) is measured in ohms, symbol Ω.",
           "stage": "both"
         },
         {
@@ -1185,7 +1185,7 @@ const EXAM_PACKS = {
           "stage": "both"
         },
         {
-          "q": "Photosynthesis gas produced?",
+          "q": "Which gas does photosynthesis produce?",
           "type": "multi",
           "options": [
             "oxygen",
@@ -1194,7 +1194,7 @@ const EXAM_PACKS = {
             "CO₂ only as product"
           ],
           "answer": 0,
-          "explain": "O₂.",
+          "explain": "Photosynthesis gives off oxygen (O₂).",
           "stage": "both"
         },
         {
@@ -1272,7 +1272,7 @@ const EXAM_PACKS = {
             "volt"
           ],
           "answer": 0,
-          "explain": "N.",
+          "explain": "Force is measured in newtons (N).",
           "stage": "both"
         }
       ],
@@ -1284,7 +1284,7 @@ const EXAM_PACKS = {
       "minStage": 5,
       "questions": [
         {
-          "q": "Aerobic respiration needs…",
+          "q": "Aerobic respiration needs which gas?",
           "type": "multi",
           "options": [
             "oxygen",
@@ -1293,7 +1293,7 @@ const EXAM_PACKS = {
             "only light"
           ],
           "answer": 0,
-          "explain": "O₂.",
+          "explain": "Aerobic respiration uses oxygen (O₂) to release energy.",
           "stage": "both"
         },
         {
@@ -1332,7 +1332,7 @@ const EXAM_PACKS = {
             "pressure only"
           ],
           "answer": 0,
-          "explain": "Ea.",
+          "explain": "A catalyst lowers the activation energy (Ea), so the reaction can start more easily.",
           "stage": "both"
         },
         {
@@ -1358,7 +1358,7 @@ const EXAM_PACKS = {
             "IR"
           ],
           "answer": 0,
-          "explain": "mg.",
+          "explain": "Weight is mass times gravity: W = mg.",
           "stage": "both"
         },
         {
@@ -1462,7 +1462,7 @@ const EXAM_PACKS = {
             "watt"
           ],
           "answer": 0,
-          "explain": "A.",
+          "explain": "Current is measured in amperes (A).",
           "stage": "both"
         }
       ],
@@ -1509,7 +1509,7 @@ const EXAM_PACKS = {
             "unchanged"
           ],
           "answer": 0,
-          "explain": "v².",
+          "explain": "Kinetic energy uses speed squared, so doubling speed multiplies the energy by 4.",
           "stage": "both"
         },
         {
@@ -1639,7 +1639,7 @@ const EXAM_PACKS = {
             "800"
           ],
           "answer": 0,
-          "explain": "2.",
+          "explain": "Moles = mass ÷ Mr, so 40 ÷ 20 = 2.",
           "stage": "both"
         },
         {

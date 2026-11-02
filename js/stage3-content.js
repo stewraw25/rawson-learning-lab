@@ -1188,7 +1188,7 @@ const TEACH_MODULES_STAGE3 = {
           "stage": "ks3"
         },
         {
-          "q": "Antonym of scarce?",
+          "q": "Which word is the opposite of scarce?",
           "type": "multi",
           "options": [
             "plentiful",
@@ -1735,7 +1735,7 @@ const TEACH_MODULES_STAGE3 = {
           "stage": "both"
         },
         {
-          "q": "An element…",
+          "q": "In chemistry, an element is a substance that…",
           "type": "multi",
           "options": [
             "contains one type of atom",
@@ -1999,7 +1999,7 @@ const TEACH_MODULES_STAGE3 = {
           "stage": "both"
         },
         {
-          "q": "An anomaly is…",
+          "q": "In a science experiment, an anomaly is…",
           "type": "multi",
           "options": [
             "a result that doesn't fit the pattern",
