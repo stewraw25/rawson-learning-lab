@@ -1849,7 +1849,7 @@ const TEACH_MODULES = {
             type: "multi",
             options: ["No", "Yes, lots"],
             answer: 0,
-            explain: "No.",
+            explain: "No — chocolate is not food for a horse.",
           },
         ],
       },

@@ -94,7 +94,7 @@
           { q: "Shoes should…", o: ["stay on the pedal", "fall off for fun", "be roller skates"], a: 0, e: "Planted feet." },
           { q: "Too-big kit? You should…", o: ["ask for a better size", "ignore it", "cut it with scissors on the grid"], a: 0, e: "Ask." },
         ],
-        sq: { q: "Wear anything that can catch in the chain?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Wear anything that can catch in the chain?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       4: {
         title: "Ribs, neck and a good strap",
@@ -126,7 +126,7 @@
           { q: "A cracked helmet is…", o: ["not for track", "fine if you paint it", "faster"], a: 0, e: "Replace it." },
           { q: "After a bump, check…", o: ["strap and kit again", "nothing", "only the ice cream"], a: 0, e: "Check again." },
         ],
-        sq: { q: "Use a cracked helmet?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Use a cracked helmet?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       6: {
         title: "Your pre-grid ritual",
@@ -274,7 +274,7 @@
           { q: "Aim at a marshal post?", o: ["No", "Yes, always"], a: 0, e: "Never." },
           { q: "Marshals stand…", o: ["in a safer pocket, not the racing line", "in the middle of the straight for fun", "on your kart"], a: 0, e: "Safe pocket." },
         ],
-        sq: { q: "Drive at marshals?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Drive at marshals?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       3: {
         title: "If you stop on track",
@@ -290,7 +290,7 @@
           { q: "Walk into a live track for a cone?", o: ["No", "Yes"], a: 0, e: "Marshals do that." },
           { q: "Get out only if…", o: ["a marshal or danger says so", "you feel like a stroll", "the race is exciting"], a: 0, e: "Wait unless danger." },
         ],
-        sq: { q: "Wander on a live track?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Wander on a live track?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       4: {
         title: "Signals",
@@ -338,7 +338,7 @@
           { q: "Polite in the pits is…", o: ["part of racing", "banned", "only for parents"], a: 0, e: "Manners." },
           { q: "A thank-you is…", o: ["good manners", "a penalty", "a yellow flag"], a: 0, e: "Do it." },
         ],
-        sq: { q: "Rude to marshals because you are fast?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Rude to marshals because you are fast?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
     },
     flags: {
@@ -372,7 +372,7 @@
           { q: "Overtake under yellow?", o: ["No", "Yes"], a: 0, e: "No passing." },
           { q: "You may race again when you see…", o: ["green", "another yellow", "nothing"], a: 0, e: "Green." },
         ],
-        sq: { q: "Pass people under yellow?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Pass people under yellow?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       3: {
         title: "Blue flag",
@@ -388,7 +388,7 @@
           { q: "Best place to be passed is often…", o: ["the straight", "a blind corner", "the medical centre"], a: 0, e: "More space." },
           { q: "Block under blue?", o: ["No", "Yes"], a: 0, e: "Don't block." },
         ],
-        sq: { q: "Weave to block under blue?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Weave to block under blue?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       4: {
         title: "Black flag",
@@ -518,7 +518,7 @@
           { q: "Flat inside kerbs…", o: ["can help a little", "are lava", "are the pit lane"], a: 0, e: "A little." },
           { q: "Angry-looking kerb?", o: ["leave it", "attack it every lap", "park on it"], a: 0, e: "Respect it." },
         ],
-        sq: { q: "Jump sausage kerbs for fun?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Jump sausage kerbs for fun?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       6: {
         title: "Hit the same marks",
@@ -582,7 +582,7 @@
         qs: [
           { q: "A formation lap is…", o: ["a slow warm-up lap", "the last lap", "lunch"], a: 0, e: "Warm and line up." },
           { q: "You race when…", o: ["the start signal / lights out", "you feel like it in the pits", "the chequered flag"], a: 0, e: "The start." },
-          { q: "Weave to block on a formation lap?", o: ["No", "Yes"], a: 0, e: "No." },
+          { q: "Weave to block on a formation lap?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
         ],
         sq: { q: "Race during formation?", o: ["No", "Yes"], a: 0, e: "Wait for the start." },
       },
@@ -616,7 +616,7 @@
           { q: "Parc fermé means…", o: ["closed park — no tinkering yet", "free ice cream", "open party"], a: 0, e: "Hands off." },
           { q: "Fail the check?", o: ["you may not race", "you get extra laps", "you skip the helmet"], a: 0, e: "Must pass." },
         ],
-        sq: { q: "Tinker in parc fermé?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Tinker in parc fermé?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       6: {
         title: "A race weekend in your head",
@@ -650,7 +650,7 @@
           { q: "Grass is often…", o: ["slippy", "stickier than glue", "the racing line"], a: 0, e: "Slippy." },
           { q: "If you run wide…", o: ["ease off, don't yank", "stamp and spin on purpose", "close your eyes"], a: 0, e: "Ease off." },
         ],
-        sq: { q: "Use the gravel as a shortcut?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Use the gravel as a shortcut?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       2: {
         title: "Use all the track — not more",
@@ -714,7 +714,7 @@
           { q: "One defensive move is often…", o: ["OK", "always a black flag", "a type of sandwich"], a: 0, e: "One move." },
           { q: "A rolling chicane means…", o: ["you keep blocking in a silly way", "a fast clean lap", "a helmet"], a: 0, e: "Don't." },
         ],
-        sq: { q: "Snake down the straight?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Snake down the straight?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       6: {
         title: "Think a corner ahead",
@@ -748,7 +748,7 @@
           { q: "A wave after a mistake is…", o: ["good manners", "a penalty", "a yellow flag"], a: 0, e: "Manners." },
           { q: "Friends at the end means…", o: ["you raced fairly", "you ignored everyone", "you skipped the helmet"], a: 0, e: "Fair racing." },
         ],
-        sq: { q: "Ram to 'teach them a lesson'?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Ram to 'teach them a lesson'?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       2: {
         title: "Leave a kart's width",
@@ -1061,7 +1061,7 @@
           { q: "A bag of many shops is usually…", o: ["calmer", "always zero", "a yellow flag"], a: 0, e: "Calmer." },
           { q: "Jumpy means better?", o: ["Not automatically", "Always"], a: 0, e: "Not automatically." },
         ],
-        sq: { q: "Jumpy = always best?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Jumpy = always best?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       3: {
         title: "The sleep test",
@@ -1077,7 +1077,7 @@
           { q: "A shrug at a bad year means…", o: ["the size is saner", "you don't care about anyone", "fees are zero"], a: 0, e: "Sane size." },
           { q: "Smaller and sleeping is…", o: ["a skill", "a failure", "a marshal rule"], a: 0, e: "Skill." },
         ],
-        sq: { q: "Pick a size that ruins sleep?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Pick a size that ruins sleep?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       4: {
         title: "This week's money vs spare money",
@@ -1093,7 +1093,7 @@
           { q: "Soon money (a bike this year) in Bitcoin?", o: ["Risky — it might dip when you need it", "Perfect always", "Required"], a: 0, e: "Might dip." },
           { q: "Now-money should…", o: ["stay safe for this week", "go in the jumpiest thing", "be thrown"], a: 0, e: "Safe." },
         ],
-        sq: { q: "Put rent-and-lunch in the jumpiest thing?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Put rent-and-lunch in the jumpiest thing?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       5: {
         title: "You can lose some. You must not lose the lot you need.",
@@ -1109,7 +1109,7 @@
           { q: "The meal of the plan is…", o: ["the wide bag + time + 20%", "one internet tip", "a jump start"], a: 0, e: "The simple plan." },
           { q: "Spice means…", o: ["a small extra, not the whole pot", "the lunch money", "all of it"], a: 0, e: "Small extra." },
         ],
-        sq: { q: "Whole life-pot in one shop?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Whole life-pot in one shop?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       6: {
         title: "Risk you can explain",
@@ -1159,7 +1159,7 @@
           { q: "A little gold in a mix is…", o: ["a different kind of thing", "the whole 20% rule", "a marshal"], a: 0, e: "Different." },
           { q: "100% one idea is…", o: ["not a mix", "the definition of mix", "a helmet"], a: 0, e: "Not a mix." },
         ],
-        sq: { q: "Mix means 100% one coin?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Mix means 100% one coin?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       3: {
         title: "The 20% still comes first",
@@ -1189,7 +1189,7 @@
         qs: [
           { q: "Chasing means…", o: ["buying only because it just went up", "the 20% rule", "a yellow flag"], a: 0, e: "Chase." },
           { q: "Last year's winner is…", o: ["not a promise", "a contract with the future", "a helmet"], a: 0, e: "Not a promise." },
-          { q: "Dump the mix to chase?", o: ["No", "Yes"], a: 0, e: "No." },
+          { q: "Dump the mix to chase?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
         ],
         sq: { q: "Buy it because it just doubled?", o: ["Not for that reason alone", "Always"], a: 0, e: "Don't chase." },
       },
@@ -1207,7 +1207,7 @@
           { q: "Do it every hour?", o: ["No — that is fidgeting", "Yes"], a: 0, e: "Yearly-ish." },
           { q: "Slices drift because…", o: ["some bits grow faster", "marshals move them", "flags"], a: 0, e: "Growth differs." },
         ],
-        sq: { q: "Tidy the mix every five minutes?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Tidy the mix every five minutes?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       6: {
         title: "The mix is the seatbelt. Time is the engine.",
@@ -1271,9 +1271,9 @@
         qs: [
           { q: "If two bags own the same list, cheaper usually…", o: ["leaves you more", "is a trick always", "breaks the kart"], a: 0, e: "More left." },
           { q: "An index bag tries to…", o: ["own the list", "guess daily", "skip school"], a: 0, e: "Own the list." },
-          { q: "Higher fees are a promise of higher returns?", o: ["No", "Yes"], a: 0, e: "No." },
+          { q: "Higher fees are a promise of higher returns?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
         ],
-        sq: { q: "Pay more fees because it sounds fancy?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Pay more fees because it sounds fancy?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       4: {
         title: "Fees compound too",
@@ -1321,7 +1321,7 @@
           { q: "You can control…", o: ["fees, mix, time-in, 20%", "next year's price exactly", "the weather"], a: 0, e: "The plan." },
           { q: "This is licensed financial advice?", o: ["No", "Yes"], a: 0, e: "No. Learning only." },
         ],
-        sq: { q: "Control the market's next week?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Control the market's next week?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
     },
     patience: {
@@ -1339,7 +1339,7 @@
           { q: "Panic-selling a dip…", o: ["can lock in the drop", "always wins", "is a helmet rule"], a: 0, e: "Locks it in." },
           { q: "Patience means…", o: ["years, not minutes", "never adding", "checking every second"], a: 0, e: "Years." },
         ],
-        sq: { q: "Sell every time it wobbles?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Sell every time it wobbles?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       2: {
         title: "Dips happen",
@@ -1355,7 +1355,7 @@
           { q: "A dip with years left can be…", o: ["a sale, not a fire", "always the end", "a yellow flag to spend the lot"], a: 0, e: "Not always the end." },
           { q: "The plan is for…", o: ["scary days too", "only sunny days", "only Tuesdays"], a: 0, e: "Scary days too." },
         ],
-        sq: { q: "One dip = always quit forever?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "One dip = always quit forever?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       3: {
         title: "News is loud. Plans are quiet.",
@@ -1368,10 +1368,10 @@
         steps: ["Headline shouts.", "Gates still pass?", "Then keep the plan."],
         qs: [
           { q: "Headlines want…", o: ["clicks", "your 20% rule to succeed", "marshals"], a: 0, e: "Clicks." },
-          { q: "A new plan every headline?", o: ["No", "Yes"], a: 0, e: "No." },
+          { q: "A new plan every headline?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
           { q: "Loud means important?", o: ["Not always", "Always"], a: 0, e: "Not always." },
         ],
-        sq: { q: "Change the plan every shout?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Change the plan every shout?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       4: {
         title: "Boredom is allowed",
@@ -1387,7 +1387,7 @@
           { q: "Movies skip the…", o: ["quiet years", "helmets", "£ sign"], a: 0, e: "Quiet years." },
           { q: "If it feels boring you might be…", o: ["doing it right", "failing", "a marshal"], a: 0, e: "Maybe right." },
         ],
-        sq: { q: "If it's boring, quit and chase tips?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "If it's boring, quit and chase tips?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       5: {
         title: "Write the rules on a bad day",
@@ -1403,7 +1403,7 @@
           { q: "Scared-you should…", o: ["read the card, not rewrite it", "throw the plan", "spend the pot"], a: 0, e: "Read it." },
           { q: "Patience as a system means…", o: ["rules, not a mood", "guessing", "flags"], a: 0, e: "Rules." },
         ],
-        sq: { q: "Rewrite the whole plan in a panic?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Rewrite the whole plan in a panic?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       6: {
         title: "The whole money course on one card",
@@ -1440,7 +1440,7 @@
           { q: "Check water…", o: ["often (at least twice a day)", "once a decade", "never"], a: 0, e: "Often." },
           { q: "Quiet and not drinking?", o: ["tell an adult", "ignore it", "give chocolate"], a: 0, e: "Tell someone." },
         ],
-        sq: { q: "One dirty bucket a year is enough?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "One dirty bucket a year is enough?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       2: {
         title: "Ice, slime and empty buckets",
@@ -1472,7 +1472,7 @@
           { q: "Dry hay diets often need…", o: ["more water", "no water", "ice cream"], a: 0, e: "More." },
           { q: "Sudden stop in drinking…", o: ["tell an adult", "celebrate", "ignore"], a: 0, e: "Tell someone." },
         ],
-        sq: { q: "Work hard, skip water?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Work hard, skip water?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       4: {
         title: "Water in the field",
@@ -1504,7 +1504,7 @@
           { q: "Fussy away from home?", o: ["still offer", "give up forever", "only cola"], a: 0, e: "Offer." },
           { q: "You notice and…", o: ["tell an adult", "tweet it only", "ignore"], a: 0, e: "Tell." },
         ],
-        sq: { q: "Skip water because it's a show?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Skip water because it's a show?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       6: {
         title: "Water is care, not a chore you skip",
@@ -1516,11 +1516,11 @@
         ],
         steps: ["Arrive.", "Bucket first.", "Then the fun work."],
         qs: [
-          { q: "Fancy riding replaces water?", o: ["No", "Yes"], a: 0, e: "No." },
+          { q: "Fancy riding replaces water?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
           { q: "Champion yards…", o: ["still do boring checks", "skip water", "only jump"], a: 0, e: "Checks." },
           { q: "One thing to remember…", o: ["look in the bucket", "ignore water", "only braid manes"], a: 0, e: "Bucket." },
         ],
-        sq: { q: "Skip the bucket because you can rise to trot?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Skip the bucket because you can rise to trot?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
     },
     grooming: {
@@ -1566,7 +1566,7 @@
         ],
         steps: ["Soft on the face.", "Support the tail.", "Slow on tangles."],
         qs: [
-          { q: "Yank the tail?", o: ["No", "Yes"], a: 0, e: "No." },
+          { q: "Yank the tail?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
           { q: "On the face, use…", o: ["a soft brush, carefully", "a yard broom in the eye", "a hose in the ear for fun"], a: 0, e: "Soft." },
           { q: "Tangles come out…", o: ["slowly", "with one huge rip", "never"], a: 0, e: "Slow." },
         ],
@@ -1586,7 +1586,7 @@
           { q: "Rubs appear where…", o: ["kit sits", "the moon is", "the trough never is"], a: 0, e: "Under kit." },
           { q: "Cool down starts with…", o: ["a walk", "a sprint", "a jump-off"], a: 0, e: "Walk." },
         ],
-        sq: { q: "Put them away hot and dirty?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Put them away hot and dirty?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       5: {
         title: "Skin stories",
@@ -1599,7 +1599,7 @@
         steps: ["See scabs.", "Show an adult.", "Help keep them cleaner/drier."],
         qs: [
           { q: "Scabby muddy legs…", o: ["show an adult", "ignore", "paint with jam"], a: 0, e: "Show someone." },
-          { q: "You invent strong medicine?", o: ["No", "Yes"], a: 0, e: "No." },
+          { q: "You invent strong medicine?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
           { q: "After mud, helping them dry/clean is…", o: ["useful", "banned", "a kart rule"], a: 0, e: "Useful." },
         ],
         sq: { q: "Hide a sore so you can still ride?", o: ["No", "Yes"], a: 0, e: "Show it." },
@@ -1636,7 +1636,7 @@
           { q: "Wet dirty beds can…", o: ["make skin sore", "win rosettes", "replace hay"], a: 0, e: "Sore skin." },
           { q: "Skip out means…", o: ["take out droppings", "skip the horse", "go karting"], a: 0, e: "Muck out the mess." },
         ],
-        sq: { q: "Leave a soaking bed?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Leave a soaking bed?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       2: {
         title: "Muck heap and tools",
@@ -1665,7 +1665,7 @@
         steps: ["Smell the box.", "Stale? More air (as the yard does it).", "Rug if they need warmth."],
         qs: [
           { q: "Stale dusty air is…", o: ["bad for lungs", "a treat", "required"], a: 0, e: "Bad." },
-          { q: "Rugs replace air?", o: ["No", "Yes"], a: 0, e: "No." },
+          { q: "Rugs replace air?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
           { q: "A sealed smelly box is…", o: ["unkind", "perfect", "a jumping course"], a: 0, e: "Unkind." },
         ],
         sq: { q: "Shut every gap even if it stinks?", o: ["No", "Yes"], a: 0, e: "Air." },
@@ -1680,11 +1680,11 @@
         ],
         steps: ["Look at the horse, not the fashion.", "Comfortable? Safe?", "Fix the no's."],
         qs: [
-          { q: "Field horses still need…", o: ["checks", "zero care", "only photos"], a: 0, e: "Checks." },
+          { q: "Horses living out in a field still need…", o: ["checks", "zero care", "only photos"], a: 0, e: "They still need checks, even without a stable." },
           { q: "The real question is…", o: ["comfortable and safe", "fanciest stable", "most rosettes today"], a: 0, e: "Comfort + safe." },
           { q: "Out always means no work for you?", o: ["No", "Yes"], a: 0, e: "Still check." },
         ],
-        sq: { q: "Fancy box, miserable horse = good care?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Fancy box, miserable horse = good care?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       5: {
         title: "Fire and yard sense",
@@ -1766,7 +1766,7 @@
           { q: "A bit is…", o: ["a signal", "a kart brake", "hay"], a: 0, e: "A signal." },
           { q: "Crooked bit?", o: ["ask, don't just go", "gallop anyway", "ignore"], a: 0, e: "Ask." },
         ],
-        sq: { q: "Use the bit as a handle to pull yourself up?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Use the bit as a handle to pull yourself up?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       4: {
         title: "Fit is welfare",
@@ -1782,7 +1782,7 @@
           { q: "Hates tacking up?", o: ["tell someone", "ignore", "add more tack"], a: 0, e: "Tell." },
           { q: "Fit is…", o: ["welfare", "fashion only", "a kart rule"], a: 0, e: "Welfare." },
         ],
-        sq: { q: "Ride in a saddle that makes sores?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Ride in a saddle that makes sores?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       5: {
         title: "Tack care",
@@ -1798,7 +1798,7 @@
           { q: "Tired stitching…", o: ["tell an adult", "ignore", "paint it gold"], a: 0, e: "Tell." },
           { q: "Tack care is…", o: ["safety", "only vanity", "optional for winners"], a: 0, e: "Safety." },
         ],
-        sq: { q: "Ride in snapped-looking leather?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Ride in snapped-looking leather?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
       6: {
         title: "You and the horse, both kitted",
@@ -1814,7 +1814,7 @@
           { q: "If in doubt…", o: ["don't get on", "get on faster", "remove the hat"], a: 0, e: "Don't get on." },
           { q: "Boring checks are for…", o: ["everyone, including good riders", "only beginners", "only horses in books"], a: 0, e: "Everyone." },
         ],
-        sq: { q: "Flip the order because you are late?", o: ["No", "Yes"], a: 0, e: "No." },
+        sq: { q: "Flip the order because you are late?", o: ["No", "Yes"], a: 0, e: "No — that would be the wrong choice." },
       },
     },
   };

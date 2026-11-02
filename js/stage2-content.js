@@ -957,7 +957,7 @@ const TEACH_MODULES_STAGE2 = {
           stage: "both",
         },
         {
-          q: "Which is a simile?",
+          q: "Which sentence is a simile?",
           type: "multi",
           options: [
             "The classroom was a zoo.",

@@ -1248,6 +1248,50 @@ function idkButtonHtml() {
   return `<button type="button" class="btn btn-idk" id="btnIdk" title="It's OK — we'll make the next questions easier">I don't know</button>`;
 }
 
+function reportButtonHtml() {
+  return typeof somethingWrongButtonHtml === "function" ? somethingWrongButtonHtml() : "";
+}
+
+function nudgePickAnswer() {
+  const fb = document.getElementById("feedback");
+  if (fb) {
+    fb.className = "feedback bad";
+    fb.textContent =
+      "Pick or type an answer first. If you are stuck, tap Something's wrong?";
+  }
+}
+
+function scheduleAutoNext(btn) {
+  if (window.__autoNextTimer) clearTimeout(window.__autoNextTimer);
+  window.__autoNextTimer = setTimeout(() => {
+    window.__autoNextTimer = null;
+    if (document.getElementById("swOverlay")) return;
+    if (btn && document.body.contains(btn)) btn.click();
+  }, 1600);
+}
+
+function reportLearnerName() {
+  try {
+    const L = state.activeLearner ? learner() : null;
+    return (L && (L.fullName || L.name)) || "";
+  } catch (_) {
+    return "";
+  }
+}
+
+function bindReport(ctx) {
+  if (typeof bindSomethingWrong !== "function") return;
+  bindSomethingWrong(appEl, {
+    learnerName: reportLearnerName(),
+    section: "",
+    lesson: "",
+    stage: "",
+    screen: "",
+    question: "",
+    ...ctx,
+  });
+}
+
 function adaptHintHtml(subject) {
   try {
     const p = profile();
@@ -1778,6 +1822,7 @@ function renderPower5({ subject }) {
           ${idkButtonHtml()}
           <button class="btn btn-ok" type="button" id="btnNext" style="display:none">Next →</button>
         </div>
+        ${reportButtonHtml()}
       </div>
       <button class="btn btn-ghost mt-1" type="button" id="btnExitP5">Exit</button>
     `;
@@ -1786,6 +1831,26 @@ function renderPower5({ subject }) {
       cleanupP5();
       go("dashboard");
     };
+    bindReport({
+      section: SUBJECTS[subject].name,
+      lesson: "Power 5",
+      screen: "Question",
+      question: q.q,
+      onSkip: () => {
+        if (revealed) {
+          document.getElementById("btnNext")?.click();
+          return;
+        }
+        answers[index] = { ok: false, skipped: true, answer: null };
+        if (index + 1 >= qs.length) {
+          cleanupP5();
+          finishP5();
+        } else {
+          index++;
+          paint();
+        }
+      },
+    });
     answerVal = null;
     revealed = false;
 
@@ -1887,9 +1952,7 @@ function renderPower5({ subject }) {
         }
       };
       if (ok && !fromIdk) {
-        setTimeout(() => {
-          if (document.getElementById("btnNext") === nextBtn) nextBtn.click();
-        }, 550);
+        scheduleAutoNext(nextBtn);
       }
     }
 
@@ -1901,7 +1964,7 @@ function renderPower5({ subject }) {
     document.getElementById("btnCheck").onclick = () => {
       if (revealed) return;
       if (answerVal === null || answerVal === "") {
-        alert("Pick or type an answer first!");
+        nudgePickAnswer();
         return;
       }
       revealP5(checkAnswer(q, answerVal), false);
@@ -1909,9 +1972,10 @@ function renderPower5({ subject }) {
   }
 
   async function finishP5() {
-    const correct = Object.values(answers).filter((a) => a.ok).length;
-    const total = qs.length;
-    const scorePct = Math.round((correct / total) * 100);
+    const scored = Object.values(answers).filter((a) => a && !a.skipped);
+    const correct = scored.filter((a) => a.ok).length;
+    const total = scored.length;
+    const scorePct = total ? Math.round((correct / total) * 100) : 0;
     const elapsedSec = Math.round((Date.now() - startedAt) / 1000);
     const prof = profile();
     updateStreak(prof);
@@ -2265,6 +2329,7 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
                  <button class="btn btn-ok" type="button" id="btnNext" style="display:none">Continue →</button>`
           }
         </div>
+        ${reportButtonHtml()}
       </div>
       <button class="btn btn-ghost mt-1" type="button" id="btnExitExam">Exit</button>
     `;
@@ -2273,6 +2338,24 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
       stopTimer();
       go("subject", { subject });
     };
+    bindReport({
+      section: SUBJECTS[subject].name,
+      lesson: packTitle,
+      screen: isTimed ? "Timed question" : "Question",
+      question: q.q,
+      onSkip: () => {
+        if (revealed && !isTimed) {
+          document.getElementById("btnNext")?.click();
+          return;
+        }
+        answers[index] = { ok: false, skipped: true, answer: null };
+        if (index + 1 >= qs.length) finishExam();
+        else {
+          index++;
+          paint();
+        }
+      },
+    });
     answerVal = answers[index]?.answer ?? null;
     revealed = false;
     const body = document.getElementById("qBody");
@@ -2327,7 +2410,7 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
       document.getElementById("btnCheck").onclick = () => {
         if (revealed) return;
         if (answerVal === null || answerVal === "") {
-          alert("Pick or type an answer first!");
+          nudgePickAnswer();
           return;
         }
         revealed = true;
@@ -2362,16 +2445,19 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
 
   async function finishExam() {
     stopTimer();
-    // Score any unanswered as wrong
+    // Unanswered counts as wrong. A skipped question does not.
     for (let i = 0; i < qs.length; i++) {
+      if (answers[i] && answers[i].skipped) continue;
       if (!answers[i]) {
         answers[i] = { ok: false, answer: null };
       } else if (answers[i].ok == null) {
         answers[i].ok = checkAnswer(qs[i], answers[i].answer);
       }
     }
-    const correct = Object.values(answers).filter((a) => a.ok).length;
-    const scorePct = Math.round((correct / qs.length) * 100);
+    const scored = Object.values(answers).filter((a) => a && !a.skipped);
+    const correct = scored.filter((a) => a.ok).length;
+    const totalAnswered = scored.length;
+    const scorePct = totalAnswered ? Math.round((correct / totalAnswered) * 100) : 0;
     const p = profile();
     if (!p.examHistory) p.examHistory = [];
     p.examHistory.push({
@@ -2379,7 +2465,7 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
       packStage,
       score: scorePct,
       correct,
-      total: qs.length,
+      total: totalAnswered,
       date: todayKey(),
       mode: isTimed ? "timed" : isRevision ? "revision" : "practice",
       timedOut: !!timedOut,
@@ -2407,7 +2493,7 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
       packStage,
       scorePct,
       correct,
-      total: qs.length,
+      total: totalAnswered,
       mode: isTimed ? "timed" : isRevision ? "revision" : "practice",
       timedOut,
       title: packTitle,
@@ -2747,7 +2833,7 @@ function renderSubject({ subject }) {
                   <span class="lesson-copy">
                     <strong>${escapeHtml(lesson.title)}</strong>
                     ${
-                      (subject === "karting" || subject === "investing") &&
+                      (subject === "karting" || subject === "investing" || subject === "horses") &&
                       typeof journeyStarsFor === "function" &&
                       journeyStarsFor(p, subject, skillId, activeStage)
                         ? `<span class="journey-inline-stars">${journeyStarsFor(
@@ -2806,6 +2892,12 @@ function renderSubject({ subject }) {
       </div>
     </div>
 
+    ${typeof weekNoteHtml === "function" ? weekNoteHtml() : ""}
+    ${
+      lockWhy && subject !== "karting" && subject !== "investing"
+        ? `<p class="journey-lock">🔒 ${escapeHtml(lockWhy)}</p>`
+        : ""
+    }
     ${nextStepHtml}
     ${
       (subject === "karting" || subject === "investing") &&
@@ -3060,9 +3152,30 @@ function renderDiagnostic({ subject }) {
             revealed ? "inline-flex" : "none"
           }">${index + 1 >= qs.length ? "See results" : "Next →"}</button>
         </div>
+        ${reportButtonHtml()}
       </div>
     `;
     bindShell();
+    bindReport({
+      section: S.name,
+      lesson: "Placement test",
+      screen: "Question",
+      question: q.q,
+      onSkip: () => {
+        if (revealed) {
+          document.getElementById("btnNext")?.click();
+          return;
+        }
+        answers[q.id] = "__skip__";
+        if (index + 1 >= qs.length) finish();
+        else {
+          index++;
+          revealed = false;
+          persistDiag();
+          paint();
+        }
+      },
+    });
     bindLearnAbout(
       document.getElementById("btnLearnAbout"),
       questionLearnPayload(subject, q.skill, q)
@@ -3157,9 +3270,7 @@ function renderDiagnostic({ subject }) {
         /* ignore */
       }
       if (ok && !fromIdk) {
-        setTimeout(() => {
-          if (document.getElementById("btnNext") === nextBtn) nextBtn.click();
-        }, 550);
+        scheduleAutoNext(nextBtn);
       } else {
         nextBtn.focus();
       }
@@ -3175,7 +3286,7 @@ function renderDiagnostic({ subject }) {
     document.getElementById("btnCheck").onclick = () => {
       if (revealed) return;
       if (answers[q.id] === undefined || answers[q.id] === "") {
-        alert("Pick or type an answer first!");
+        nudgePickAnswer();
         return;
       }
       const ok = checkAnswer(q, answers[q.id]);
@@ -3370,6 +3481,57 @@ function renderLesson({ subject, skillId, stage }) {
   }
   liveLesson = { key: liveKey, session, paint: null };
 
+  function lessonQuestionText() {
+    if (session.phase === "teach") return mod.title || "";
+    if (session.phase === "example") return (mod.example && mod.example.title) || "";
+    const list = currentPracticeList(session);
+    const q = list[session.practiceIndex];
+    return (q && q.q) || "";
+  }
+
+  function skipLessonStep() {
+    if (window.__autoNextTimer) {
+      clearTimeout(window.__autoNextTimer);
+      window.__autoNextTimer = null;
+    }
+    if (session.phase === "teach") {
+      if (typeof stopSpeaking === "function") stopSpeaking();
+      session.phase = "example";
+      if (typeof persistQuizSession === "function") persistQuizSession(session);
+      paint();
+      return;
+    }
+    if (session.phase === "example") {
+      session.phase = "practice";
+      if (session.practiceIndex == null) session.practiceIndex = 0;
+      answerVal = null;
+      revealed = false;
+      if (typeof persistQuizSession === "function") persistQuizSession(session);
+      paint();
+      return;
+    }
+    if (journeyHold || !currentPracticeList(session)[session.practiceIndex]) {
+      leaveLessonToSubject(subject, session);
+      return;
+    }
+    if (revealed) {
+      const advBtn = document.getElementById("btnAdvance");
+      if (advBtn) {
+        advBtn.click();
+        return;
+      }
+    }
+    session.practiceIndex = (Number(session.practiceIndex) || 0) + 1;
+    answerVal = null;
+    revealed = false;
+    if (!currentPracticeList(session)[session.practiceIndex]) {
+      finishSession();
+      return;
+    }
+    if (typeof persistQuizSession === "function") persistQuizSession(session);
+    paint();
+  }
+
   function paint() {
     if (session.finished || session.phase === "complete") {
       finishSession();
@@ -3518,10 +3680,23 @@ function renderLesson({ subject, skillId, stage }) {
           <div class="progress-track"><span style="width:${prog.pct}%"></span></div>
         </div>
       </div>
-      <div class="card question-card tutor-card">${bodyHtml}</div>
+      <div class="card question-card tutor-card">${bodyHtml}${reportButtonHtml()}</div>
       <button class="btn btn-ghost mt-1" type="button" id="btnExitLesson">Exit lesson</button>
     `;
     bindShell();
+    bindReport({
+      section: SUBJECTS[subject].name,
+      lesson: mod.title,
+      stage: stageMeta.name,
+      screen:
+        session.phase === "teach"
+          ? "Teach"
+          : session.phase === "example"
+            ? "Example"
+            : "Question",
+      question: lessonQuestionText(),
+      onSkip: skipLessonStep,
+    });
     const backToSubject = () => leaveLessonToSubject(subject, session);
     document.getElementById("btnBackToSubject").onclick = backToSubject;
     document.getElementById("btnExitLesson").onclick = backToSubject;
@@ -3761,9 +3936,7 @@ function renderLesson({ subject, skillId, stage }) {
         paint();
       };
       if (ok && !fromIdk) {
-        setTimeout(() => {
-          if (document.getElementById("btnAdvance") === advBtn) advBtn.click();
-        }, 550);
+        scheduleAutoNext(advBtn);
       } else {
         advBtn.focus();
       }
@@ -3783,7 +3956,7 @@ function renderLesson({ subject, skillId, stage }) {
     document.getElementById("btnCheck").onclick = async () => {
       if (revealed) return;
       if (answerVal === null || answerVal === "") {
-        alert("Pick or type an answer first!");
+        nudgePickAnswer();
         return;
       }
       revealed = true;

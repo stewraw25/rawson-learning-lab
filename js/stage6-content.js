@@ -400,7 +400,7 @@ const TEACH_MODULES_STAGE6 = {
             "6"
           ],
           "answer": 0,
-          "explain": "k³.",
+          "explain": "Volume scales with the cube of the length, so ×3 becomes ×27.",
           "stage": "both"
         },
         {
@@ -803,7 +803,7 @@ const TEACH_MODULES_STAGE6 = {
             "p only"
           ],
           "answer": 0,
-          "explain": "np.",
+          "explain": "Expected frequency is the number of trials times the probability: n × p.",
           "stage": "both"
         },
         {
@@ -842,7 +842,7 @@ const TEACH_MODULES_STAGE6 = {
             "IQR"
           ],
           "answer": 0,
-          "explain": "Σf.",
+          "explain": "The total area of a histogram equals the total frequency (the sum of the frequencies).",
           "stage": "both"
         }
       ],

@@ -25,7 +25,7 @@ function georgeQuestionFingerprint(q) {
 }
 
 function georgeRowToQuestion(row) {
-  return {
+  const q = {
     q: row[0],
     type: "multi",
     options: row[1].slice(),
@@ -34,6 +34,8 @@ function georgeRowToQuestion(row) {
     diff: row[4] || 1,
     stage: "both",
   };
+  if (row[5]) q.week = row[5];
+  return q;
 }
 
 function georgeEnsureModule(subject, skillId, stage) {
@@ -280,7 +282,7 @@ function journeyScheduleRetry(session, question) {
 }
 
 function journeyAwardLesson(profile, subject, skillId, stage, scorePct) {
-  if (!profile || !georgeIsJourneySubject(subject)) return 0;
+  if (!profile || (subject !== "horses" && !georgeIsJourneySubject(subject))) return 0;
   const log = ensureJourney(profile, subject);
   const key = journeyStarKey(stage, skillId);
   const pct = Number(scorePct) || 0;
@@ -350,6 +352,15 @@ function journeyAwardBadges(profile, subject) {
       unlockBadge(profile, "inv_scam");
     }
     if (stageDone(6)) unlockBadge(profile, "inv_long");
+  }
+  if (subject === "horses") {
+    if (score.starSum >= 1) unlockBadge(profile, "horse_hands");
+    if (stageDone(1)) unlockBadge(profile, "horse_first_yard");
+    if (stageDone(3)) unlockBadge(profile, "horse_riding");
+    if (stageDone(6)) unlockBadge(profile, "horse_master");
+    if (Object.values(ensureJourney(profile, subject).stars).some((n) => Number(n) >= 3)) {
+      unlockBadge(profile, "horse_rosette");
+    }
   }
 }
 
@@ -534,9 +545,13 @@ function journeyPanelHtml(profile, subject) {
   const qPct = round.total ? Math.round((round.cleared / round.total) * 100) : 0;
   const missN = journeyMissList(profile, subject, stage).length;
 
+  const childName =
+    typeof LEARNERS !== "undefined" && profile.id && LEARNERS[profile.id]
+      ? LEARNERS[profile.id].name
+      : "Your";
   if (subject === "karting") {
     return `<section class="journey-card journey-kart" aria-label="Karting season">
-      <p class="journey-kicker">George’s season · six rounds</p>
+      <p class="journey-kicker">${escapeHtml(childName)}’s season · six rounds</p>
       <h2 class="journey-title">From the back of the grid to champion</h2>
       <p class="journey-lead">${escapeHtml(posLabel)} · ${escapeHtml(
         (typeof courseStageMeta === "function" ? courseStageMeta(subject, stage).name : "") || ""
@@ -572,7 +587,7 @@ function journeyPanelHtml(profile, subject) {
   }
 
   return `<section class="journey-card journey-invest" aria-label="Investing journey">
-    <p class="journey-kicker">George’s pot · a game score, not real money</p>
+    <p class="journey-kicker">${escapeHtml(childName)}’s pot · a game score, not real money</p>
     <h2 class="journey-title">Grow the piggy bank</h2>
     <p class="journey-lead">Pocket money ideas first, then saving, compound growth, funds, a Junior ISA and scams to refuse. This is learning, not financial advice. A parent decides what happens to real money.</p>
     <div class="journey-pot">

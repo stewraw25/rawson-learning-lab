@@ -1002,19 +1002,62 @@ function normaliseAnswer(str) {
     .trim()
     .toLowerCase()
     .replace(/,/g, "")
+    .replace(/£/g, "")
     .replace(/%/g, "")
+    .replace(/[?.!]+$/g, "")
     .replace(/\s+/g, " ");
 }
 
+/** Small whole numbers, so "seven" and "7" can both be right. */
+const ANSWER_NUMBER_WORDS = [
+  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+  "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+  "eighteen", "nineteen", "twenty",
+];
+
+function answerForms(raw) {
+  const forms = new Set();
+  const base = normaliseAnswer(raw);
+  if (!base) return forms;
+  forms.add(base);
+  const stripped = base
+    .replace(/\bpounds?\b/g, "")
+    .replace(/\bpence\b/g, "")
+    .replace(/\bpercent\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (/^-?\d+(?:\.\d+)?$/.test(stripped)) {
+    forms.add(stripped);
+    const n = Number(stripped);
+    if (Number.isInteger(n)) forms.add(String(n));
+    if (Number.isInteger(n) && n >= 0 && n < ANSWER_NUMBER_WORDS.length) {
+      forms.add(ANSWER_NUMBER_WORDS[n]);
+    }
+  }
+  const word = ANSWER_NUMBER_WORDS.indexOf(base);
+  if (word >= 0) forms.add(String(word));
+  return forms;
+}
+
 function checkAnswer(question, userAnswer) {
+  if (!question) return false;
   if (question.type === "multi") {
-    return Number(userAnswer) === question.answer;
+    const want = Number(question.answer);
+    const got = Number(userAnswer);
+    return Number.isInteger(want) && got === want;
   }
-  const user = normaliseAnswer(userAnswer);
+  const accepted = new Set();
+  for (const form of answerForms(question.answer)) accepted.add(form);
   if (question.accept && question.accept.length) {
-    return question.accept.some((a) => normaliseAnswer(a) === user);
+    for (const extra of question.accept) {
+      for (const form of answerForms(extra)) accepted.add(form);
+    }
   }
-  return normaliseAnswer(question.answer) === user;
+  if (!accepted.size) return false;
+  for (const form of answerForms(userAnswer)) {
+    if (accepted.has(form)) return true;
+  }
+  return false;
 }
 
 /**
@@ -1842,6 +1885,7 @@ function scoreDiagnostic(subject, learnerId, answers) {
   let correct = 0;
 
   for (const q of qs) {
+    if (answers && answers[q.id] === "__skip__") continue;
     skillTotals[q.skill] = (skillTotals[q.skill] || 0) + 1;
     skillCorrect[q.skill] = skillCorrect[q.skill] || 0;
     const ok = checkAnswer(q, answers[q.id]);
@@ -1858,8 +1902,9 @@ function scoreDiagnostic(subject, learnerId, answers) {
     );
   }
 
-  const score = qs.length ? Math.round((correct / qs.length) * 100) : 0;
-  return { score, skillScores, correct, total: qs.length };
+  const answered = qs.filter((q) => !answers || answers[q.id] !== "__skip__").length;
+  const score = answered ? Math.round((correct / answered) * 100) : 0;
+  return { score, skillScores, correct, total: answered };
 }
 
 function recordDiagnostic(profile, subject, answers, result) {
