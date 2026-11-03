@@ -34,6 +34,7 @@ const FILES = [
   "js/george-journey.js",
   "js/exam-packs.js",
   "js/tutor.js",
+  "js/gentle-ramp.js",
   "js/week-content.js",
   "js/report-problem.js",
 ];

@@ -208,8 +208,8 @@ The student got this wrong. Explain gently why, teach the idea in 3 short steps,
  * @param {number} [stageNum=1]
  */
 function quizPersistKey(learnerId, subject, skillId, stage) {
-  // v3: old queues never pulled harder (stage+1) questions — drop sticky first-sets
-  return `rawson-live-quiz-v3:${learnerId || "x"}:${subject}:${skillId}:${stage}`;
+  // v6: do not resume a queue that started on a GCSE question after the warm-ups were already seen
+  return `rawson-live-quiz-v6:${learnerId || "x"}:${subject}:${skillId}:${stage}`;
 }
 
 function persistQuizSession(session) {
@@ -228,6 +228,7 @@ function persistQuizSession(session) {
         helpShownForIndex: session.helpShownForIndex || {},
         struggleUsed: !!session.struggleUsed,
         adaptLevel: session.adaptLevel,
+        choiceAt: session.choiceAt || 0,
         extendedHarder: session.extendedHarder || 0,
         queue: session.queue,
         history: session.history,
@@ -375,9 +376,11 @@ function buildAdaptivePracticeQueue(mod, profile, subject, extra) {
   const level =
     extra.level != null
       ? Number(extra.level)
-      : profile && typeof getAdaptLevel === "function"
-        ? getAdaptLevel(profile, subject)
-        : 0;
+      : profile && typeof effectiveAdaptLevel === "function"
+        ? effectiveAdaptLevel(profile, subject, stage)
+        : profile && typeof getAdaptLevel === "function"
+          ? getAdaptLevel(profile, subject)
+          : 0;
 
   const banks = skillId
     ? collectAdaptiveBanks(subject, skillId, learnerId, stage)
@@ -392,54 +395,134 @@ function buildAdaptivePracticeQueue(mod, profile, subject, extra) {
         harder: [],
       };
 
-  let easy = _freshOnly(banks.easy, profile, subject);
-  let main = _freshOnly(banks.main, profile, subject);
-  let harder = _freshOnly(banks.harder, profile, subject);
-  // Fresh-empty on this stage → use harder, not the same first set again
-  if (!main.length && banks.harder.length) main = banks.harder.slice();
-  else if (!main.length) main = (banks.main || []).slice();
-  if (!easy.length) easy = (banks.easy || []).slice();
-  if (!harder.length) harder = (banks.harder || []).slice();
+  const mainList = banks.main || [];
+  const mainLen = mainList.length;
+  const explicit = mainList.some((q) => q && typeof q.ramp === "number");
+  const mainFp = new Set(mainList.map((q) => _qSeenFp(q)).filter(Boolean));
+  // A help question that copies a main question is not an easy start.
+  const easyList = (banks.easy || []).filter((q) => {
+    const fp = _qSeenFp(q);
+    return fp && !mainFp.has(fp);
+  });
 
-  easy = _shuffleQs(easy);
-  main = _shuffleQs(main);
-  harder = _shuffleQs(harder);
+  let pool = [
+    ...easyList.map((q, i) => ({ ...q, _ramp: _rampOf(q, i, easyList.length, false), _ord: i })),
+    ...mainList.map((q, i) => ({
+      ...q,
+      _ramp: _rampOf(q, i, mainLen, explicit),
+      _ord: 1000 + i,
+    })),
+  ];
+  pool = dedupeQuestionQueue(pool);
 
-  let queue;
+  const mastered = new Set(
+    profile &&
+    profile.masteredQs &&
+    Array.isArray(profile.masteredQs[subject])
+      ? profile.masteredQs[subject]
+      : []
+  );
+  const recent = new Set(
+    profile && subject && typeof ensureRecentQuestions === "function"
+      ? ensureRecentQuestions(profile, subject)
+      : []
+  );
+  let fresh = pool.filter((q) => {
+    const fp = _qSeenFp(q);
+    return fp && !mastered.has(fp) && !recent.has(fp);
+  });
+  if (fresh.length < 3) {
+    fresh = pool.filter((q) => {
+      const fp = _qSeenFp(q);
+      return fp && !mastered.has(fp);
+    });
+  }
+  if (fresh.length < 3) fresh = pool.slice();
+  // Easier stays on the warm-ups. A pile of unseen GCSE questions must not
+  // push those warm-ups out of the lesson.
   if (level <= -2) {
-    const softMain = main.slice(0, Math.max(2, Math.ceil(main.length * 0.5)));
-    queue = [...easy, ...softMain];
-  } else if (level === -1) {
-    queue = easy.length
-      ? [...easy.slice(0, Math.min(2, easy.length)), ...main]
-      : main;
-  } else if (level === 1) {
-    queue = [
-      ...main.slice(0, Math.max(3, Math.min(4, main.length))),
-      ...harder.slice(0, 4),
-    ];
-  } else if (level === 2) {
-    queue = harder.length
-      ? [...main.slice(0, 2), ...harder.slice(0, 6)]
-      : main;
-  } else if (level >= 3) {
-    queue = harder.length ? [...harder.slice(0, 7), ...main.slice(0, 1)] : main;
-  } else {
-    // First try / just right — stay on this easy set. Climb after they ace a streak.
-    queue = main.length ? main : easy;
+    const gentle = pool.filter((q) => Number(q._ramp) <= 1);
+    if (gentle.length) {
+      const gentleFresh = gentle.filter((q) => {
+        const fp = _qSeenFp(q);
+        return fp && !mastered.has(fp) && !recent.has(fp);
+      });
+      fresh = gentleFresh.length >= 2 ? gentleFresh : gentle;
+    }
   }
+  fresh = _orderRamp(fresh);
 
+  let queue = _pickRamp(fresh, level);
   queue = dedupeQuestionQueue(queue);
-  if (!queue.length) {
-    queue = dedupeQuestionQueue([...main, ...easy, ...harder]);
-  }
-  // Keep this week's new questions in the sitting even when the bank is long.
-  const weekQs = queue.filter((q) => q && q.week);
-  const restQs = queue.filter((q) => !(q && q.week));
-  const keepWeek = weekQs.slice(0, 2);
-  const room = 10 - keepWeek.length;
-  queue = [...restQs.slice(0, Math.max(0, room)), ...keepWeek];
+  if (!queue.length) queue = dedupeQuestionQueue(pool);
   return queue;
+}
+
+/** Easy (0) → stretch (3). An explicit ramp wins. Week questions sit at the hard end. */
+function _rampOf(q, index, total, listHasExplicit) {
+  if (q && typeof q.ramp === "number" && !Number.isNaN(Number(q.ramp))) return Number(q.ramp);
+  if (q && q.week) return 3;
+  if (q && (q._src === "help" || q._diff === 0)) {
+    // Later-stage "help" copies are still GCSE. They must not lead an easier lesson.
+    if (Number(q._stage) >= 4) return 2;
+    return 0;
+  }
+  if (listHasExplicit) return 2;
+  if (!total || total <= 1) return 1;
+  const t = index / (total - 1);
+  if (t <= 0.34) return 1;
+  if (t <= 0.7) return 2;
+  return 3;
+}
+
+function _orderRamp(items) {
+  return (items || [])
+    .map((q, i) => ({ q, i }))
+    .sort((a, b) => {
+      const ra = Number(a.q && a.q._ramp) || 0;
+      const rb = Number(b.q && b.q._ramp) || 0;
+      if (ra !== rb) return ra - rb;
+      return a.i - b.i;
+    })
+    .map((x) => x.q);
+}
+
+/** Always begin with the easiest questions, then climb. Level only changes how far. */
+function _pickRamp(sorted, level) {
+  const warm = sorted.filter((q) => Number(q._ramp) <= 0);
+  const easy = sorted.filter((q) => Number(q._ramp) === 1);
+  const mid = sorted.filter((q) => Number(q._ramp) === 2);
+  const hard = sorted.filter((q) => Number(q._ramp) >= 3);
+  const lv = Number(level) || 0;
+  // Easier stays on gentle questions. One "middle" item on stage 4 is still GCSE
+  // (the jump from 4 × 2 straight to gradient).
+  const open = [...warm.slice(0, 2), ...easy.slice(0, lv <= -2 ? 6 : 4)];
+  let rest;
+  if (lv <= -2) rest = open.slice();
+  else if (lv === -1) rest = [...open, ...mid.slice(0, 1)];
+  else if (lv >= 2) rest = [...open.slice(0, 3), ...mid.slice(0, 2), ...hard.slice(0, 3)];
+  else if (lv >= 1) rest = [...open.slice(0, 3), ...mid.slice(0, 2), ...hard.slice(0, 1)];
+  else rest = [...open.slice(0, 4), ...mid.slice(0, 2), ...hard.slice(0, 1)];
+  if (!rest.length) {
+    const gentleOnly = lv <= -2 ? sorted.filter((q) => Number(q._ramp) <= 1) : [];
+    rest = (gentleOnly.length ? gentleOnly : sorted).slice(0, 4);
+  }
+  const seen = new Set(rest.map((q) => _qSeenFp(q)));
+  const weeks = [];
+  if (lv >= 0) {
+    for (const q of sorted) {
+      if (!q || !q.week) continue;
+      const fp = _qSeenFp(q);
+      if (!fp || seen.has(fp)) continue;
+      if (weeks.length >= 2) break;
+      weeks.push(q);
+      seen.add(fp);
+    }
+  }
+  const plain = rest.filter((q) => !(q && q.week));
+  const keptWeeks = [...rest.filter((q) => q && q.week), ...weeks].slice(0, 2);
+  const room = 8 - keptWeeks.length;
+  return [...plain.slice(0, Math.max(0, room)), ...keptWeeks];
 }
 
 function createTutorSession(subject, skillId, learnerId, stageNum) {
@@ -456,8 +539,14 @@ function createTutorSession(subject, skillId, learnerId, stageNum) {
     learnerId,
   });
   const adaptLevel =
-    profile && typeof getAdaptLevel === "function"
-      ? getAdaptLevel(profile, subject)
+    profile && typeof effectiveAdaptLevel === "function"
+      ? effectiveAdaptLevel(profile, subject, stage)
+      : profile && typeof getAdaptLevel === "function"
+        ? getAdaptLevel(profile, subject)
+        : 0;
+  const choiceAt =
+    profile && typeof ensureAdaptSubject === "function"
+      ? Number(ensureAdaptSubject(profile, subject).choiceAt) || 0
       : 0;
   const session = {
     subject,
@@ -478,6 +567,7 @@ function createTutorSession(subject, skillId, learnerId, stageNum) {
     struggleUsed: false,
     videoShown: false,
     adaptLevel,
+    choiceAt,
     history: [],
     startedAt: Date.now(),
     finished: false,
@@ -488,7 +578,14 @@ function createTutorSession(subject, skillId, learnerId, stageNum) {
       const raw = sessionStorage.getItem(quizPersistKey(learnerId, subject, skillId, stage));
       if (raw) {
         const saved = JSON.parse(raw);
-        if (saved && typeof saved === "object" && saved.phase && saved.phase !== "complete") {
+        const samePin = Number(saved && saved.choiceAt) === choiceAt;
+        if (
+          saved &&
+          samePin &&
+          typeof saved === "object" &&
+          saved.phase &&
+          saved.phase !== "complete"
+        ) {
           session.phase = saved.phase;
           session.practiceIndex = Number(saved.practiceIndex) || 0;
           session.practiceCorrect = Number(saved.practiceCorrect) || 0;
@@ -584,6 +681,9 @@ function handlePracticeAnswer(session, question, userAnswer) {
         if (typeof journeyNoteAnswer === "function") {
           journeyNoteAnswer(prof, session.subject, question, ok);
         }
+        if (ok && typeof noteMasteredQuestion === "function") {
+          noteMasteredQuestion(prof, session.subject, question);
+        }
         if (ok && question && question.week && typeof unlockBadge === "function") {
           unlockBadge(prof, "week_fresh");
         }
@@ -606,6 +706,19 @@ function _qFp(q) {
         .toLowerCase();
 }
 
+/** A help question has to be easier than the lesson. A GCSE copy is not help. */
+function _isGentleHelp(q, mainFps, stage) {
+  const fp = _qFp(q);
+  if (!fp || (mainFps && mainFps.has(fp))) return false;
+  if (q && typeof q.ramp === "number" && Number(q.ramp) >= 2) return false;
+  if ((Number(stage) || 1) >= 4) return typeof q.ramp === "number" && Number(q.ramp) <= 1;
+  return true;
+}
+
+function _mainFingerprints(mod) {
+  return new Set(((mod && mod.practice) || []).map((q) => _qFp(q)).filter(Boolean));
+}
+
 /**
  * Rebuild EVERYTHING still ahead in this lesson to be easier.
  * Called immediately on "I don't know" so the next tap is actually easier.
@@ -616,17 +729,16 @@ function easeRemainingQueue(session, mod) {
   const kept = (session.queue || []).slice(0, idx + 1);
   const seen = new Set(kept.map((q) => _qFp(q)).filter(Boolean));
 
-  const shuffle =
-    typeof shuffleArray === "function"
-      ? shuffleArray
-      : (arr) => arr.slice().sort(() => Math.random() - 0.5);
-
-  let easy = (mod.struggle?.practice || []).map((q, i) => ({
-    ...q,
-    _src: "help",
-    _i: i,
-    _diff: 0,
-  }));
+  const stage = Number(session.stage) || 1;
+  const mainFps = _mainFingerprints(mod);
+  let easy = (mod.struggle?.practice || [])
+    .map((q, i) => ({
+      ...q,
+      _src: "help",
+      _i: i,
+      _diff: 0,
+    }))
+    .filter((q) => _isGentleHelp(q, mainFps, stage));
   let main = (mod.practice || []).map((q, i) => ({
     ...q,
     _src: "main",
@@ -634,18 +746,23 @@ function easeRemainingQueue(session, mod) {
     _diff: 1,
   }));
 
-  easy = shuffle(easy.filter((q) => {
+  easy = easy.filter((q) => {
     const fp = _qFp(q);
     return fp && !seen.has(fp);
-  }));
-  main = shuffle(main.filter((q) => {
+  });
+  main = main.filter((q) => {
     const fp = _qFp(q);
     return fp && !seen.has(fp);
-  }));
+  });
 
-  // Prefer help/easy first; only a soft slice of main
-  const softCount = Math.max(1, Math.min(3, Math.ceil(main.length * 0.4)));
-  let tail = [...easy, ...main.slice(0, softCount)];
+  const level = Number(session.adaptLevel) || 0;
+  const warmMain = main.filter((q) => typeof q.ramp === "number" && Number(q.ramp) <= 1);
+  let tail;
+  if (stage >= 4 || level <= -2) tail = [...easy, ...warmMain];
+  else {
+    const softCount = Math.max(1, Math.min(3, Math.ceil(main.length * 0.4)));
+    tail = [...easy, ...main.slice(0, softCount)];
+  }
 
   // If help bank exhausted, still demote remaining original items that were help
   if (!tail.length) {
@@ -678,6 +795,14 @@ function easeRemainingQueue(session, mod) {
  */
 function hardenRemainingQueue(session, mod) {
   if (!session) return false;
+  // Later-stage questions are what Unlock is for. Do not reshuffle this lesson into them.
+  const banks = collectAdaptiveBanks(
+    session.subject,
+    session.skillId,
+    session.learnerId,
+    session.stage || 1
+  );
+  if (!banks.harder || !banks.harder.length) return false;
   const idx = Math.max(0, Number(session.practiceIndex) || 0);
   const kept = (session.queue || []).slice(0, idx + 1);
   const seen = new Set(kept.map((q) => _qFp(q)).filter(Boolean));
@@ -685,12 +810,6 @@ function hardenRemainingQueue(session, mod) {
     if (h && h.q) seen.add(String(h.q).trim().toLowerCase());
   });
 
-  const banks = collectAdaptiveBanks(
-    session.subject,
-    session.skillId,
-    session.learnerId,
-    session.stage || 1
-  );
   let harder = _shuffleQs(
     (banks.harder || []).filter((q) => {
       const fp = _qFp(q);
@@ -893,6 +1012,8 @@ function advanceAfterAnswer(session, wasCorrect) {
       const already = new Set(
         (session.queue || []).map((q) => _qFp(q)).filter(Boolean)
       );
+      const stage = Number(session.stage) || 1;
+      const mainFps = _mainFingerprints(mod);
       let easier = (mod.struggle.practice || [])
         .map((q, i) => ({
           ...q,
@@ -902,9 +1023,8 @@ function advanceAfterAnswer(session, wasCorrect) {
         }))
         .filter((q) => {
           const fp = _qFp(q);
-          return fp && !already.has(fp);
+          return fp && !already.has(fp) && _isGentleHelp(q, mainFps, stage);
         });
-      if (typeof shuffleArray === "function") easier = shuffleArray(easier);
       easier = easier.slice(0, level <= -2 ? 2 : 1);
       if (easier.length) {
         session.queue = [

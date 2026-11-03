@@ -1,2116 +1,671 @@
 /**
- * Stage 3 Secure
+ * Secure (Stage 3) — still starts easy, then a clearer step up.
+ * Not GCSE yet. One stretch question sits at the end of each lesson.
  */
 
+function s3Typed(q, answer, explain, ramp) {
+  return {
+    q: q,
+    type: "typed",
+    answer: String(answer),
+    accept: [String(answer)],
+    explain: explain,
+    stage: "both",
+    ramp: ramp,
+  };
+}
+
+function s3Multi(q, options, answer, explain, ramp) {
+  return {
+    q: q,
+    type: "multi",
+    options: options,
+    answer: answer,
+    explain: explain,
+    stage: "both",
+    ramp: ramp,
+  };
+}
+
 const TEACH_MODULES_STAGE3 = {
-  "maths": {
-    "number": {
-      "title": "Number secure",
-      "blurb": "Indices, primes, HCF/LCM and directed numbers — Secure.",
-      "videoKey": "placevalue",
-      "teach": {
-        "points": [
-          "Prime factors: break numbers into primes (e.g. 12 = 2² × 3).",
-          "HCF = highest common factor; LCM = lowest common multiple.",
-          "Laws of indices (intro): aᵐ × aⁿ = aᵐ⁺ⁿ when bases match."
+  maths: {
+    number: {
+      title: "Tens, rounding, a cold morning",
+      blurb: "10 less, round to the nearest 10, then a first negative.",
+      videoKey: "placevalue",
+      teach: {
+        points: [
+          "10 less than 70 is 60.",
+          "32 is nearer to 30 than to 40, so it rounds to 30.",
+          "A negative temperature is below 0. −2 and 5 more lands on 3.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "Find HCF of 12 and 18.",
-          "12 = 2²×3, 18 = 2×3²",
-          "Common: 2×3 = 6."
-        ]
+      example: {
+        title: "Worked example",
+        steps: ["Start at −2.", "Count up 5: −1, 0, 1, 2, 3.", "You land on 3."],
       },
-      "practice": [
-        {
-          "q": "HCF of 12 and 18?",
-          "type": "typed",
-          "answer": "6",
-          "explain": "2×3 = 6.",
-          "accept": [
-            "6"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "LCM of 4 and 6?",
-          "type": "typed",
-          "answer": "12",
-          "explain": "4=2², 6=2×3 → LCM=2²×3=12.",
-          "accept": [
-            "12"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Which is prime?",
-          "type": "multi",
-          "options": [
-            "21",
-            "27",
-            "29",
-            "33"
-          ],
-          "answer": 2,
-          "explain": "29 has only two factors: 1 and 29.",
-          "stage": "both"
-        },
-        {
-          "q": "2³ × 2² = 2^?",
-          "type": "typed",
-          "answer": "5",
-          "explain": "Add indices: 3+2=5.",
-          "accept": [
-            "5"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Calculate −8 − (−3).",
-          "type": "typed",
-          "answer": "-5",
-          "explain": "−8 + 3 = −5.",
-          "accept": [
-            "-5",
-            "−5"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Standard form of 45,000?",
-          "type": "multi",
-          "options": [
-            "4.5×10³",
-            "4.5×10⁴",
-            "45×10³",
-            "4.5×10⁵"
-          ],
-          "answer": 1,
-          "explain": "4.5×10⁴.",
-          "stage": "ks3"
-        },
-        {
-          "q": "Prime factorisation of 36 as 2^a × 3^b. What is a?",
-          "type": "typed",
-          "answer": "2",
-          "explain": "36=2²×3².",
-          "accept": [
-            "2"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "LCM of 8 and 12?",
-          "type": "multi",
-          "options": [
-            "24",
-            "4",
-            "16",
-            "96"
-          ],
-          "answer": 0,
-          "explain": "2³×3=24.",
-          "stage": "both"
-        }
+      practice: [
+        s3Typed("What is 10 less than 70?", "60", "70 take away 10 is 60.", 1),
+        s3Typed("Round 32 to the nearest 10.", "30", "32 is closer to 30 than to 40.", 1),
+        s3Multi("Which of these is a factor of 10?", ["5", "3", "4", "6"], 0, "5 goes into 10 exactly. 10 ÷ 5 = 2.", 2),
+        s3Typed(
+          "The temperature is −2 degrees. It rises by 5 degrees. What is it now?",
+          "3",
+          "From −2, five steps up pass 0 and land on 3.",
+          3
+        ),
       ],
-      "struggle": {
-        "points": [
-          "List factors of both numbers; HCF is the largest shared.",
-          "For indices with same base, add when multiplying."
-        ],
-        "practice": [
-          {
-            "q": "HCF of 12 and 18?",
-            "type": "typed",
-            "answer": "6",
-            "explain": "2×3 = 6.",
-            "accept": [
-              "6"
-            ],
-            "stage": "both"
-          }
-        ]
-      }
+      struggle: {
+        points: ["10 less means the tens digit drops by 1."],
+        practice: [s3Typed("What is 10 less than 40?", "30", "40 take away 10 is 30.", 0)],
+      },
     },
-    "operations": {
-      "title": "Operations secure",
-      "blurb": "BIDMAS mastery, long multiplication/division and estimation.",
-      "videoKey": "multiply",
-      "teach": {
-        "points": [
-          "BIDMAS: Brackets, Indices, Division & Multiplication (L→R), Addition & Subtraction (L→R).",
-          "Estimate by rounding to 1 s.f. before calculating.",
-          "Long division: divide, multiply, subtract, bring down."
+    operations: {
+      title: "A little order",
+      blurb: "Bigger adding, then times before adding, with tiny numbers.",
+      videoKey: "multiply",
+      teach: {
+        points: [
+          "24 and 10 more is 34.",
+          "When a sum has × and +, do the × first.",
+          "Brackets mean do the inside first.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "(5 + 3)² − 4 × 3",
-          "8² = 64",
-          "4×3=12",
-          "64−12=52"
-        ]
+      example: {
+        title: "Worked example",
+        steps: ["5 + 2 × 3.", "Times first: 2 × 3 = 6.", "Then 5 + 6 = 11."],
       },
-      "practice": [
-        {
-          "q": "Calculate (5+3)² − 4×3.",
-          "type": "typed",
-          "answer": "52",
-          "explain": "64 − 12 = 52.",
-          "accept": [
-            "52"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Estimate 49 × 21 to 1 s.f.",
-          "type": "typed",
-          "answer": "1000",
-          "explain": "50×20=1000.",
-          "accept": [
-            "1000",
-            "1,000"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "What is 15% of 360?",
-          "type": "typed",
-          "answer": "54",
-          "explain": "10%=36, 5%=18 → 54.",
-          "accept": [
-            "54"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "18 ÷ 3 × 2 = ?",
-          "type": "multi",
-          "options": [
-            "3",
-            "12",
-            "1",
-            "108"
-          ],
-          "answer": 1,
-          "explain": "L→R: 6×2=12.",
-          "stage": "both"
-        },
-        {
-          "q": "Calculate 7² + 3³.",
-          "type": "typed",
-          "answer": "76",
-          "explain": "49+27=76.",
-          "accept": [
-            "76"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "240 ÷ 16 = ?",
-          "type": "typed",
-          "answer": "15",
-          "explain": "16×15=240.",
-          "accept": [
-            "15"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Calculate 2³ × 3 − 4.",
-          "type": "typed",
-          "answer": "20",
-          "explain": "8×3−4=20.",
-          "accept": [
-            "20"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Which is correct BIDMAS?",
-          "type": "multi",
-          "options": [
-            "6÷2×3=9",
-            "6÷2×3=1",
-            "6÷2×3=4",
-            "6÷2×3=12"
-          ],
-          "answer": 0,
-          "explain": "L→R: 3×3=9.",
-          "stage": "both"
-        }
+      practice: [
+        s3Typed("What is 24 + 10?", "34", "24 and 10 more is 34.", 1),
+        s3Typed("What is 6 × 3?", "18", "Six groups of 3 make 18.", 1),
+        s3Typed("Work out 5 + 2 × 3. Do the times first.", "11", "2 × 3 = 6, then 5 + 6 = 11.", 2),
+        s3Typed("Work out (10 + 6) ÷ 2.", "8", "Brackets first: 16. Then 16 ÷ 2 = 8.", 3),
       ],
-      "struggle": {
-        "points": [
-          "BIDMAS: Brackets, Indices, Division & Multiplication (L→R), Addition & Subtraction (L→R).",
-          "Estimate by rounding to 1 s.f. before calculating."
-        ],
-        "practice": [
-          {
-            "q": "Calculate (5+3)² − 4×3.",
-            "type": "typed",
-            "answer": "52",
-            "explain": "64 − 12 = 52.",
-            "accept": [
-              "52"
-            ],
-            "stage": "both"
-          }
-        ]
-      }
+      struggle: {
+        points: ["Circle the × and do that bit first."],
+        practice: [s3Typed("Work out 1 + 2 × 2. Do the times first.", "5", "2 × 2 = 4, then 1 + 4 = 5.", 0)],
+      },
     },
-    "fractions": {
-      "title": "FDP secure",
-      "blurb": "Four operations with fractions; reverse percentages.",
-      "videoKey": "fractions",
-      "teach": {
-        "points": [
-          "Add/subtract fractions: common denominator first.",
-          "Divide fractions: multiply by the reciprocal (keep-change-flip).",
-          "Reverse %: if sale price is 80% of original, original = sale ÷ 0.8."
+    fractions: {
+      title: "Half, and 10%",
+      blurb: "Halves of bigger numbers, then 10% as divide by 10.",
+      videoKey: "fractions",
+      teach: {
+        points: [
+          "Half of 30 is 15.",
+          "10% means divide by 10. 10% of 50 is 5.",
+          "A price that is £4 cheaper means take £4 away.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "¾ + ⅛",
-          "Common denom 8: 6/8 + 1/8 = 7/8"
-        ]
+      example: {
+        title: "Worked example",
+        steps: ["10% of 50.", "50 ÷ 10 = 5.", "So 10% is £5 if we were talking about money."],
       },
-      "practice": [
-        {
-          "q": "¾ + ⅛ = ?",
-          "type": "multi",
-          "options": [
-            "7/8",
-            "4/12",
-            "1/2",
-            "5/8"
-          ],
-          "answer": 0,
-          "explain": "6/8+1/8=7/8.",
-          "stage": "both"
-        },
-        {
-          "q": "⅔ × ¾ = ?",
-          "type": "multi",
-          "options": [
-            "6/12",
-            "1/2",
-            "5/7",
-            "8/9"
-          ],
-          "answer": 1,
-          "explain": "6/12=1/2.",
-          "stage": "both"
-        },
-        {
-          "q": "½ ÷ ¼ = ?",
-          "type": "multi",
-          "options": [
-            "1/8",
-            "2",
-            "1/2",
-            "4"
-          ],
-          "answer": 1,
-          "explain": "½ × 4/1 = 2.",
-          "stage": "both"
-        },
-        {
-          "q": "A jumper is £36 after 10% off. Original price?",
-          "type": "typed",
-          "answer": "40",
-          "explain": "36÷0.9=40.",
-          "accept": [
-            "40",
-            "£40"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Express 0.375 as a fraction in lowest terms.",
-          "type": "typed",
-          "answer": "3/8",
-          "explain": "375/1000=3/8.",
-          "accept": [
-            "3/8",
-            "⅜"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Which is largest?",
-          "type": "multi",
-          "options": [
-            "2/5",
-            "0.45",
-            "3/7",
-            "40%"
-          ],
-          "answer": 1,
-          "explain": "0.45 > 0.4 > ~0.429 > 0.4.",
-          "stage": "ks3"
-        },
-        {
-          "q": "⅝ − ¼ = ?",
-          "type": "multi",
-          "options": [
-            "⅜",
-            "½",
-            "¼",
-            "1"
-          ],
-          "answer": 0,
-          "explain": "⅝−2/8=⅜.",
-          "stage": "both"
-        },
-        {
-          "q": "Find 35% of 200.",
-          "type": "typed",
-          "answer": "70",
-          "explain": "0.35×200=70.",
-          "accept": [
-            "70"
-          ],
-          "stage": "both"
-        }
+      practice: [
+        s3Typed("What is half of 30?", "15", "30 split into 2 equal groups is 15.", 1),
+        s3Typed("What is 10% of 50?", "5", "10% means divide by 10. 50 ÷ 10 = 5.", 1),
+        s3Typed("What is 1/2 of 22?", "11", "One half of 22 is 22 ÷ 2 = 11.", 2),
+        s3Typed(
+          "A hat costs £20. The sale takes £4 off. What is the new price in pounds?",
+          "16",
+          "20 take away 4 is 16, so the hat costs £16.",
+          3
+        ),
       ],
-      "struggle": {
-        "points": [
-          "Add/subtract fractions: common denominator first.",
-          "Divide fractions: multiply by the reciprocal (keep-change-flip)."
-        ],
-        "practice": [
-          {
-            "q": "¾ + ⅛ = ?",
-            "type": "multi",
-            "options": [
-              "7/8",
-              "4/12",
-              "1/2",
-              "5/8"
-            ],
-            "answer": 0,
-            "explain": "6/8+1/8=7/8.",
-            "stage": "both"
-          }
-        ]
-      }
+      struggle: {
+        points: ["10% is the same as dividing by 10."],
+        practice: [s3Typed("What is 10% of 20?", "2", "20 ÷ 10 = 2.", 0)],
+      },
     },
-    "algebra": {
-      "title": "Algebra secure",
-      "blurb": "Two-step equations, expanding brackets, simple sequences.",
-      "videoKey": "algebra",
-      "teach": {
-        "points": [
-          "Solve two-step equations by inverse operations, both sides balanced.",
-          "Expand: a(b+c)=ab+ac. Factorise: reverse (common factor).",
-          "nth term of arithmetic sequence: a + (n−1)d."
+    algebra: {
+      title: "Boxes and a letter",
+      blurb: "A missing number, then a letter that stands for one.",
+      videoKey: "algebra",
+      teach: {
+        points: [
+          "9 + □ = 14. Count on from 9 until you reach 14.",
+          "If n = 6, then n + 3 means 6 + 3.",
+          "2 × □ + 1 = 9. The box times 2, then add 1, makes 9. The box is 4.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "3(x+2)=18",
-          "x+2=6",
-          "x=4"
-        ]
+      example: {
+        title: "Worked example",
+        steps: ["n = 6.", "n + 3 means start at 6 and add 3.", "6 + 3 = 9."],
       },
-      "practice": [
-        {
-          "q": "Solve 3(x+2)=18.",
-          "type": "typed",
-          "answer": "4",
-          "explain": "x+2=6 → x=4.",
-          "accept": [
-            "4"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Expand 4(2x−3)",
-          "type": "multi",
-          "options": [
-            "8x−3",
-            "8x−12",
-            "6x−3",
-            "8x+12"
-          ],
-          "answer": 1,
-          "explain": "8x−12.",
-          "stage": "both"
-        },
-        {
-          "q": "If 5n − 2 = 18, n = ?",
-          "type": "typed",
-          "answer": "4",
-          "explain": "5n=20 → n=4.",
-          "accept": [
-            "4"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "nth term of 3,7,11,15…?",
-          "type": "multi",
-          "options": [
-            "4n−1",
-            "3n",
-            "n+4",
-            "4n+3"
-          ],
-          "answer": 0,
-          "explain": "a=3,d=4 → 4n−1.",
-          "stage": "both"
-        },
-        {
-          "q": "Factorise 6x + 9.",
-          "type": "typed",
-          "answer": "3(2x+3)",
-          "explain": "HCF 3.",
-          "accept": [
-            "3(2x+3)",
-            "3(2x + 3)"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Solve x/5 + 3 = 7.",
-          "type": "typed",
-          "answer": "20",
-          "explain": "x/5=4 → x=20.",
-          "accept": [
-            "20"
-          ],
-          "stage": "ks3"
-        },
-        {
-          "q": "Solve 2x − 3 = 11.",
-          "type": "typed",
-          "answer": "7",
-          "explain": "2x=14 → x=7.",
-          "accept": [
-            "7"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Expand −2(x−5)",
-          "type": "multi",
-          "options": [
-            "−2x+10",
-            "−2x−10",
-            "2x−10",
-            "2x+10"
-          ],
-          "answer": 0,
-          "explain": "−2x+10.",
-          "stage": "both"
-        }
+      practice: [
+        s3Typed("9 + □ = 14. What is □?", "5", "9 and 5 make 14.", 1),
+        s3Typed("If n = 6, what is n + 3?", "9", "6 + 3 = 9.", 1),
+        s3Typed("3 × □ = 12. What is □?", "4", "3 groups of 4 make 12.", 2),
+        s3Typed(
+          "2 × □ + 1 = 9. What is □?",
+          "4",
+          "4 times 2 is 8, and 1 more is 9. The box is 4.",
+          3
+        ),
       ],
-      "struggle": {
-        "points": [
-          "Solve two-step equations by inverse operations, both sides balanced.",
-          "Expand: a(b+c)=ab+ac. Factorise: reverse (common factor)."
-        ],
-        "practice": [
-          {
-            "q": "Solve 3(x+2)=18.",
-            "type": "typed",
-            "answer": "4",
-            "explain": "x+2=6 → x=4.",
-            "accept": [
-              "4"
-            ],
-            "stage": "both"
-          }
-        ]
-      }
+      struggle: {
+        points: ["Put the number where the letter is, then do the sum."],
+        practice: [s3Typed("If n = 2, what is n + 1?", "3", "2 + 1 = 3.", 0)],
+      },
     },
-    "geometry": {
-      "title": "Geometry secure",
-      "blurb": "Area of triangles/parallelograms, angle facts, circumference intro.",
-      "videoKey": "angles",
-      "teach": {
-        "points": [
-          "Triangle 180°, quadrilateral 360°, straight line 180°, point 360°.",
-          "Area parallelogram = base × height; triangle = ½bh.",
-          "Circumference ≈ πd or 2πr (use π=3.14 or leave in terms of π)."
+    geometry: {
+      title: "Around and inside",
+      blurb: "Perimeter, then area as rows of squares, with small shapes.",
+      videoKey: "angles",
+      teach: {
+        points: [
+          "A square with sides of 3 cm has perimeter 3 + 3 + 3 + 3.",
+          "Area of a rectangle is length times width. 4 cm by 3 cm is 12 square cm.",
+          "A rectangle has 4 right angles. Angles in a triangle add up to 180°.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "Parallelogram base 8, height 5 → area 40"
-        ]
+      example: {
+        title: "Worked example",
+        steps: ["A rectangle 4 cm by 3 cm.", "4 rows of 3 squares.", "4 × 3 = 12 square cm."],
       },
-      "practice": [
-        {
-          "q": "Area of parallelogram base 8 cm height 5 cm?",
-          "type": "typed",
-          "answer": "40",
-          "explain": "8×5=40.",
-          "accept": [
-            "40"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Interior angle sum of a pentagon?",
-          "type": "typed",
-          "answer": "540",
-          "explain": "(5−2)×180=540.",
-          "accept": [
-            "540"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Vertically opposite angles are…",
-          "type": "multi",
-          "options": [
-            "equal",
-            "sum to 90",
-            "sum to 180",
-            "always 45"
-          ],
-          "answer": 0,
-          "explain": "VO angles are equal.",
-          "stage": "both"
-        },
-        {
-          "q": "Circumference of circle diameter 10 (use π=3.14)?",
-          "type": "typed",
-          "answer": "31.4",
-          "explain": "πd=31.4.",
-          "accept": [
-            "31.4",
-            "31.40"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Area of triangle base 12 height 7?",
-          "type": "typed",
-          "answer": "42",
-          "explain": "½×12×7=42.",
-          "accept": [
-            "42"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Corresponding angles on parallel lines are…",
-          "type": "multi",
-          "options": [
-            "equal",
-            "sum 180",
-            "sum 90",
-            "random"
-          ],
-          "answer": 0,
-          "explain": "Corresponding angles equal.",
-          "stage": "ks3"
-        },
-        {
-          "q": "Exterior angle of regular hexagon?",
-          "type": "typed",
-          "answer": "60",
-          "explain": "360/6=60.",
-          "accept": [
-            "60"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Area of trapezium formula uses…",
-          "type": "multi",
-          "options": [
-            "average of parallel sides × height",
-            "only base×height",
-            "πr²",
-            "½bh only always"
-          ],
-          "answer": 0,
-          "explain": "½(a+b)h.",
-          "stage": "both"
-        }
+      practice: [
+        s3Typed(
+          "A square has sides of 3 cm. What is the perimeter in cm?",
+          "12",
+          "3 + 3 + 3 + 3 = 12 cm.",
+          1
+        ),
+        s3Typed(
+          "A rectangle is 4 cm by 3 cm. What is the area in square cm?",
+          "12",
+          "4 × 3 = 12 square centimetres.",
+          2
+        ),
+        s3Typed("How many right angles does a rectangle have?", "4", "Each corner of a rectangle is a right angle.", 2),
+        s3Typed(
+          "A triangle has angles of 70 degrees and 50 degrees. What is the third angle?",
+          "60",
+          "Angles in a triangle add to 180. 180 − 70 − 50 = 60.",
+          3
+        ),
       ],
-      "struggle": {
-        "points": [
-          "Triangle 180°, quadrilateral 360°, straight line 180°, point 360°.",
-          "Area parallelogram = base × height; triangle = ½bh."
+      struggle: {
+        points: ["Add the sides you can see for a perimeter."],
+        practice: [
+          s3Typed("A square has sides of 2 cm. What is the perimeter in cm?", "8", "2 + 2 + 2 + 2 = 8 cm.", 0),
         ],
-        "practice": [
-          {
-            "q": "Area of parallelogram base 8 cm height 5 cm?",
-            "type": "typed",
-            "answer": "40",
-            "explain": "8×5=40.",
-            "accept": [
-              "40"
-            ],
-            "stage": "both"
-          }
-        ]
-      }
+      },
     },
-    "data": {
-      "title": "Data secure",
-      "blurb": "Mean/median/mode/range, simple probability, reading charts.",
-      "videoKey": "averages",
-      "teach": {
-        "points": [
-          "Mean, median, mode, range — know which average suits the data.",
-          "P(event) = favourable ÷ total (equally likely outcomes).",
-          "Grouped data: estimate mean using midpoints (intro)."
+    data: {
+      title: "Share, most, and chance",
+      blurb: "A simple average, the most common number, then one chance.",
+      videoKey: "averages",
+      teach: {
+        points: [
+          "To find the mean, add the numbers and share by how many there are.",
+          "The mode is the number that appears most.",
+          "One red section on a spinner of 4 equal colours is a 1 in 4 chance.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "Data 2,5,5,7,11 — median 5, mode 5, mean 6, range 9"
-        ]
+      example: {
+        title: "Worked example",
+        steps: ["Scores 2, 4 and 6.", "2 + 4 + 6 = 12.", "3 numbers, so 12 ÷ 3 = 4."],
       },
-      "practice": [
-        {
-          "q": "Median of 2,5,5,7,11?",
-          "type": "typed",
-          "answer": "5",
-          "explain": "Middle value.",
-          "accept": [
-            "5"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Mean of 2,5,5,7,11?",
-          "type": "typed",
-          "answer": "6",
-          "explain": "30÷5=6.",
-          "accept": [
-            "6"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "P(even) on fair die?",
-          "type": "multi",
-          "options": [
-            "1/2",
-            "1/3",
-            "1/6",
-            "2/3"
-          ],
-          "answer": 0,
-          "explain": "2,4,6 → 3/6=1/2.",
-          "stage": "both"
-        },
-        {
-          "q": "Range of 14, 3, 9, 20, 7?",
-          "type": "typed",
-          "answer": "17",
-          "explain": "20−3=17.",
-          "accept": [
-            "17"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Best average if data has a huge outlier?",
-          "type": "multi",
-          "options": [
-            "mean",
-            "median",
-            "range",
-            "mode always"
-          ],
-          "answer": 1,
-          "explain": "Median resists outliers.",
-          "stage": "both"
-        },
-        {
-          "q": "Two coins: P(two heads)?",
-          "type": "multi",
-          "options": [
-            "1/2",
-            "1/3",
-            "1/4",
-            "1"
-          ],
-          "answer": 2,
-          "explain": "HH among HH,HT,TH,TT.",
-          "stage": "ks3"
-        },
-        {
-          "q": "Mean of 10, 20, 30?",
-          "type": "typed",
-          "answer": "20",
-          "explain": "60/3=20.",
-          "accept": [
-            "20"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "P(not 6) on fair die?",
-          "type": "multi",
-          "options": [
-            "5/6",
-            "1/6",
-            "1/2",
-            "6/5"
-          ],
-          "answer": 0,
-          "explain": "1−1/6.",
-          "stage": "both"
-        }
+      practice: [
+        s3Typed(
+          "The scores are 2, 4 and 6. Add them and share into 3. What is each share?",
+          "4",
+          "12 shared into 3 is 4. That share is the mean.",
+          1
+        ),
+        s3Typed("Which number appears most: 3, 5, 5 and 8?", "5", "5 appears twice. The others appear once.", 2),
+        s3Typed(
+          "The numbers are 4, 10 and 6. What is the range?",
+          "6",
+          "Range is biggest minus smallest. 10 − 4 = 6.",
+          2
+        ),
+        s3Multi(
+          "A spinner has 4 equal colours and one of them is red. The chance of red is…",
+          ["1 out of 4", "4 out of 1", "certain", "impossible"],
+          0,
+          "One red part out of four equal parts is a 1 in 4 chance.",
+          3
+        ),
       ],
-      "struggle": {
-        "points": [
-          "Mean, median, mode, range — know which average suits the data.",
-          "P(event) = favourable ÷ total (equally likely outcomes)."
+      struggle: {
+        points: ["Add, then share fairly."],
+        practice: [
+          s3Typed("The scores are 1, 2 and 3. What is the mean?", "2", "1 + 2 + 3 = 6, and 6 ÷ 3 = 2.", 0),
         ],
-        "practice": [
-          {
-            "q": "Median of 2,5,5,7,11?",
-            "type": "typed",
-            "answer": "5",
-            "explain": "Middle value.",
-            "accept": [
-              "5"
-            ],
-            "stage": "both"
-          }
-        ]
-      }
-    }
+      },
+    },
   },
-  "english": {
-    "grammar": {
-      "title": "Grammar secure",
-      "blurb": "Clauses, tense control, active/passive and agreement.",
-      "videoKey": "grammar",
-      "teach": {
-        "points": [
-          "Complex sentences: main + subordinate clause(s).",
-          "Tense consistency within a paragraph unless time shifts deliberately.",
-          "Passive voice: object becomes subject + form of be + past participle."
+  english: {
+    grammar: {
+      title: "Sentences that hold together",
+      blurb: "Were or was, find the verb, then a piece that cannot stand alone.",
+      videoKey: "grammar",
+      teach: {
+        points: [
+          "We were late, not we was late. We is more than one.",
+          "The verb is the doing word: steered, ate, ran.",
+          "Because the rain started needs a main sentence beside it.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "Active: The chef cooked the meal.",
-          "Passive: The meal was cooked by the chef."
-        ]
+      example: {
+        title: "Worked example",
+        steps: ["George steered the kart.", "Steered is the doing word.", "That is the verb."],
       },
-      "practice": [
-        {
-          "q": "Passive form of 'The storm destroyed the pier.'?",
-          "type": "multi",
-          "options": [
-            "The pier was destroyed by the storm.",
-            "The storm was destroyed the pier.",
-            "Destroyed the pier the storm.",
-            "The pier destroyed."
-          ],
-          "answer": 0,
-          "explain": "Object + was + past participle.",
-          "stage": "both"
-        },
-        {
-          "q": "Subordinate clause in: 'Although it rained, we played.'?",
-          "type": "multi",
-          "options": [
-            "we played",
-            "Although it rained",
-            "it",
-            "played"
-          ],
-          "answer": 1,
-          "explain": "Although… cannot stand alone.",
-          "stage": "both"
-        },
-        {
-          "q": "Correct agreement:",
-          "type": "multi",
-          "options": [
-            "The list of items are long.",
-            "The list of items is long.",
-            "The list of items be long.",
-            "The list of items were long."
-          ],
-          "answer": 1,
-          "explain": "Subject is 'list' (singular).",
-          "stage": "both"
-        },
-        {
-          "q": "Past perfect is used for…",
-          "type": "multi",
-          "options": [
-            "an action before another past action",
-            "future only",
-            "commands only",
-            "adjectives only"
-          ],
-          "answer": 0,
-          "explain": "had + past participle.",
-          "stage": "both"
-        },
-        {
-          "q": "Which is a relative clause?",
-          "type": "multi",
-          "options": [
-            "who lives next door",
-            "and then",
-            "very quickly",
-            "Oh no"
-          ],
-          "answer": 0,
-          "explain": "who/which/that clauses.",
-          "stage": "both"
-        },
-        {
-          "q": "Modal verb of obligation:",
-          "type": "multi",
-          "options": [
-            "might",
-            "must",
-            "could",
-            "may"
-          ],
-          "answer": 1,
-          "explain": "must = strong obligation.",
-          "stage": "both"
-        },
-        {
-          "q": "Correct past perfect:",
-          "type": "multi",
-          "options": [
-            "She had left before we arrived.",
-            "She have left before we arrived.",
-            "She leaved before.",
-            "She did left."
-          ],
-          "answer": 0,
-          "explain": "had + past participle.",
-          "stage": "both"
-        },
-        {
-          "q": "Active voice:",
-          "type": "multi",
-          "options": [
-            "The team won the cup.",
-            "The cup was won by the team.",
-            "The cup is being.",
-            "Won the cup team."
-          ],
-          "answer": 0,
-          "explain": "subject does action.",
-          "stage": "both"
-        }
+      practice: [
+        s3Multi(
+          "Which sentence is right?",
+          ["We were late.", "We was late.", "We be late."],
+          0,
+          "We is plural, so the verb is were.",
+          1
+        ),
+        s3Multi(
+          "Which word is the verb in 'George steered the kart'?",
+          ["George", "steered", "the", "kart"],
+          1,
+          "Steered is what George did.",
+          1
+        ),
+        s3Multi(
+          "Which piece cannot stand alone as a sentence?",
+          ["Because the rain started", "The rain started.", "Bella shut the gate."],
+          0,
+          "Because… needs the rest of the idea. It is not a whole sentence.",
+          3
+        ),
       ],
-      "struggle": {
-        "points": [
-          "Complex sentences: main + subordinate clause(s).",
-          "Tense consistency within a paragraph unless time shifts deliberately."
+      struggle: {
+        points: ["If you can ask 'did what?', the answer is the verb."],
+        practice: [
+          s3Multi("I ___ happy.", ["am", "are"], 0, "I takes am.", 0),
         ],
-        "practice": [
-          {
-            "q": "Passive form of 'The storm destroyed the pier.'?",
-            "type": "multi",
-            "options": [
-              "The pier was destroyed by the storm.",
-              "The storm was destroyed the pier.",
-              "Destroyed the pier the storm.",
-              "The pier destroyed."
-            ],
-            "answer": 0,
-            "explain": "Object + was + past participle.",
-            "stage": "both"
-          }
-        ]
-      }
+      },
     },
-    "punctuation": {
-      "title": "Punctuation secure",
-      "blurb": "Colons, semi-colons, dashes, brackets and accurate speech.",
-      "videoKey": "punctuation",
-      "teach": {
-        "points": [
-          "Colon introduces list, explanation or quotation after a complete clause.",
-          "Semi-colon joins two related independent clauses.",
-          "Parentheses/dashes add extra information; don't let them break grammar."
+    punctuation: {
+      title: "Lists and a trickier apostrophe",
+      blurb: "Commas in a new list, then one plural apostrophe.",
+      videoKey: "punctuation",
+      teach: {
+        points: [
+          "Commas separate items in a list. The last pair can use and.",
+          "They're means they are.",
+          "More than one girl: the girls' stable. The apostrophe sits after the s.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "I packed three things: water, a map and a torch."
-        ]
+      example: {
+        title: "Worked example",
+        steps: ["One girl: the girl's hat.", "More than one girl: the girls' stable.", "The apostrophe moves after the s."],
       },
-      "practice": [
-        {
-          "q": "Best punctuation: The recipe was simple_ flour, eggs, milk.",
-          "type": "multi",
-          "options": [
-            ",",
-            ":",
-            ";",
-            "— only always"
+      practice: [
+        s3Multi(
+          "Which sentence uses commas in a list?",
+          [
+            "She packed hay, a brush and a lead rope.",
+            "She packed hay a brush and a lead rope.",
+            "She packed, hay a brush and a lead rope",
           ],
-          "answer": 1,
-          "explain": "Colon introduces the list.",
-          "stage": "both"
-        },
-        {
-          "q": "Correct:",
-          "type": "multi",
-          "options": [
-            "It's cold; we should go in.",
-            "It's cold, we should go in.",
-            "It's cold we should go in.",
-            "Its cold; we should go in."
-          ],
-          "answer": 0,
-          "explain": "Semi-colon joins related sentences; it's = it is.",
-          "stage": "both"
-        },
-        {
-          "q": "Plural possession: bags of the teachers",
-          "type": "multi",
-          "options": [
-            "teacher's bags",
-            "teachers' bags",
-            "teachers bags",
-            "teacher's' bags"
-          ],
-          "answer": 1,
-          "explain": "teachers'.",
-          "stage": "both"
-        },
-        {
-          "q": "Speech punctuation:",
-          "type": "multi",
-          "options": [
-            "\"Stop,\" she said.",
-            "\"Stop\" she said.",
-            "\"Stop,\" She said.",
-            "Stop, she said."
-          ],
-          "answer": 0,
-          "explain": "Comma inside speech before she said.",
-          "stage": "both"
-        },
-        {
-          "q": "Hyphen vs dash: a well-known author uses a…",
-          "type": "multi",
-          "options": [
-            "hyphen in well-known",
-            "semi-colon in well-known",
-            "colon in well-known",
-            "full stop in well-known"
-          ],
-          "answer": 0,
-          "explain": "Compound adjective often hyphenated.",
-          "stage": "both"
-        },
-        {
-          "q": "Ellipsis (…) can suggest…",
-          "type": "multi",
-          "options": [
-            "trailing off / pause",
-            "only a list",
-            "a question",
-            "volume"
-          ],
-          "answer": 0,
-          "explain": "Pause or unfinished thought.",
-          "stage": "both"
-        },
-        {
-          "q": "Need apostrophe?",
-          "type": "multi",
-          "options": [
-            "The cats whiskers (one cat)",
-            "The cat's whiskers",
-            "The cats' (one cat) whiskers wrong",
-            "The cat whiskers"
-          ],
-          "answer": 1,
-          "explain": "cat's.",
-          "stage": "both"
-        },
-        {
-          "q": "Best for two related full sentences:",
-          "type": "multi",
-          "options": [
-            ";",
-            ",",
-            "... only",
-            "! only"
-          ],
-          "answer": 0,
-          "explain": "semi-colon.",
-          "stage": "both"
-        }
+          0,
+          "Commas split the items. And joins the last pair.",
+          1
+        ),
+        s3Multi("They're is short for…", ["they are", "they were", "there is"], 0, "They're means they are.", 2),
+        s3Multi(
+          "More than one girl owns the stable. Which is right?",
+          ["the girls' stable", "the girl's stable", "the girls stable'"],
+          0,
+          "Plural girls already ends in s, so the apostrophe comes after it.",
+          3
+        ),
       ],
-      "struggle": {
-        "points": [
-          "Colon introduces list, explanation or quotation after a complete clause.",
-          "Semi-colon joins two related independent clauses."
+      struggle: {
+        points: ["Read the list out loud. Pause where a comma goes."],
+        practice: [
+          s3Multi(
+            "Which list needs commas?",
+            ["hats gloves boots", "hats, gloves and boots"],
+            1,
+            "The second list separates the items.",
+            0
+          ),
         ],
-        "practice": [
-          {
-            "q": "Best punctuation: The recipe was simple_ flour, eggs, milk.",
-            "type": "multi",
-            "options": [
-              ",",
-              ":",
-              ";",
-              "— only always"
-            ],
-            "answer": 1,
-            "explain": "Colon introduces the list.",
-            "stage": "both"
-          }
-        ]
-      }
+      },
     },
-    "vocabulary": {
-      "title": "Vocabulary secure",
-      "blurb": "Nuance, formal register and morphology.",
-      "videoKey": "reading",
-      "teach": {
-        "points": [
-          "Choose words for precise tone — synonyms are not identical.",
-          "Morphology: root + prefix/suffix changes meaning (un-, -less, -ology).",
-          "Formal writing avoids slang and contractions (usually)."
+    vocabulary: {
+      title: "Quiet words, then a rarer one",
+      blurb: "Words you know, then one that means 'not many'.",
+      videoKey: "reading",
+      teach: {
+        points: [
+          "Silent means quiet.",
+          "The opposite of empty is full.",
+          "Scarce means there are not many.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "reluctant ≈ unwilling; eager is an antonym."
-        ]
+      example: {
+        title: "Worked example",
+        steps: ["The yard was silent.", "Silent means quiet.", "You could picture a still yard."],
       },
-      "practice": [
-        {
-          "q": "Best word: The scientist's method was highly ___ .",
-          "type": "multi",
-          "options": [
-            "slapdash",
-            "rigorous",
-            "random",
-            "chatty"
-          ],
-          "answer": 1,
-          "explain": "rigorous = careful and thorough.",
-          "stage": "both"
-        },
-        {
-          "q": "Prefix 'anti-' means…",
-          "type": "multi",
-          "options": [
-            "before",
-            "against",
-            "again",
-            "not enough"
-          ],
-          "answer": 1,
-          "explain": "against.",
-          "stage": "both"
-        },
-        {
-          "q": "Most formal synonym of 'get':",
-          "type": "multi",
-          "options": [
-            "obtain",
-            "grab",
-            "score",
-            "nab"
-          ],
-          "answer": 0,
-          "explain": "obtain is formal.",
-          "stage": "both"
-        },
-        {
-          "q": "Ambiguous means…",
-          "type": "multi",
-          "options": [
-            "crystal clear",
-            "open to more than one meaning",
-            "musical",
-            "ancient"
-          ],
-          "answer": 1,
-          "explain": "more than one interpretation.",
-          "stage": "both"
-        },
-        {
-          "q": "Connotation of 'slim' vs 'scrawny'?",
-          "type": "multi",
-          "options": [
-            "slim is more positive",
-            "identical always",
-            "scrawny is more positive",
-            "neither has tone"
-          ],
-          "answer": 0,
-          "explain": "slim often complimentary; scrawny critical.",
-          "stage": "both"
-        },
-        {
-          "q": "'Benevolent' most nearly means…",
-          "type": "multi",
-          "options": [
-            "kind",
-            "violent",
-            "noisy",
-            "tiny"
-          ],
-          "answer": 0,
-          "explain": "well-meaning, kind.",
-          "stage": "ks3"
-        },
-        {
-          "q": "Which word is the opposite of scarce?",
-          "type": "multi",
-          "options": [
-            "plentiful",
-            "rare",
-            "tiny",
-            "hidden"
-          ],
-          "answer": 0,
-          "explain": "plentiful.",
-          "stage": "both"
-        },
-        {
-          "q": "'Meticulous' means…",
-          "type": "multi",
-          "options": [
-            "very careful/precise",
-            "messy",
-            "loud",
-            "late"
-          ],
-          "answer": 0,
-          "explain": "careful.",
-          "stage": "both"
-        }
+      practice: [
+        s3Multi("Silent means…", ["quiet", "noisy", "late"], 0, "Silent means quiet.", 1),
+        s3Multi("The opposite of empty is…", ["full", "hollow", "missing"], 0, "Full is the opposite of empty.", 1),
+        s3Multi("Scarce means…", ["not many", "very loud", "easy to find"], 0, "If something is scarce, there is not much of it.", 3),
       ],
-      "struggle": {
-        "points": [
-          "Choose words for precise tone — synonyms are not identical.",
-          "Morphology: root + prefix/suffix changes meaning (un-, -less, -ology)."
-        ],
-        "practice": [
-          {
-            "q": "Best word: The scientist's method was highly ___ .",
-            "type": "multi",
-            "options": [
-              "slapdash",
-              "rigorous",
-              "random",
-              "chatty"
-            ],
-            "answer": 1,
-            "explain": "rigorous = careful and thorough.",
-            "stage": "both"
-          }
-        ]
-      }
+      struggle: {
+        points: ["Opposite means the other end."],
+        practice: [s3Multi("The opposite of up is…", ["down", "higher", "sky"], 0, "Down is the opposite of up.", 0)],
+      },
     },
-    "reading": {
-      "title": "Reading secure",
-      "blurb": "Inference, evidence, structure and writer’s methods.",
-      "videoKey": "reading",
-      "teach": {
-        "points": [
-          "AO1: identify & interpret; AO2: language/structure effects; AO3: compare; AO4: evaluate.",
-          "Always embed a short quotation and explain the effect.",
-          "Track tone shifts across a text."
+    reading: {
+      title: "The light came on",
+      blurb: "Find the fact, then one reason.",
+      videoKey: "reading",
+      teach: {
+        points: [
+          "The first question asks for something the sentence says.",
+          "The next question asks why. Use the clue.",
+          "A blink after a light comes on suggests the light was sudden.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "Clue words + knowledge → inference. Quote → evidence."
-        ]
+      example: {
+        title: "Worked example",
+        steps: [
+          "Bella switched on the light and the pony blinked.",
+          "What did she switch on? The light.",
+          "Why blink? The light was sudden.",
+        ],
       },
-      "practice": [
-        {
-          "q": "Inference means…",
-          "type": "multi",
-          "options": [
-            "copying the text only",
-            "reading between the lines using clues",
-            "counting adjectives",
-            "ignoring context"
-          ],
-          "answer": 1,
-          "explain": "clues + knowledge.",
-          "stage": "both"
-        },
-        {
-          "q": "Why quote in answers?",
-          "type": "multi",
-          "options": [
-            "to decorate",
-            "to support points with evidence",
-            "to fill space",
-            "exam boards ban quotes"
-          ],
-          "answer": 1,
-          "explain": "evidence for AO1/AO2.",
-          "stage": "both"
-        },
-        {
-          "q": "A motif is…",
-          "type": "multi",
-          "options": [
-            "a repeated idea/image",
-            "a full stop",
-            "a type of narrator only",
-            "a rhyme scheme only"
-          ],
-          "answer": 0,
-          "explain": "recurring element.",
-          "stage": "both"
-        },
-        {
-          "q": "First-person narrator uses…",
-          "type": "multi",
-          "options": [
-            "I/we",
-            "he/she only",
-            "you only always",
-            "no pronouns"
-          ],
-          "answer": 0,
-          "explain": "I/we.",
-          "stage": "both"
-        },
-        {
-          "q": "Structural feature:",
-          "type": "multi",
-          "options": [
-            "paragraph shift / focus change",
-            "only spelling",
-            "only commas",
-            "font size only"
-          ],
-          "answer": 0,
-          "explain": "how the text is built.",
-          "stage": "both"
-        },
-        {
-          "q": "Evaluate (AO4) means…",
-          "type": "multi",
-          "options": [
-            "judge how successful methods are",
-            "list characters only",
-            "copy the title",
-            "count words"
-          ],
-          "answer": 0,
-          "explain": "critical judgement.",
-          "stage": "ks3"
-        },
-        {
-          "q": "Bias in a text means…",
-          "type": "multi",
-          "options": [
-            "one-sided viewpoint",
-            "perfect neutrality only",
-            "no adjectives",
-            "only facts always"
-          ],
-          "answer": 0,
-          "explain": "slant.",
-          "stage": "both"
-        },
-        {
-          "q": "A cliffhanger…",
-          "type": "multi",
-          "options": [
-            "leaves tension unresolved at a break",
-            "ends with a moral only",
-            "lists facts",
-            "is a simile"
-          ],
-          "answer": 0,
-          "explain": "tension.",
-          "stage": "both"
-        }
+      practice: [
+        s3Multi(
+          "The yard was dark. Bella switched on the light. What did she switch on?",
+          ["The light", "The radio", "The rain"],
+          0,
+          "The sentence says she switched on the light.",
+          1
+        ),
+        s3Multi(
+          "The pony blinked when the light came on. Why?",
+          ["The light was sudden", "It was time for maths", "The gate was a simile"],
+          0,
+          "A sudden light makes you blink.",
+          3
+        ),
       ],
-      "struggle": {
-        "points": [
-          "AO1: identify & interpret; AO2: language/structure effects; AO3: compare; AO4: evaluate.",
-          "Always embed a short quotation and explain the effect."
+      struggle: {
+        points: ["Use the words in the sentence first."],
+        practice: [
+          s3Multi(
+            "The stable door was shut. Was the door open?",
+            ["No", "Yes"],
+            0,
+            "Shut means it was not open.",
+            0
+          ),
         ],
-        "practice": [
-          {
-            "q": "Inference means…",
-            "type": "multi",
-            "options": [
-              "copying the text only",
-              "reading between the lines using clues",
-              "counting adjectives",
-              "ignoring context"
-            ],
-            "answer": 1,
-            "explain": "clues + knowledge.",
-            "stage": "both"
-          }
-        ]
-      }
+      },
     },
-    "writing": {
-      "title": "Writing secure",
-      "blurb": "Purpose, audience, form and controlled techniques.",
-      "videoKey": "writing",
-      "teach": {
-        "points": [
-          "PAF: Purpose, Audience, Form before you write.",
-          "Vary sentence openers and lengths for effect.",
-          "Persuade: ethos/pathos/logos lite — credibility, emotion, reason."
+    writing: {
+      title: "Picture, then the main idea",
+      blurb: "A simile, a strong verb, then a sentence that introduces a topic.",
+      videoKey: "writing",
+      teach: {
+        points: [
+          "A simile uses like or as.",
+          "Shot is a stronger verb than went.",
+          "A topic sentence says what the paragraph is about.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "Task: article for classmates → lively but clear; subheadings OK."
-        ]
+      example: {
+        title: "Worked example",
+        steps: ["A helmet keeps your head safe.", "That sentence tells you the paragraph is about helmets.", "It is a topic sentence."],
       },
-      "practice": [
-        {
-          "q": "Best for a formal letter of complaint?",
-          "type": "multi",
-          "options": [
-            "Dear Sir or Madam,",
-            "Hey,",
-            "Yo,",
-            "Hiya mate,"
-          ],
-          "answer": 0,
-          "explain": "formal greeting.",
-          "stage": "both"
-        },
-        {
-          "q": "Rhetorical question aims to…",
-          "type": "multi",
-          "options": [
-            "get a spoken answer always",
-            "make the reader think",
-            "end the text only",
-            "replace full stops"
-          ],
-          "answer": 1,
-          "explain": "engage thinking.",
-          "stage": "both"
-        },
-        {
-          "q": "Discourse marker for contrast:",
-          "type": "multi",
-          "options": [
-            "Furthermore",
-            "However",
-            "Firstly",
-            "In conclusion only"
-          ],
-          "answer": 1,
-          "explain": "However = contrast.",
-          "stage": "both"
-        },
-        {
-          "q": "Show-not-tell example:",
-          "type": "multi",
-          "options": [
-            "She was angry.",
-            "She slammed the book shut.",
-            "Anger.",
-            "She felt anger emotions."
-          ],
-          "answer": 1,
-          "explain": "action shows emotion.",
-          "stage": "both"
-        },
-        {
-          "q": "A topic sentence…",
-          "type": "multi",
-          "options": [
-            "states the paragraph’s main idea",
-            "must be a question",
-            "is always last",
-            "lists random words"
-          ],
-          "answer": 0,
-          "explain": "guides the paragraph.",
-          "stage": "both"
-        },
-        {
-          "q": "Call to action belongs most naturally in…",
-          "type": "multi",
-          "options": [
-            "persuasive ending",
-            "dictionary entry",
-            "maths formula",
-            "silent film only"
-          ],
-          "answer": 0,
-          "explain": "tell reader what to do.",
-          "stage": "both"
-        },
-        {
-          "q": "Formal letter close:",
-          "type": "multi",
-          "options": [
-            "Yours faithfully (unknown name)",
-            "See ya",
-            "Love always only",
-            "Thx"
-          ],
-          "answer": 0,
-          "explain": "faithfully if unknown.",
-          "stage": "both"
-        },
-        {
-          "q": "Discourse marker to add idea:",
-          "type": "multi",
-          "options": [
-            "Furthermore",
-            "However",
-            "In contrast",
-            "Although"
-          ],
-          "answer": 0,
-          "explain": "Furthermore adds.",
-          "stage": "both"
-        }
+      practice: [
+        s3Multi(
+          "Which line compares the mane using like?",
+          ["The mane was like silk.", "The mane was long.", "Mane"],
+          0,
+          "Like compares the mane to silk.",
+          1
+        ),
+        s3Multi(
+          "Which verb is stronger?",
+          ["The kart shot down the straight.", "The kart went.", "The kart."],
+          0,
+          "Shot helps the reader see the speed.",
+          2
+        ),
+        s3Multi(
+          "Which sentence introduces a paragraph about helmets?",
+          ["A helmet keeps your head safe.", "I like toast.", "The end."],
+          0,
+          "It states the main idea before the details.",
+          3
+        ),
       ],
-      "struggle": {
-        "points": [
-          "PAF: Purpose, Audience, Form before you write.",
-          "Vary sentence openers and lengths for effect."
+      struggle: {
+        points: ["Look for like or as."],
+        practice: [
+          s3Multi(
+            "Which line is a simile?",
+            ["as quiet as a mouse", "very quiet", "quiet"],
+            0,
+            "As… as makes a simile.",
+            0
+          ),
         ],
-        "practice": [
-          {
-            "q": "Best for a formal letter of complaint?",
-            "type": "multi",
-            "options": [
-              "Dear Sir or Madam,",
-              "Hey,",
-              "Yo,",
-              "Hiya mate,"
-            ],
-            "answer": 0,
-            "explain": "formal greeting.",
-            "stage": "both"
-          }
-        ]
-      }
-    }
+      },
+    },
   },
-  "science": {
-    "biology": {
-      "title": "Biology secure",
-      "blurb": "Cells, organisation, photosynthesis and health.",
-      "videoKey": "biology",
-      "teach": {
-        "points": [
-          "Cell hierarchy: cell → tissue → organ → system → organism.",
-          "Photosynthesis: CO₂ + H₂O → glucose + O₂ (chloroplasts, light).",
-          "Pathogens cause disease; white blood cells defend."
+  science: {
+    biology: {
+      title: "Food, breath, a cell",
+      blurb: "Body jobs you know, then one new word: nucleus.",
+      videoKey: "photosynthesis",
+      teach: {
+        points: [
+          "Your stomach helps digest food.",
+          "Plants make food using light. That process is called photosynthesis.",
+          "A cell's control centre is the nucleus.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "Leaf cells packed with chloroplasts for photosynthesis."
-        ]
+      example: {
+        title: "Worked example",
+        steps: ["Think of a cell as a tiny room.", "The nucleus is in charge.", "It is the control centre."],
       },
-      "practice": [
-        {
-          "q": "Site of photosynthesis?",
-          "type": "multi",
-          "options": [
-            "mitochondria",
-            "chloroplasts",
-            "nucleus only",
-            "ribosomes only"
-          ],
-          "answer": 1,
-          "explain": "chloroplasts.",
-          "stage": "both"
-        },
-        {
-          "q": "Correct order?",
-          "type": "multi",
-          "options": [
-            "organ → cell → tissue",
-            "cell → tissue → organ → system",
-            "system → cell",
-            "tissue → atom → organ"
-          ],
-          "answer": 1,
-          "explain": "cell→tissue→organ→system.",
-          "stage": "both"
-        },
-        {
-          "q": "Mitochondria are for…",
-          "type": "multi",
-          "options": [
-            "photosynthesis",
-            "aerobic respiration (energy)",
-            "storing DNA only",
-            "making cell walls"
-          ],
-          "answer": 1,
-          "explain": "respiration.",
-          "stage": "both"
-        },
-        {
-          "q": "A pathogen is…",
-          "type": "multi",
-          "options": [
-            "a nutrient",
-            "a disease-causing microorganism",
-            "a bone",
-            "a vitamin"
-          ],
-          "answer": 1,
-          "explain": "causes disease.",
-          "stage": "both"
-        },
-        {
-          "q": "Xylem transports…",
-          "type": "multi",
-          "options": [
-            "sugars mainly",
-            "water and minerals up the plant",
-            "oxygen only",
-            "blood"
-          ],
-          "answer": 1,
-          "explain": "water/minerals.",
-          "stage": "both"
-        },
-        {
-          "q": "Enzymes are…",
-          "type": "multi",
-          "options": [
-            "biological catalysts",
-            "only fats",
-            "types of bone",
-            "light waves"
-          ],
-          "answer": 0,
-          "explain": "speed up reactions.",
-          "stage": "ks3"
-        },
-        {
-          "q": "Diffusion is…",
-          "type": "multi",
-          "options": [
-            "net movement high→low concentration",
-            "only in solids",
-            "needs ATP always",
-            "only in plants"
-          ],
-          "answer": 0,
-          "explain": "passive high to low.",
-          "stage": "both"
-        },
-        {
-          "q": "Red blood cells carry…",
-          "type": "multi",
-          "options": [
-            "oxygen",
-            "only food",
-            "bones",
-            "urine"
-          ],
-          "answer": 0,
-          "explain": "oxygen via haemoglobin.",
-          "stage": "both"
-        }
+      practice: [
+        s3Multi(
+          "Your stomach helps you…",
+          ["digest food", "steer a kart", "make sunlight"],
+          0,
+          "The stomach is part of digestion.",
+          1
+        ),
+        s3Multi(
+          "Plants make food using light. That is called…",
+          ["photosynthesis", "gravity", "punctuation"],
+          0,
+          "Photosynthesis is how plants make food with light.",
+          2
+        ),
+        s3Multi(
+          "The control centre of a cell is the…",
+          ["nucleus", "shoe", "fence"],
+          0,
+          "The nucleus controls what the cell does.",
+          3
+        ),
       ],
-      "struggle": {
-        "points": [
-          "Cell hierarchy: cell → tissue → organ → system → organism.",
-          "Photosynthesis: CO₂ + H₂O → glucose + O₂ (chloroplasts, light)."
+      struggle: {
+        points: ["Stomach: food. Lungs: air."],
+        practice: [
+          s3Multi("Which helps you digest?", ["Stomach", "Helmet", "Tyre"], 0, "The stomach helps digest food.", 0),
         ],
-        "practice": [
-          {
-            "q": "Site of photosynthesis?",
-            "type": "multi",
-            "options": [
-              "mitochondria",
-              "chloroplasts",
-              "nucleus only",
-              "ribosomes only"
-            ],
-            "answer": 1,
-            "explain": "chloroplasts.",
-            "stage": "both"
-          }
-        ]
-      }
+      },
     },
-    "chemistry": {
-      "title": "Chemistry secure",
-      "blurb": "Particle model, pure/mixtures, acids/alkalis intro.",
-      "videoKey": "chemistry",
-      "teach": {
-        "points": [
-          "Pure substance = single element or compound; mixture = two+ not chemically joined.",
-          "pH < 7 acid, 7 neutral, > 7 alkali.",
-          "Conservation of mass in a closed system."
+    chemistry: {
+      title: "Same water, new change",
+      blurb: "Ice, water and steam, then a first chemical change.",
+      videoKey: "states",
+      teach: {
+        points: [
+          "Ice, water and steam are the same substance in three states.",
+          "Steam is water as a gas.",
+          "Burning wood makes new substances. That is a chemical change.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "Filtration separates insoluble solid from liquid."
-        ]
+      example: {
+        title: "Worked example",
+        steps: ["Ice is solid water.", "Melt it: liquid.", "Boil it: gas, which we call steam."],
       },
-      "practice": [
-        {
-          "q": "pH of a strong acid is…",
-          "type": "multi",
-          "options": [
-            "close to 1–2",
-            "7",
-            "14",
-            "100"
-          ],
-          "answer": 0,
-          "explain": "low pH.",
-          "stage": "both"
-        },
-        {
-          "q": "Neutralisation produces…",
-          "type": "multi",
-          "options": [
-            "only oxygen",
-            "salt + water (typically)",
-            "only acid",
-            "plastic"
-          ],
-          "answer": 1,
-          "explain": "acid + alkali → salt + water.",
-          "stage": "both"
-        },
-        {
-          "q": "Chromatography separates…",
-          "type": "multi",
-          "options": [
-            "dissolved substances",
-            "only metals",
-            "sound waves",
-            "magnets"
-          ],
-          "answer": 0,
-          "explain": "inks/dyes etc.",
-          "stage": "both"
-        },
-        {
-          "q": "In chemistry, an element is a substance that…",
-          "type": "multi",
-          "options": [
-            "contains one type of atom",
-            "is always a mixture",
-            "cannot be solid",
-            "is a solution"
-          ],
-          "answer": 0,
-          "explain": "one atom type.",
-          "stage": "both"
-        },
-        {
-          "q": "Oxidation (simple) often means…",
-          "type": "multi",
-          "options": [
-            "gain of oxygen / loss of electrons (KS4)",
-            "cooling only",
-            "melting only",
-            "freezing"
-          ],
-          "answer": 0,
-          "explain": "gain oxygen / e⁻ loss at GCSE.",
-          "stage": "both"
-        },
-        {
-          "q": "Distillation separates liquids by…",
-          "type": "multi",
-          "options": [
-            "colour only",
-            "different boiling points",
-            "magnetism",
-            "taste"
-          ],
-          "answer": 1,
-          "explain": "boiling points.",
-          "stage": "ks3"
-        },
-        {
-          "q": "Group 0/18 are…",
-          "type": "multi",
-          "options": [
-            "noble gases",
-            "halogens",
-            "alkali metals",
-            "transition only"
-          ],
-          "answer": 0,
-          "explain": "noble gases.",
-          "stage": "both"
-        },
-        {
-          "q": "Thermal decomposition…",
-          "type": "multi",
-          "options": [
-            "breaks compound with heat",
-            "joins metals only",
-            "is melting ice",
-            "is dissolving"
-          ],
-          "answer": 0,
-          "explain": "heat split.",
-          "stage": "both"
-        }
+      practice: [
+        s3Multi(
+          "Ice, water and steam are all…",
+          ["water", "wood", "iron"],
+          0,
+          "They are the same substance in different states.",
+          1
+        ),
+        s3Multi("Steam is water as a…", ["gas", "solid brick", "metal"], 0, "Steam is the gas form of water.", 2),
+        s3Multi(
+          "Burning wood so it turns to ash is a…",
+          ["chemical change", "change of handwriting", "type of map"],
+          0,
+          "New substances form. That is a chemical change.",
+          3
+        ),
       ],
-      "struggle": {
-        "points": [
-          "Pure substance = single element or compound; mixture = two+ not chemically joined.",
-          "pH < 7 acid, 7 neutral, > 7 alkali."
+      struggle: {
+        points: ["A solid keeps its shape until it melts."],
+        practice: [
+          s3Multi("A solid keeps its…", ["shape", "promise to flow", "taste of steam"], 0, "Solids keep their shape.", 0),
         ],
-        "practice": [
-          {
-            "q": "pH of a strong acid is…",
-            "type": "multi",
-            "options": [
-              "close to 1–2",
-              "7",
-              "14",
-              "100"
-            ],
-            "answer": 0,
-            "explain": "low pH.",
-            "stage": "both"
-          }
-        ]
-      }
+      },
     },
-    "physics": {
-      "title": "Physics secure",
-      "blurb": "Forces, energy stores, speed and circuits.",
-      "videoKey": "physics",
-      "teach": {
-        "points": [
-          "Resultant force = overall force; unbalanced → acceleration.",
-          "Energy stores: kinetic, GPE, elastic, chemical, thermal, nuclear…",
-          "Series vs parallel; current and potential difference basics."
+    physics: {
+      title: "Grip, a loop, a speed",
+      blurb: "Friction, a complete circuit, then speed with small numbers.",
+      videoKey: "electricity",
+      teach: {
+        points: [
+          "Friction can slow you down. It is the grip between surfaces.",
+          "A circuit needs a power source and a complete loop.",
+          "Speed is distance divided by time. 20 metres in 2 seconds is 10 metres each second.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "speed = distance ÷ time"
-        ]
+      example: {
+        title: "Worked example",
+        steps: ["20 metres.", "2 seconds.", "20 ÷ 2 = 10 metres each second."],
       },
-      "practice": [
-        {
-          "q": "Speed if 100 m in 20 s?",
-          "type": "typed",
-          "answer": "5",
-          "explain": "100÷20=5 m/s.",
-          "accept": [
+      practice: [
+        s3Multi(
+          "Friction can…",
+          ["slow you down", "turn off gravity", "make a noun"],
+          0,
+          "Grip between surfaces slows a slide.",
+          1
+        ),
+        s3Multi(
+          "A simple circuit needs a cell and a…",
+          ["complete loop of wire", "gap you leave on purpose", "comma"],
+          0,
+          "The loop has to be complete for the bulb to light.",
+          2
+        ),
+        s3Typed(
+          "A kart travels 20 metres in 2 seconds. What is its speed in metres per second?",
+          "10",
+          "Speed is distance divided by time. 20 ÷ 2 = 10.",
+          3
+        ),
+      ],
+      struggle: {
+        points: ["Divide the distance by the time."],
+        practice: [
+          s3Typed(
+            "Something moves 10 metres in 2 seconds. What is the speed in metres per second?",
             "5",
-            "5 m/s",
-            "5m/s"
-          ],
-          "stage": "both"
-        },
-        {
-          "q": "Unit of force?",
-          "type": "multi",
-          "options": [
-            "joule",
-            "newton",
-            "watt",
-            "volt"
-          ],
-          "answer": 1,
-          "explain": "newton (N).",
-          "stage": "both"
-        },
-        {
-          "q": "In series, current is…",
-          "type": "multi",
-          "options": [
-            "same everywhere",
-            "different in each component always",
-            "zero always",
-            "only at the battery"
-          ],
-          "answer": 0,
-          "explain": "same current in series.",
-          "stage": "both"
-        },
-        {
-          "q": "GPE increases when…",
-          "type": "multi",
-          "options": [
-            "object is lifted higher",
-            "object cools",
-            "mass becomes zero",
-            "time stops"
-          ],
-          "answer": 0,
-          "explain": "higher → more GPE.",
-          "stage": "both"
-        },
-        {
-          "q": "Friction…",
-          "type": "multi",
-          "options": [
-            "always speeds you up",
-            "opposes relative motion",
-            "only in space",
-            "creates gravity"
-          ],
-          "answer": 1,
-          "explain": "opposes motion.",
-          "stage": "both"
-        },
-        {
-          "q": "Wave speed = frequency × …",
-          "type": "multi",
-          "options": [
-            "wavelength",
-            "mass",
-            "voltage",
-            "time only"
-          ],
-          "answer": 0,
-          "explain": "v = fλ.",
-          "stage": "ks3"
-        },
-        {
-          "q": "Moment = force × …",
-          "type": "multi",
-          "options": [
-            "perpendicular distance",
-            "mass only",
-            "time",
-            "temperature"
-          ],
-          "answer": 0,
-          "explain": "F×d.",
-          "stage": "both"
-        },
-        {
-          "q": "Sound cannot travel through…",
-          "type": "multi",
-          "options": [
-            "vacuum",
-            "air",
-            "water",
-            "steel"
-          ],
-          "answer": 0,
-          "explain": "needs medium.",
-          "stage": "both"
-        }
-      ],
-      "struggle": {
-        "points": [
-          "Resultant force = overall force; unbalanced → acceleration.",
-          "Energy stores: kinetic, GPE, elastic, chemical, thermal, nuclear…"
+            "10 ÷ 2 = 5 metres each second.",
+            0
+          ),
         ],
-        "practice": [
-          {
-            "q": "Speed if 100 m in 20 s?",
-            "type": "typed",
-            "answer": "5",
-            "explain": "100÷20=5 m/s.",
-            "accept": [
-              "5",
-              "5 m/s",
-              "5m/s"
-            ],
-            "stage": "both"
-          }
-        ]
-      }
+      },
     },
-    "method": {
-      "title": "Working scientifically secure",
-      "blurb": "Variables, graphs, uncertainty and fair tests.",
-      "videoKey": "method",
-      "teach": {
-        "points": [
-          "Independent / dependent / control variables — state them clearly.",
-          "Range, interval and repeats for reliability.",
-          "Plot continuous data as line graphs; include units on axes."
+    method: {
+      title: "What you change, what you measure",
+      blurb: "Plain words first, then the name independent variable.",
+      videoKey: "scientific",
+      teach: {
+        points: [
+          "What you measure is the result, such as the height of a plant.",
+          "What you deliberately change is the independent variable.",
+          "An odd result should be checked, not hidden.",
         ],
-        "visual": ""
+        visual: "",
       },
-      "example": {
-        "title": "Worked example",
-        "steps": [
-          "Temperature (IV) vs time to dissolve (DV); control mass of solute."
-        ]
+      example: {
+        title: "Worked example",
+        steps: [
+          "You change how much water (independent variable).",
+          "You measure the height.",
+          "If one result looks odd, you do that pot again.",
+        ],
       },
-      "practice": [
-        {
-          "q": "What you change deliberately is the…",
-          "type": "multi",
-          "options": [
-            "dependent",
-            "independent",
-            "control",
-            "anomaly"
-          ],
-          "answer": 1,
-          "explain": "independent.",
-          "stage": "both"
-        },
-        {
-          "q": "In a science experiment, an anomaly is…",
-          "type": "multi",
-          "options": [
-            "a result that doesn't fit the pattern",
-            "the mean",
-            "the title",
-            "a control"
-          ],
-          "answer": 0,
-          "explain": "odd result.",
-          "stage": "both"
-        },
-        {
-          "q": "Resolution of a measuring instrument is…",
-          "type": "multi",
-          "options": [
-            "smallest change it can show",
-            "accuracy always",
-            "the mean",
-            "the range"
-          ],
-          "answer": 0,
-          "explain": "smallest division.",
-          "stage": "both"
-        },
-        {
-          "q": "Categoric independent variable → best chart?",
-          "type": "multi",
-          "options": [
-            "line graph",
-            "bar chart",
-            "no chart",
-            "histogram only always"
-          ],
-          "answer": 1,
-          "explain": "bar chart.",
-          "stage": "both"
-        },
-        {
-          "q": "A hypothesis should be…",
-          "type": "multi",
-          "options": [
-            "testable",
-            "impossible",
-            "a random poem",
-            "the conclusion only"
-          ],
-          "answer": 0,
-          "explain": "testable prediction.",
-          "stage": "both"
-        },
-        {
-          "q": "Uncertainty can be reduced by…",
-          "type": "multi",
-          "options": [
-            "repeating and improving method",
-            "guessing",
-            "ignoring units",
-            "changing IV randomly"
-          ],
-          "answer": 0,
-          "explain": "better method/repeats.",
-          "stage": "both"
-        },
-        {
-          "q": "Continuous variable example?",
-          "type": "multi",
-          "options": [
-            "temperature",
-            "eye colour",
-            "blood group",
-            "car brand"
-          ],
-          "answer": 0,
-          "explain": "can take any value in range.",
-          "stage": "both"
-        },
-        {
-          "q": "Bar chart vs histogram:",
-          "type": "multi",
-          "options": [
-            "bar chart: categories; histogram: continuous FD",
-            "identical always",
-            "histogram for names only",
-            "bar for time only"
-          ],
-          "answer": 0,
-          "explain": "different uses.",
-          "stage": "both"
-        }
+      practice: [
+        s3Multi(
+          "You measure how tall a plant grows. The height is what you…",
+          ["measure", "ignore", "invent"],
+          0,
+          "The height is the result you measure.",
+          1
+        ),
+        s3Multi(
+          "The thing you deliberately change is the…",
+          ["independent variable", "joke", "full stop"],
+          0,
+          "Independent variable means the one change you chose.",
+          2
+        ),
+        s3Multi(
+          "A result that looks odd should be…",
+          ["checked again", "rubbed out", "turned into a story"],
+          0,
+          "Check an odd result. It might be a mistake, or it might matter.",
+          2
+        ),
+        s3Multi(
+          "To compare the heights of four ponies, a useful chart is a…",
+          ["bar chart", "secret", "helmet"],
+          0,
+          "A bar chart shows groups side by side.",
+          3
+        ),
       ],
-      "struggle": {
-        "points": [
-          "Independent / dependent / control variables — state them clearly.",
-          "Range, interval and repeats for reliability."
+      struggle: {
+        points: ["Measure means look and write the number."],
+        practice: [
+          s3Multi(
+            "If you are finding out the temperature, you should…",
+            ["measure it", "guess and hide the guess"],
+            0,
+            "Measure it and write it down.",
+            0
+          ),
         ],
-        "practice": [
-          {
-            "q": "What you change deliberately is the…",
-            "type": "multi",
-            "options": [
-              "dependent",
-              "independent",
-              "control",
-              "anomaly"
-            ],
-            "answer": 1,
-            "explain": "independent.",
-            "stage": "both"
-          }
-        ]
-      }
-    }
-  }
+      },
+    },
+  },
 };

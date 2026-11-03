@@ -1190,6 +1190,16 @@ function siteFooter() {
 function bindShell() {
   appEl = getAppEl();
   if (!appEl || typeof appEl.querySelectorAll !== "function") return;
+  if (!appEl.dataset.diffBound) {
+    appEl.dataset.diffBound = "1";
+    appEl.addEventListener("click", (e) => {
+      const btn = e.target.closest && e.target.closest("[data-set-diff]");
+      if (!btn) return;
+      const parts = String(btn.dataset.setDiff || "").split(":");
+      if (parts.length !== 3) return;
+      applyDifficultyChoice(parts[0], parts[1], parts[2]);
+    });
+  }
   appEl.querySelectorAll("[data-go]").forEach((el) => {
     el.addEventListener("click", () => go(el.dataset.go));
     // Keyboard activation for logo / role=button shells
@@ -1290,6 +1300,54 @@ function bindReport(ctx) {
     question: "",
     ...ctx,
   });
+}
+
+function difficultyCardHtml(learnerId, subject) {
+  if (!CORE_SUBJECTS.includes(subject) || !LEARNERS[learnerId]) return "";
+  const L = LEARNERS[learnerId];
+  const p = state.profiles[learnerId];
+  const choice =
+    p && typeof ensureAdaptSubject === "function" ? ensureAdaptSubject(p, subject).choice : "";
+  const note = typeof difficultyNote === "function" ? difficultyNote(choice) : "";
+  const buttons = [
+    ["easier", "Easier"],
+    ["right", "Just right"],
+    ["harder", "A bit harder"],
+  ]
+    .map(([id, label]) => {
+      const on = choice === id;
+      return `<button type="button" class="diff-pick${on ? " is-on" : ""}" data-set-diff="${learnerId}:${subject}:${id}" aria-pressed="${
+        on ? "true" : "false"
+      }">${label}</button>`;
+    })
+    .join("");
+  return `<div class="card diff-card mb-2">
+      <h3 class="diff-title">How hard are the questions?</h3>
+      <p class="muted diff-who">Age ${L.age} · ${escapeHtml(L.yearGroup)}. Every lesson starts easy, then climbs.</p>
+      <div class="diff-picks" role="group" aria-label="Question difficulty for ${escapeHtml(L.name)} ${escapeHtml(
+        SUBJECTS[subject].name
+      )}">${buttons}</div>
+      <p class="muted diff-note" data-diff-note="${learnerId}:${subject}">${escapeHtml(note)}</p>
+    </div>`;
+}
+
+function applyDifficultyChoice(learnerId, subject, choice) {
+  const p = state.profiles[learnerId];
+  if (!p || typeof setDifficultyChoice !== "function") return;
+  setDifficultyChoice(p, subject, choice);
+  save({ quiet: true }).catch(function () {});
+  const note = typeof difficultyNote === "function" ? difficultyNote(choice) : "";
+  document.querySelectorAll("[data-set-diff]").forEach((btn) => {
+    const parts = String(btn.dataset.setDiff || "").split(":");
+    if (parts[0] !== learnerId || parts[1] !== subject) return;
+    const on = parts[2] === choice;
+    btn.classList.toggle("is-on", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  document.querySelectorAll(`[data-diff-note="${learnerId}:${subject}"]`).forEach((el) => {
+    el.textContent = note;
+  });
+  if (typeof showSavedToast === "function") showSavedToast("Difficulty saved");
 }
 
 function adaptHintHtml(subject) {
@@ -2719,6 +2777,12 @@ function renderSubject({ subject }) {
         <p class="next-step-desc">Lesson ${nextIndex} of ${
       path.length
     } · ${escapeHtml(stageMeta.name)} ${S.name}</p>
+        ${
+          typeof ensureAdaptSubject === "function" &&
+          ensureAdaptSubject(p, subject).choice === "easier"
+            ? `<p class="muted next-step-desc">Warm-up questions first, so you can get going.</p>`
+            : ""
+        }
         <button class="btn btn-primary btn-xl" type="button" id="btnDoNext"
           data-lesson="${nextId}" data-stage="${activeStage}">
           Start lesson →
@@ -2748,6 +2812,15 @@ function renderSubject({ subject }) {
     firstLockedStage && typeof stageLockReason === "function"
       ? stageLockReason(p, subject, firstLockedStage)
       : "";
+  const lockedName =
+    firstLockedStage && typeof courseStageMeta === "function"
+      ? courseStageMeta(subject, firstLockedStage).name
+      : "";
+  const lockLine = lockWhy
+    ? lockedName
+      ? `${lockedName} is locked. ${lockWhy}.`
+      : lockWhy
+    : "";
   const stageChips = diag?.completed
     ? `<div class="stage-chip-row" role="list">
         ${Array.from({ length: stageCount }, (_, i) => i + 1)
@@ -2777,7 +2850,7 @@ function renderSubject({ subject }) {
       <p class="stage-chip-caption muted">
         ${escapeHtml(stageMeta.emoji + " " + stageMeta.name + " · " + doneCount + " of " + path.length + " lessons done")}
          · whole path <strong style="color:var(--gold)">${pathPct}%</strong>${
-        lockWhy ? `<br />🔒 ${escapeHtml(lockWhy)}` : ""
+        lockLine ? `<br />🔒 ${escapeHtml(lockLine)}` : ""
       }
       </p>`
     : "";
@@ -2892,6 +2965,7 @@ function renderSubject({ subject }) {
       </div>
     </div>
 
+    ${difficultyCardHtml(state.activeLearner, subject)}
     ${typeof weekNoteHtml === "function" ? weekNoteHtml() : ""}
     ${
       lockWhy && subject !== "karting" && subject !== "investing"
@@ -2915,7 +2989,7 @@ function renderSubject({ subject }) {
     ${
       /* Keep stage chips small — not the main focus for kids */
       stageChips && subject !== "karting" && subject !== "investing"
-        ? `<details class="card mb-2 more-options"><summary>${
+        ? `<details class="card mb-2 more-options" open><summary>${
             isFunSubject(subject) ? "Rounds" : "Levels (Foundation → A*)"
           }</summary><div class="more-options-body">${stageChips}</div></details>`
         : ""
@@ -3433,6 +3507,9 @@ function renderLesson({ subject, skillId, stage }) {
   }
   const mod = getTeachModule(subject, skillId, stageNum, state.activeLearner);
   if (!mod) {
+    return go("subject", { subject });
+  }
+  if (typeof canAccessStage === "function" && !canAccessStage(p, subject, stageNum)) {
     return go("subject", { subject });
   }
 
@@ -4022,12 +4099,15 @@ function renderLesson({ subject, skillId, stage }) {
       session._keyHandler = null;
     }
     const scorePct = scoreSession(session);
-    recordLesson(profile(), subject, skillId, scorePct, stageNum);
-    if (typeof journeyAwardLesson === "function") {
-      try {
-        journeyAwardLesson(profile(), subject, skillId, stageNum, scorePct);
-      } catch (_) {
-        /* ignore */
+    const passed = scorePct >= 50;
+    if (passed) {
+      recordLesson(profile(), subject, skillId, scorePct, stageNum);
+      if (typeof journeyAwardLesson === "function") {
+        try {
+          journeyAwardLesson(profile(), subject, skillId, stageNum, scorePct);
+        } catch (_) {
+          /* ignore */
+        }
       }
     }
     // Store adaptive stats
@@ -4066,28 +4146,31 @@ function renderLesson({ subject, skillId, stage }) {
         /* ignore */
       }
     }
-    // Ensure complete is stamped on the right stage before reading next
-    try {
-      const course = profile().courses?.[subject];
-      if (course) {
-        const migrated = migrateCourseEntry(course);
-        profile().courses[subject] = migrated;
-        const st = migrated.stages[stageNum];
-        if (st) {
-          if (!st.completed || typeof st.completed !== "object" || Array.isArray(st.completed)) {
-            st.completed = {};
-          }
-          if (!st.completed[skillId]) {
-            st.completed[skillId] = {
-              score: scorePct,
-              date: todayKey(),
-              stage: stageNum,
-            };
+    // A lesson only counts when at least half the answers were right.
+    // Two wrong warm-ups must not tick a GCSE lesson as finished.
+    if (passed) {
+      try {
+        const course = profile().courses?.[subject];
+        if (course) {
+          const migrated = migrateCourseEntry(course);
+          profile().courses[subject] = migrated;
+          const st = migrated.stages[stageNum];
+          if (st) {
+            if (!st.completed || typeof st.completed !== "object" || Array.isArray(st.completed)) {
+              st.completed = {};
+            }
+            if (!st.completed[skillId]) {
+              st.completed[skillId] = {
+                score: scorePct,
+                date: todayKey(),
+                stage: stageNum,
+              };
+            }
           }
         }
+      } catch (_) {
+        /* ignore */
       }
-    } catch (_) {
-      /* ignore */
     }
     // If this lesson finished the whole level, celebrate FIRST — don't silently skip ahead
     const stageDoneNow = isStageComplete(profile(), subject, stageNum);
@@ -4242,29 +4325,32 @@ function renderLessonResult({
   if (subject && SUBJECTS[subject]) lastLessonSubject = subject;
   const stageNum = Number(stage) || 1;
   const p = profile();
-  // Re-read next skill AFTER save — never point back at the lesson just finished
+  const passed = (Number(scorePct) || 0) >= 50;
   let nextId = nextSkill;
-  try {
-    const again = nextLesson(p, subject, stageNum, skillId);
-    if (again && again !== skillId) nextId = again;
-    else if (again === skillId) {
-      // Force mark complete if next still points at same skill
-      const course = p.courses?.[subject] && migrateCourseEntry(p.courses[subject]);
-      if (course?.stages?.[stageNum]) {
-        if (!course.stages[stageNum].completed || Array.isArray(course.stages[stageNum].completed)) {
-          course.stages[stageNum].completed = {};
+  if (passed) {
+    try {
+      const again = nextLesson(p, subject, stageNum, skillId);
+      if (again && again !== skillId) nextId = again;
+      else if (again === skillId) {
+        const course = p.courses?.[subject] && migrateCourseEntry(p.courses[subject]);
+        if (course?.stages?.[stageNum]) {
+          if (!course.stages[stageNum].completed || Array.isArray(course.stages[stageNum].completed)) {
+            course.stages[stageNum].completed = {};
+          }
+          course.stages[stageNum].completed[skillId] = {
+            score: scorePct,
+            date: todayKey(),
+            stage: stageNum,
+          };
+          p.courses[subject] = course;
+          nextId = nextLesson(p, subject, stageNum);
         }
-        course.stages[stageNum].completed[skillId] = {
-          score: scorePct,
-          date: todayKey(),
-          stage: stageNum,
-        };
-        p.courses[subject] = course;
-        nextId = nextLesson(p, subject, stageNum);
       }
+    } catch (e) {
+      console.warn(e);
     }
-  } catch (e) {
-    console.warn(e);
+  } else {
+    nextId = skillId;
   }
 
   // If the bar hit 100% on this lesson, always use the big Level Complete screen
@@ -4293,6 +4379,12 @@ function renderLessonResult({
       <p class="muted" id="autoNextHint" style="margin-top:0.75rem;font-size:0.9rem">
         Starting automatically in <strong id="autoNextCount">3</strong>…
       </p>`;
+  } else if (!passed) {
+    primaryHtml = `
+      <button class="btn btn-primary btn-xl big-next-btn" type="button" id="btnRetryLesson">
+        Try this lesson again →
+      </button>
+      <p class="muted" style="margin-top:0.75rem">Get at least half of them right and it will count.</p>`;
   } else {
     primaryHtml = `
       <button class="btn btn-primary btn-xl big-next-btn" type="button" id="more">
@@ -4313,7 +4405,9 @@ function renderLessonResult({
           ? `<img class="home-score-art" src="${celeb.src}" alt="${escapeHtml(celeb.alt)}" style="border-radius:14px;margin:0 0 1rem;max-height:180px;object-fit:cover;width:100%" />`
           : ""
       }
-      <p class="next-step-label" style="margin:0 0 0.5rem">Lesson finished · saved ✓</p>
+      <p class="next-step-label" style="margin:0 0 0.5rem">${
+        passed ? "Lesson finished · saved ✓" : "Have another go"
+      }</p>
       <h1 class="simple-done-title">${escapeHtml(mod?.title || "Well done!")}</h1>
       <p class="simple-done-score">${scorePct}%</p>
       ${
@@ -4359,6 +4453,10 @@ function renderLessonResult({
   document.getElementById("btnNextSkill")?.addEventListener("click", () => {
     clearAuto();
     go("lesson", { subject, skillId: nextId, stage: stageNum });
+  });
+  document.getElementById("btnRetryLesson")?.addEventListener("click", () => {
+    clearAuto();
+    go("lesson", { subject, skillId, stage: stageNum });
   });
 
   // Auto-start next lesson so kids aren't stuck choosing
@@ -4677,6 +4775,34 @@ function parentKid(id) {
             s.started ? Math.max(pathway, pathway === 0 ? 2 : 0) : 0
           }%"></i></div>
           <p class="parent-test-line muted">${escapeHtml(testLabel)}</p>
+          ${
+            CORE_SUBJECTS.includes(sub)
+              ? `<div class="diff-picks diff-picks-parent" role="group" aria-label="Difficulty">${[
+                  ["easier", "Easier"],
+                  ["right", "Just right"],
+                  ["harder", "A bit harder"],
+                ]
+                  .map(([cid, label]) => {
+                    const on =
+                      typeof ensureAdaptSubject === "function" &&
+                      ensureAdaptSubject(p, sub).choice === cid;
+                    return `<button type="button" class="diff-pick${
+                      on ? " is-on" : ""
+                    }" data-set-diff="${id}:${sub}:${cid}" aria-pressed="${
+                      on ? "true" : "false"
+                    }">${label}</button>`;
+                  })
+                  .join("")}</div><p class="muted diff-note" data-diff-note="${id}:${sub}">${escapeHtml(
+                  typeof difficultyNote === "function"
+                    ? difficultyNote(
+                        typeof ensureAdaptSubject === "function"
+                          ? ensureAdaptSubject(p, sub).choice
+                          : ""
+                      )
+                    : ""
+                )}</p>`
+              : ""
+          }
         </div>`;
     })
     .join("");
