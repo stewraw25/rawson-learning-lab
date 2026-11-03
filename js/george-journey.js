@@ -11,7 +11,12 @@
  */
 
 function georgeIsJourneySubject(subject) {
-  return subject === "karting" || subject === "investing";
+  return (
+    subject === "karting" ||
+    subject === "investing" ||
+    subject === "f1" ||
+    subject === "horseworld"
+  );
 }
 
 function georgeQuestionFingerprint(q) {
@@ -298,8 +303,8 @@ function journeyAwardLesson(profile, subject, skillId, stage, scorePct) {
 
 function journeyStarPoints(subject, stars) {
   const n = Number(stars) || 0;
-  if (subject === "karting") return n >= 3 ? 25 : n === 2 ? 18 : n === 1 ? 10 : 0;
-  return n >= 3 ? 500 : n === 2 ? 200 : n === 1 ? 100 : 0;
+  if (subject === "investing") return n >= 3 ? 500 : n === 2 ? 200 : n === 1 ? 100 : 0;
+  return n >= 3 ? 25 : n === 2 ? 18 : n === 1 ? 10 : 0;
 }
 
 function journeyScore(profile, subject) {
@@ -360,6 +365,22 @@ function journeyAwardBadges(profile, subject) {
     if (stageDone(6)) unlockBadge(profile, "horse_master");
     if (Object.values(ensureJourney(profile, subject).stars).some((n) => Number(n) >= 3)) {
       unlockBadge(profile, "horse_rosette");
+    }
+  }
+  if (subject === "f1") {
+    if (score.starSum >= 1) unlockBadge(profile, "f1_grid");
+    if (stageDone(1)) unlockBadge(profile, "f1_flags");
+    if (stageDone(6)) unlockBadge(profile, "f1_champion");
+    if (Object.values(ensureJourney(profile, subject).stars).some((n) => Number(n) >= 3)) {
+      unlockBadge(profile, "f1_hattrick");
+    }
+  }
+  if (subject === "horseworld") {
+    if (score.starSum >= 1) unlockBadge(profile, "hw_bridle");
+    if (stageDone(1)) unlockBadge(profile, "hw_first");
+    if (stageDone(6)) unlockBadge(profile, "hw_master");
+    if (Object.values(ensureJourney(profile, subject).stars).some((n) => Number(n) >= 3)) {
+      unlockBadge(profile, "hw_rosette");
     }
   }
 }
@@ -462,12 +483,12 @@ function journeyNextGoal(profile, subject, stage) {
     typeof journeyMissList === "function"
       ? journeyMissList(profile, subject, stage).length
       : (ensureJourney(profile, subject).retry || []).length;
-  if (subject === "karting") {
+  if (subject === "karting" || subject === "f1" || subject === "horseworld" || subject === "horses") {
     if (left > 0) {
-      return `Finish ${left} more ${meta.name} lesson${left === 1 ? "" : "s"} to move up the grid.`;
+      return `Finish ${left} more ${meta.name} lesson${left === 1 ? "" : "s"} to move up.`;
     }
     if (stage < 6) return `${meta.name} is complete — unlock the next round when you are ready.`;
-    return "Season complete. Retry any misses, or take a practice lap.";
+    return "This course is complete. Retry any misses, or take a practice lap.";
   }
   const pot = journeyScore(profile, subject).points;
   const marks = [500, 1000, 2500, 5000, 10000];
@@ -483,9 +504,17 @@ function journeyNextGoal(profile, subject, stage) {
 
 function journeyBadgeChips(profile, subject) {
   if (typeof BADGES === "undefined") return "";
-  const mine = BADGES.filter((b) =>
-    subject === "karting" ? String(b.id).indexOf("kart_") === 0 : String(b.id).indexOf("inv_") === 0
-  );
+  const prefix =
+    subject === "karting"
+      ? "kart_"
+      : subject === "f1"
+        ? "f1_"
+        : subject === "horseworld"
+          ? "hw_"
+          : subject === "horses"
+            ? "horse_"
+            : "inv_";
+  const mine = BADGES.filter((b) => String(b.id).indexOf(prefix) === 0);
   const have = new Set(profile.badges || []);
   return mine
     .map((b) => {
@@ -581,6 +610,44 @@ function journeyPanelHtml(profile, subject) {
         <button type="button" class="btn btn-secondary" id="btnJourneyMisses" ${
           missN ? "" : "disabled"
         }>${missN ? `Retry ${missN} miss${missN === 1 ? "" : "es"}` : "No misses to retry"}</button>
+      </div>
+      <div class="journey-badges">${journeyBadgeChips(profile, subject)}</div>
+    </section>`;
+  }
+
+  if (subject === "f1" || subject === "horseworld") {
+    const f1 = subject === "f1";
+    const roundName =
+      (typeof courseStageMeta === "function" ? courseStageMeta(subject, stage).name : "") || "";
+    return `<section class="journey-card ${f1 ? "journey-kart" : "journey-horse"}" aria-label="${
+      f1 ? "Formula 1 season" : "Horse world"
+    }">
+      <p class="journey-kicker">${escapeHtml(childName)}’s ${f1 ? "Formula 1" : "horse world"} · six rounds</p>
+      <h2 class="journey-title">${f1 ? "From the first flag to champion" : "From first horses to horsemaster"}</h2>
+      <p class="journey-lead">${escapeHtml(roundName)}. Each round is the same ideas, a step harder, with new questions. Stars and badges save with the rest of the course. ${
+        f1
+          ? "Go-karting uses the same flags — open that course when you want the kart itself."
+          : "Daily horse care lives in the Horses course. This one is breeds, sports and history."
+      }</p>
+      <div class="journey-track">${nodes.join("")}</div>
+      ${lockWhy ? `<p class="journey-lock">${escapeHtml(lockWhy)}</p>` : ""}
+      <div class="journey-stats">
+        <div><span>${f1 ? "Championship points" : "Rosette points"}</span><strong>${score.points}</strong></div>
+        <div><span>Stars</span><strong>${score.starSum}</strong></div>
+        <div><span>Streak</span><strong>${streak} day${streak === 1 ? "" : "s"}</strong></div>
+        <div><span>Round</span><strong>${escapeHtml(roundName)}</strong></div>
+      </div>
+      <div class="journey-bar" aria-hidden="true"><i style="width:${qPct}%"></i></div>
+      <p class="journey-goal"><strong>Next goal.</strong> ${escapeHtml(journeyNextGoal(profile, subject, stage))}</p>
+      <p class="muted journey-note">${round.cleared} of ${round.total} questions cleared this round · ${missN} miss${
+        missN === 1 ? "" : "es"
+      } waiting. ${
+        missN ? "Misses come back on purpose." : "Nothing repeats unless you ask for a practice lap."
+      }</p>
+      <div class="journey-actions">
+        <button type="button" class="btn btn-secondary" id="btnJourneyMisses" ${missN ? "" : "disabled"}>${
+          missN ? `Retry ${missN} miss${missN === 1 ? "" : "es"}` : "No misses to retry"
+        }</button>
       </div>
       <div class="journey-badges">${journeyBadgeChips(profile, subject)}</div>
     </section>`;

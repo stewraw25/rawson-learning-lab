@@ -73,21 +73,21 @@ const WEEK_CORE = {
     algebra: {
       1: [
         weekTyped(
-          "4 + □ = 10. What is the missing number?",
-          "6",
-          "4 and 6 more make 10, so the box is 6."
+          "What do you add to 3 to make 10?",
+          "7",
+          "3 and 7 more make 10. Say the pair out loud: 3 and 7."
         ),
         weekTyped(
-          "□ − 2 = 5. What is the missing number?",
-          "7",
-          "Something take away 2 leaves 5, so you started at 7."
+          "What do you add to 8 to make 10?",
+          "2",
+          "8 and 2 more make 10. Count on two steps: 9, then 10."
         ),
       ],
       2: [
         weekTyped(
-          "If 3n = 21, what is n?",
-          "7",
-          "3 groups make 21, so one group is 21 ÷ 3 = 7."
+          "A tricycle has 3 wheels. How many wheels do 4 tricycles have?",
+          "12",
+          "4 groups of 3 is 12. Count 3, 6, 9, 12."
         ),
       ],
     },

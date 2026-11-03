@@ -17,6 +17,8 @@
   --science: #7cb342;
   --karting: #ff8a3d;
   --horses: #e8c547;
+  --f1: #e10600;
+  --horseworld: #c4a574;
   --investing: #d4af37;
   --gold: #e8c547;
   --leaf: #66bb6a;
@@ -350,6 +352,28 @@ a { color: inherit; }
   opacity: 0.45;
   cursor: not-allowed;
 }
+.diff-card { padding-bottom: 0.9rem; }
+.diff-title { margin: 0 0 0.35rem; font-family: var(--display); font-size: 1.15rem; }
+.diff-who, .diff-note { margin: 0.35rem 0; font-size: 0.88rem; }
+.diff-picks { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0.55rem 0; }
+.diff-pick {
+  flex: 1 1 6.5rem;
+  min-height: 44px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+.diff-pick.is-on {
+  background: var(--gold, #e8c547);
+  color: #1a1408;
+  border-color: transparent;
+}
+.diff-picks-parent { margin-top: 0.65rem; }
 .adapt-hint {
   margin: 0.35rem 0 0.15rem;
   font-size: 0.8rem;
@@ -880,7 +904,9 @@ body.theme-learner-bella .time-board {
 .subject-card.english .icon { background: rgba(255, 140, 90, 0.2); }
 .subject-card.science .icon { background: rgba(74, 222, 128, 0.2); }
 .subject-card.karting .icon { background: rgba(255, 138, 61, 0.25); }
+.subject-card.f1 .icon { background: rgba(225, 6, 0, 0.28); }
 .subject-card.horses .icon { background: rgba(232, 197, 71, 0.25); }
+.subject-card.horseworld .icon { background: rgba(196, 165, 116, 0.28); }
 .subject-card.investing .icon { background: rgba(212, 175, 55, 0.28); }
 .subject-card h3 {
   margin: 0 0 0.35rem;
@@ -901,7 +927,9 @@ body.theme-learner-bella .time-board {
 .subject-card.english .skill-fill { background: var(--english); }
 .subject-card.science .skill-fill { background: var(--science); }
 .subject-card.karting .skill-fill { background: var(--karting); }
+.subject-card.f1 .skill-fill { background: var(--f1); }
 .subject-card.horses .skill-fill { background: var(--horses); }
+.subject-card.horseworld .skill-fill { background: var(--horseworld); }
 .subject-card.investing .skill-fill { background: var(--investing); }
 
 .badge-list {
@@ -2543,6 +2571,34 @@ body.theme-learner-bella .home-kicker {
   color: var(--muted);
   line-height: 1.55;
 }
+.invest-age-nums,
+.invest-big,
+.invest-strat-pot {
+  overflow-wrap: anywhere;
+}
+.course-link-card { border-color: rgba(243, 230, 200, 0.28); }
+.course-link-kicker {
+  margin: 0 0 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.course-link-note { margin: 0 0 0.75rem; color: var(--muted); }
+.journey-horse { border-color: rgba(196, 165, 116, 0.55); }
+.journey-horse .journey-kicker { color: #e6d3b0; }
+
+@media (max-width: 720px) {
+  .invest-grid,
+  .invest-strats,
+  .invest-compare { grid-template-columns: 1fr; }
+  .invest-strat-mix,
+  .invest-compare-card.is-mix { grid-column: auto; }
+  .invest-freq { flex-direction: column; }
+  .invest-apr-row { grid-template-columns: 1fr; }
+  .invest-field input[type="number"] { font-size: 1.05rem; }
+}
 
 /* —— Level complete celebration (100% bar) —— */
 .level-complete-screen {
@@ -2929,6 +2985,7 @@ body[data-learner="bella"] .climb-next {
 }
 .journey-kart { border-color: rgba(255, 138, 61, 0.5); }
 .journey-invest { border-color: rgba(212, 175, 55, 0.5); }
+.journey-horse { border-color: rgba(196, 165, 116, 0.55); }
 .journey-kicker {
   margin: 0;
   font-size: 0.75rem;

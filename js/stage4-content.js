@@ -133,8 +133,8 @@ const TEACH_MODULES_STAGE4 = {
               "34×10²",
               "3.4×10⁴"
             ],
-            "answer": 0,
-            "explain": "Wait 3.4×10³ is correct — answer index 1.",
+            "answer": 1,
+            "explain": "3,400 = 3.4 × 1,000, which is 3.4×10³.",
             "stage": "both"
           }
         ]

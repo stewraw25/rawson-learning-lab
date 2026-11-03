@@ -97,6 +97,13 @@ function normalizeProfile(learnerId, raw) {
     }
     p.courses[sk] = migrateCourseEntry(c);
   }
+  for (const sk of Object.keys(p.courses)) {
+    try {
+      applyPacePlacement(p, sk);
+    } catch (_) {
+      /* ignore */
+    }
+  }
   // Restore ticks that a rebuild / Firebase array wipe dropped
   const subjectsToRepair = new Set([
     ...Object.keys(p.courses),
@@ -119,6 +126,13 @@ function normalizeProfile(learnerId, raw) {
   p.timeBonus = ensureTimeBonus(p);
   if (!p.recentQuestions || typeof p.recentQuestions !== "object") {
     p.recentQuestions = {};
+  }
+  if (!p.masteredQs || typeof p.masteredQs !== "object" || Array.isArray(p.masteredQs)) {
+    p.masteredQs = {};
+  }
+  for (const sub of Object.keys(p.masteredQs)) {
+    if (!Array.isArray(p.masteredQs[sub])) p.masteredQs[sub] = [];
+    p.masteredQs[sub] = p.masteredQs[sub].map((x) => String(x || "")).filter(Boolean).slice(-400);
   }
   p.progressLog = ensureProgressLog(p);
   if (!p.skippedVideos || typeof p.skippedVideos !== "object" || Array.isArray(p.skippedVideos)) {
@@ -346,7 +360,59 @@ function ensureAdaptSubject(profile, subject) {
   s.dontKnowCount = Math.max(0, Math.floor(Number(s.dontKnowCount) || 0));
   s.correctCount = Math.max(0, Math.floor(Number(s.correctCount) || 0));
   s.answeredCount = Math.max(0, Math.floor(Number(s.answeredCount) || 0));
+  s.choice = s.choice === "easier" || s.choice === "right" || s.choice === "harder" ? s.choice : "";
+  s.choiceAt = Math.max(0, Number(s.choiceAt) || 0);
   return s;
+}
+
+/** How far automatic marking may move a pinned choice. */
+function difficultyBand(choice) {
+  if (choice === "easier") return { min: -3, max: -2 };
+  if (choice === "right") return { min: -2, max: 0 };
+  if (choice === "harder") return { min: -1, max: 3 };
+  return { min: -3, max: 3 };
+}
+
+/**
+ * Level used to pick questions.
+ * Early and middle stages stay gentle unless a parent or child pins "A bit harder".
+ * A high automatic score from easy First steps questions does not jump the next level.
+ */
+function effectiveAdaptLevel(profile, subject, stage) {
+  const s = ensureAdaptSubject(profile, subject);
+  let level = s.level;
+  const stageN = Number(stage) || 1;
+  const core = subject === "maths" || subject === "english" || subject === "science";
+  if (s.choice === "easier") level = Math.min(level, -2);
+  else if (s.choice === "right") level = Math.min(level, 0);
+  else if (s.choice === "harder") level = Math.max(Math.min(level, 3), -1);
+  else if (core) {
+    if (stageN <= 3) level = Math.min(level, 0);
+    else level = Math.min(level, 1);
+  }
+  return Math.max(-3, Math.min(3, level));
+}
+
+/** Pin Easier / Just right / A bit harder. Does not clear stars, badges or lesson ticks. */
+function setDifficultyChoice(profile, subject, choice) {
+  const levels = { easier: -2, right: 0, harder: 1 };
+  if (!profile || !subject || !Object.prototype.hasOwnProperty.call(levels, choice)) return 0;
+  const s = ensureAdaptSubject(profile, subject);
+  s.choice = choice;
+  s.choiceAt = Date.now();
+  s.level = levels[choice];
+  s.correctStreak = 0;
+  s.missStreak = 0;
+  profile.updatedAt = Date.now();
+  return s.level;
+}
+
+function difficultyNote(choice) {
+  if (choice === "easier") return "Pinned to easier. Lessons stay on the gentle questions.";
+  if (choice === "harder")
+    return "Pinned a bit harder. Every lesson still starts with an easy question, then climbs further.";
+  if (choice === "right") return "Pinned to just right. An easy start, then a small step up.";
+  return "Not pinned. Every lesson starts easy, then climbs. Early levels stay gentle.";
 }
 
 function getAdaptLevel(profile, subject) {
@@ -375,32 +441,34 @@ function recordAdaptResult(profile, subject, result, skillId) {
     s.correctCount++;
     s.correctStreak++;
     s.missStreak = 0;
-    // Getting loads right → harder gradually
-    if (s.correctStreak >= 5) {
-      s.level = Math.min(3, s.level + 1);
+    // Getting loads right → a little harder, slowly. A pin sets the ceiling.
+    const cap = difficultyBand(s.choice).max;
+    if (s.correctStreak >= 6 && s.level < cap) {
+      s.level = Math.min(cap, s.level + 1);
       s.correctStreak = 0;
-    } else if (s.correctStreak >= 3 && s.level < 2) {
-      s.level = Math.min(3, s.level + 1);
-      s.correctStreak = 1;
     }
   } else if (result === "dontKnow") {
     s.dontKnowCount++;
     s.missStreak++;
     s.correctStreak = 0;
     // Each "I don't know" eases; repeated ones ease faster
+    const floor = difficultyBand(s.choice).min;
     const drop = s.missStreak >= 3 ? 2 : 1;
-    s.level = Math.max(-3, s.level - drop);
+    s.level = Math.max(floor, s.level - drop);
   } else {
     // wrong
     s.missStreak++;
     s.correctStreak = 0;
+    const floor = difficultyBand(s.choice).min;
     if (s.missStreak >= 3) {
-      s.level = Math.max(-3, s.level - 1);
+      s.level = Math.max(floor, s.level - 1);
       s.missStreak = 1;
-    } else if (s.missStreak >= 2 && s.level > 0) {
-      s.level = Math.max(-3, s.level - 1);
+    } else if (s.missStreak >= 2 && s.level > floor) {
+      s.level = Math.max(floor, s.level - 1);
     }
   }
+  const band = difficultyBand(s.choice);
+  s.level = Math.max(band.min, Math.min(band.max, s.level));
   try {
     logProgress(profile, {
       subject,
@@ -436,7 +504,21 @@ function ensureRecentQuestions(profile, subject) {
   return profile.recentQuestions[subject];
 }
 
-/** Remember questions just asked (keep last ~40 per subject) */
+/** Remember a question answered correctly so a later lesson can skip it. */
+function noteMasteredQuestion(profile, subject, question) {
+  if (!profile || !subject || !question) return;
+  if (!profile.masteredQs || typeof profile.masteredQs !== "object" || Array.isArray(profile.masteredQs)) {
+    profile.masteredQs = {};
+  }
+  if (!Array.isArray(profile.masteredQs[subject])) profile.masteredQs[subject] = [];
+  const fp = questionFingerprint(question);
+  if (!fp) return;
+  const list = profile.masteredQs[subject];
+  if (!list.includes(fp)) list.push(fp);
+  while (list.length > 400) list.shift();
+  profile.updatedAt = Date.now();
+}
+
 function rememberAskedQuestions(profile, subject, questions) {
   if (!profile || !subject || !questions || !questions.length) return;
   const list = ensureRecentQuestions(profile, subject);
@@ -483,15 +565,40 @@ function mergeAdapt(a, b) {
   for (const sub of keys) {
     const x = (A.bySubject && A.bySubject[sub]) || {};
     const y = (B.bySubject && B.bySubject[sub]) || {};
-    out.bySubject[sub] = {
-      // Keep the higher climb — averaging with a stale device was resetting kids to easy
-      level: Math.max(Number(x.level) || 0, Number(y.level) || 0),
-      correctStreak: Math.max(Number(x.correctStreak) || 0, Number(y.correctStreak) || 0),
-      missStreak: Math.max(Number(x.missStreak) || 0, Number(y.missStreak) || 0),
-      dontKnowCount: Math.max(Number(x.dontKnowCount) || 0, Number(y.dontKnowCount) || 0),
-      correctCount: Math.max(Number(x.correctCount) || 0, Number(y.correctCount) || 0),
-      answeredCount: Math.max(Number(x.answeredCount) || 0, Number(y.answeredCount) || 0),
-    };
+    const xChoice = x.choice === "easier" || x.choice === "right" || x.choice === "harder" ? x.choice : "";
+    const yChoice = y.choice === "easier" || y.choice === "right" || y.choice === "harder" ? y.choice : "";
+    const xAt = Number(x.choiceAt) || 0;
+    const yAt = Number(y.choiceAt) || 0;
+    // A pinned Easier / Just right / Harder from the newer device wins.
+    // With no pin, keep the higher automatic climb so a stale Mac cannot wipe it.
+    let picked = null;
+    if (xChoice && yChoice) picked = xAt >= yAt ? x : y;
+    else if (xChoice) picked = x;
+    else if (yChoice) picked = y;
+    if (picked) {
+      const choice = picked.choice === "easier" || picked.choice === "right" || picked.choice === "harder" ? picked.choice : "";
+      out.bySubject[sub] = {
+        level: Math.max(-3, Math.min(3, Math.round(Number(picked.level) || 0))),
+        correctStreak: Math.max(0, Math.floor(Number(picked.correctStreak) || 0)),
+        missStreak: Math.max(0, Math.floor(Number(picked.missStreak) || 0)),
+        dontKnowCount: Math.max(Number(x.dontKnowCount) || 0, Number(y.dontKnowCount) || 0),
+        correctCount: Math.max(Number(x.correctCount) || 0, Number(y.correctCount) || 0),
+        answeredCount: Math.max(Number(x.answeredCount) || 0, Number(y.answeredCount) || 0),
+        choice,
+        choiceAt: Math.max(xAt, yAt),
+      };
+    } else {
+      out.bySubject[sub] = {
+        level: Math.max(Number(x.level) || 0, Number(y.level) || 0),
+        correctStreak: Math.max(Number(x.correctStreak) || 0, Number(y.correctStreak) || 0),
+        missStreak: Math.max(Number(x.missStreak) || 0, Number(y.missStreak) || 0),
+        dontKnowCount: Math.max(Number(x.dontKnowCount) || 0, Number(y.dontKnowCount) || 0),
+        correctCount: Math.max(Number(x.correctCount) || 0, Number(y.correctCount) || 0),
+        answeredCount: Math.max(Number(x.answeredCount) || 0, Number(y.answeredCount) || 0),
+        choice: "",
+        choiceAt: 0,
+      };
+    }
   }
   return out;
 }
@@ -991,10 +1098,9 @@ function unlockBadge(profile, badgeId) {
 }
 
 function questionsForLearner(subject, learnerId) {
-  const stage = LEARNERS[learnerId].stage;
-  return DIAGNOSTICS[subject].filter(
-    (q) => q.stage === "both" || q.stage === stage
-  );
+  const stage = LEARNERS[learnerId] ? LEARNERS[learnerId].stage : "both";
+  const bank = (typeof DIAGNOSTICS !== "undefined" && DIAGNOSTICS[subject]) || [];
+  return bank.filter((q) => q.stage === "both" || q.stage === stage);
 }
 
 function normaliseAnswer(str) {
@@ -1070,39 +1176,39 @@ const COURSE_STAGES = {
     name: "First steps",
     emoji: "🌱",
     short: "1",
-    gradeBand: "Year 2–4 basics · start here",
-    blurb: "Easy counting, adding and simple words — no GCSE yet.",
+    gradeBand: "Year 2–3 · about two school years",
+    blurb: "Counting, bonds and simple words. No algebra yet. This level is meant to last.",
   },
   2: {
     id: 2,
     name: "Intermediate",
     emoji: "🚀",
     short: "I",
-    gradeBand: "Grades 2–3 · building fluency",
-    blurb: "Harder practice — next step after Foundation.",
+    gradeBand: "Year 4 · about one school year",
+    blurb: "Times tables, bigger numbers and clearer writing. Still primary school.",
   },
   3: {
     id: 3,
     name: "Secure",
     emoji: "🔷",
     short: "S",
-    gradeBand: "Grades 3–4 · KS3 secure",
-    blurb: "Secondary-ready depth — ready for GCSE Core.",
+    gradeBand: "Year 5–6 · about two school years",
+    blurb: "Secure primary work. Letters, gradients and standard form wait until GCSE Core.",
   },
   4: {
     id: 4,
     name: "GCSE Core",
     emoji: "📘",
     short: "C",
-    gradeBand: "Grades 4–5 · Foundation tier",
-    blurb: "GCSE Foundation tier skills across the full specification map.",
+    gradeBand: "Secondary · about three school years",
+    blurb: "After a full primary course. Algebra starts here. Foundation GCSE topics live in this level.",
   },
   5: {
     id: 5,
     name: "GCSE Higher",
     emoji: "🎯",
     short: "H",
-    gradeBand: "Grades 5–7 · Higher tier",
+    gradeBand: "Years 10–11 · about two school years",
     blurb: "Higher-tier methods, multi-step problems and exam technique.",
   },
   6: {
@@ -1110,8 +1216,8 @@ const COURSE_STAGES = {
     name: "A* Mastery",
     emoji: "⭐",
     short: "A*",
-    gradeBand: "Grades 8–9 · A* stretch",
-    blurb: "Grade 8–9 stretch, synthesis and top-band exam craft.",
+    gradeBand: "Higher-tier stretch",
+    blurb: "Grade 8–9 stretch after the GCSE course.",
   },
 };
 
@@ -1142,6 +1248,22 @@ const FUN_STAGE_NAMES = {
     4: { name: "Horse sports", emoji: "🏇", short: "4", gradeBand: "Yard sense · after work", blurb: "Cool them down. Field checks. Aisle clear." },
     5: { name: "Yard pro", emoji: "🎯", short: "5", gradeBand: "Health tells · tack care", blurb: "Notice sores. Leather can snap. Tell an adult." },
     6: { name: "Horsemaster", emoji: "⭐", short: "6", gradeBand: "Care is the job", blurb: "Leave the yard better. Champions still pick feet." },
+  },
+  f1: {
+    1: { name: "First grid", emoji: "🌱", short: "1", gradeBand: "Year 3 · start here", blurb: "Teams, flags, pit stops, the car, history and easy lap sums. No this-season line-ups." },
+    2: { name: "Reading the race", emoji: "🚦", short: "2", gradeBand: "A step harder", blurb: "The same six ideas, with more of the rules. Facts that change each year stay out." },
+    3: { name: "How it works", emoji: "🔷", short: "3", gradeBand: "Wings, tyres, brakes", blurb: "Downforce, slick tyres and brakes, still in plain words and small numbers." },
+    4: { name: "Race craft", emoji: "🏁", short: "4", gradeBand: "History that stays true", blurb: "1950 onwards. A win’s points can change, so we learn the idea, not a table." },
+    5: { name: "Hot lap sums", emoji: "🎯", short: "5", gradeBand: "Means and fuel stories", blurb: "Averages of lap times and simple fuel stories. Still no letters for numbers." },
+    6: { name: "Champion", emoji: "⭐", short: "6", gradeBand: "Putting it together", blurb: "Flags, history and the harder sums. The rule book can still change next season." },
+  },
+  horseworld: {
+    1: { name: "First horses", emoji: "🌱", short: "1", gradeBand: "Breeds and kind rules", blurb: "Breeds, gaits, famous horses, yard rules and easy hand sums." },
+    2: { name: "How they move", emoji: "🐴", short: "2", gradeBand: "Walk, trot, canter", blurb: "The same ideas, a step harder. 14.2 hands is not a decimal." },
+    3: { name: "Famous and real", emoji: "🔷", short: "3", gradeBand: "History, not this season", blurb: "Red Rum’s three Nationals stay true. This year’s star is news, not a lesson." },
+    4: { name: "Horse sports", emoji: "🏇", short: "4", gradeBand: "Racing, dressage, care", blurb: "What the sports are, and how to leave a horse better than you found it." },
+    5: { name: "Yard maths", emoji: "🎯", short: "5", gradeBand: "Hands, strides, time", blurb: "Hands, strides and small feed stories. The yard’s real chart beats a story sum." },
+    6: { name: "Horsemaster", emoji: "⭐", short: "6", gradeBand: "Care and craft together", blurb: "Movement, history and the sums, all in one round." },
   },
 };
 
@@ -1283,10 +1405,20 @@ function migrateCourseEntry(c) {
   if (!c || typeof c !== "object") return null;
   const stages = collectStageMap(c);
   const active = Number(c.activeStage) || 1;
+  const paceDone = {};
+  const rawDone = c.paceDone && typeof c.paceDone === "object" ? c.paceDone : {};
+  for (const [k, v] of Object.entries(rawDone)) {
+    if (Array.isArray(v)) paceDone[String(k)] = v.map((id) => String(id));
+  }
   return {
     activeStage: active >= 1 ? active : 1,
     stages,
     contentVersion: c.contentVersion || "",
+    paceVersion: c.paceVersion || "",
+    homeStage: Number(c.homeStage) || 0,
+    paceClimbedTo: Number(c.paceClimbedTo) || 0,
+    paceStartedOn: c.paceStartedOn || "",
+    paceDone,
   };
 }
 
@@ -1304,6 +1436,11 @@ function serializeCourseEntry(c) {
     activeStage: Number(m.activeStage) || 1,
     stages,
     contentVersion: m.contentVersion || "",
+    paceVersion: m.paceVersion || "",
+    homeStage: Number(m.homeStage) || 0,
+    paceClimbedTo: Number(m.paceClimbedTo) || 0,
+    paceStartedOn: m.paceStartedOn || "",
+    paceDone: m.paceDone && typeof m.paceDone === "object" ? m.paceDone : {},
   };
 }
 
@@ -1326,8 +1463,9 @@ function mergeCourseEntry(a, b) {
         completed[id] = rec;
       }
     }
-    const path =
-      (sa.path || []).length >= (sb.path || []).length ? sa.path || [] : sb.path || [];
+    const path = dedupeLessonPath(
+      (sa.path || []).length >= (sb.path || []).length ? sa.path || [] : sb.path || []
+    );
     stages[k] = {
       path,
       completed,
@@ -1342,10 +1480,16 @@ function mergeCourseEntry(a, b) {
   } else if (versions.includes(FIRST_STEPS_VERSION)) {
     contentVersion = FIRST_STEPS_VERSION;
   }
+  const pace = mergePaceFields(A, B);
   return {
-    activeStage: Math.max(Number(A.activeStage) || 1, Number(B.activeStage) || 1),
+    activeStage: pace.activeStage,
     stages,
     contentVersion,
+    paceVersion: pace.paceVersion,
+    homeStage: pace.homeStage,
+    paceClimbedTo: pace.paceClimbedTo,
+    paceStartedOn: pace.paceStartedOn,
+    paceDone: pace.paceDone,
   };
 }
 
@@ -1427,11 +1571,31 @@ function mergeProfiles(localP, remoteP, learnerId) {
     ];
     out.recentQuestions[sub] = merged.slice(-40);
   }
+  out.masteredQs = {};
+  for (const sub of new Set([
+    ...Object.keys(L.masteredQs || {}),
+    ...Object.keys(R.masteredQs || {}),
+  ])) {
+    const merged = [
+      ...new Set([
+        ...((L.masteredQs && L.masteredQs[sub]) || []),
+        ...((R.masteredQs && R.masteredQs[sub]) || []),
+      ]),
+    ];
+    out.masteredQs[sub] = merged.filter(Boolean).slice(-400);
+  }
   out.progressLog = mergeProgressLog(L.progressLog, R.progressLog);
   if (typeof mergeJourney === "function") {
     out.journey = mergeJourney(L.journey, R.journey);
   } else {
     out.journey = L.journey || R.journey || {};
+  }
+  const li = L.investMachine;
+  const ri = R.investMachine;
+  if ((li && typeof li === "object") || (ri && typeof ri === "object")) {
+    const lt = Number(li && li.savedAt) || 0;
+    const rt = Number(ri && ri.savedAt) || 0;
+    out.investMachine = rt > lt ? ri : li || ri;
   }
   return normalizeProfile(learnerId, out);
 }
@@ -1462,18 +1626,31 @@ function recoverCompletionsFromHistory(profile, subject) {
     profile.courses[subject] = migrateCourseEntry(profile.courses[subject]);
   }
   const c = profile.courses[subject];
+  applyPacePlacement(profile, subject);
+  const climbed = paceClimbLimit(c);
   const hist = Array.isArray(profile.lessonHistory) ? profile.lessonHistory : [];
   for (const h of hist) {
     if (!h || h.subject !== subject || !h.skillId) continue;
     // Missing stage = old First steps work. Never stamp those ticks onto stage 2+.
     const stage = h.stage == null || h.stage === "" ? 1 : Number(h.stage);
     if (!Number.isFinite(stage) || stage < 1) continue;
+    // Old GCSE sittings must not climb back over the pace reset,
+    // even years later when a higher level is finally unlocked.
+    if (c.paceVersion === PACE_VERSION) {
+      const home = Number(c.homeStage) || 1;
+      const started = c.paceStartedOn ? String(c.paceStartedOn) : "";
+      const when = h.date ? String(h.date) : "";
+      if (stage > home && (!when || !started || when < started)) continue;
+    }
+    if (climbed && stage > climbed) continue;
     if (!c.stages[stage]) {
       c.stages[stage] = normaliseStageRecord(null);
     }
     const done = c.stages[stage].completed;
     const prev = done[h.skillId];
     const score = Number(h.score);
+    // A failed sitting must not come back as a finished lesson.
+    if (Number.isFinite(score) && score < 50) continue;
     const better =
       !prev || (Number.isFinite(score) && score > (Number(prev.score) || 0));
     if (better) {
@@ -1507,6 +1684,180 @@ function ensureCourseShape(profile, subject) {
 const FIRST_STEPS_VERSION = "first-steps-v1";
 /** Fun courses: long beginner path. Keep ticks; send them back to stage 1. */
 const FUN_COURSE_VERSION = "fun-long-v1";
+/**
+ * Year-scale pacing. A cloud profile that jumped to GCSE must not Math.max
+ * itself back up. Stars, XP and badges are not stored on the course.
+ */
+const PACE_VERSION = "pace-years-v1";
+/** A lesson counts when about 7 in every 10 answers are right (3 of 4). */
+const LESSON_PASS_PCT = 70;
+
+function homeStageForLearner(learnerId, subject) {
+  const fun =
+    typeof isFunSubject === "function"
+      ? isFunSubject(subject)
+      : !!(typeof SUBJECTS !== "undefined" && SUBJECTS[subject] && SUBJECTS[subject].fun);
+  if (learnerId === "bella" && !fun) return 3;
+  return 1;
+}
+
+function paceClimbLimit(course) {
+  if (!course || course.paceVersion !== PACE_VERSION) return 0;
+  const home = Number(course.homeStage) || 1;
+  return Math.max(home, Number(course.paceClimbedTo) || home);
+}
+
+function mergePaceFields(A, B) {
+  const aOk = A && A.paceVersion === PACE_VERSION;
+  const bOk = B && B.paceVersion === PACE_VERSION;
+  if (!aOk && !bOk) {
+    return {
+      paceVersion: (A && A.paceVersion) || (B && B.paceVersion) || "",
+      homeStage: 0,
+      paceClimbedTo: 0,
+      paceStartedOn: "",
+      paceDone: {},
+      activeStage: Math.max(Number(A && A.activeStage) || 1, Number(B && B.activeStage) || 1),
+    };
+  }
+  const paced = [aOk ? A : null, bOk ? B : null].filter(Boolean);
+  const home = Math.min(...paced.map((p) => Number(p.homeStage) || 1));
+  const climbed = Math.max(
+    ...paced.map((p) => Math.max(Number(p.homeStage) || 1, Number(p.paceClimbedTo) || 1))
+  );
+  const active = Math.min(
+    climbed,
+    Math.max(...paced.map((p) => Number(p.activeStage) || 1))
+  );
+  const keys = new Set();
+  paced.forEach((p) => Object.keys(p.paceDone || {}).forEach((k) => keys.add(k)));
+  const paceDone = {};
+  for (const k of keys) {
+    const lists = paced.map((p) => (p.paceDone && p.paceDone[k]) || null).filter(Boolean);
+    if (!lists.length) continue;
+    if (lists.length === 1) paceDone[k] = lists[0].slice();
+    else {
+      const other = new Set(lists[1]);
+      paceDone[k] = lists[0].filter((id) => other.has(id));
+    }
+  }
+  const starts = paced.map((p) => p.paceStartedOn).filter(Boolean).sort();
+  return {
+    paceVersion: PACE_VERSION,
+    homeStage: home,
+    paceClimbedTo: climbed,
+    paceStartedOn: starts[0] || "",
+    paceDone,
+    activeStage: active,
+  };
+}
+
+/** Place George on First steps and Bella-Rose on Secure. Keep badges elsewhere. */
+function applyPacePlacement(profile, subject) {
+  if (!profile || !subject || !profile.courses || !profile.courses[subject]) return;
+  const course = profile.courses[subject];
+  const home = homeStageForLearner(profile.id, subject);
+  if (course.paceVersion !== PACE_VERSION) {
+    const done = {};
+    for (const [k, st] of Object.entries(course.stages || {})) {
+      const n = parseStageStorageKey(k);
+      if (!Number.isFinite(n) || !st || !st.completed || typeof st.completed !== "object") continue;
+      done[stageStorageKey(n)] = Object.keys(st.completed);
+    }
+    course.paceDone = done;
+    course.paceVersion = PACE_VERSION;
+    course.homeStage = home;
+    course.paceClimbedTo = home;
+    course.paceStartedOn = typeof todayKey === "function" ? todayKey() : "";
+    course.activeStage = home;
+  } else {
+    if (!course.homeStage) course.homeStage = home;
+    if (!course.paceStartedOn && typeof todayKey === "function") course.paceStartedOn = todayKey();
+    const climbed = Math.max(Number(course.homeStage) || home, Number(course.paceClimbedTo) || home);
+    course.paceClimbedTo = climbed;
+    if ((Number(course.activeStage) || 1) > climbed) course.activeStage = climbed;
+    if (
+      (Number(course.paceClimbedTo) || 0) === (Number(course.homeStage) || 0) &&
+      Number(course.homeStage) !== home
+    ) {
+      course.homeStage = home;
+      course.paceClimbedTo = home;
+      course.activeStage = home;
+    }
+  }
+  clearCompletionsPastActiveStage(course);
+}
+
+function isPrePaceLesson(course, stageNum, skillId, rec) {
+  if (!course) return false;
+  const snap = course.paceDone && course.paceDone[stageStorageKey(stageNum)];
+  if (Array.isArray(snap) && snap.indexOf(String(skillId)) !== -1) return true;
+  if (
+    rec &&
+    course.paceStartedOn &&
+    rec.date &&
+    String(rec.date) < String(course.paceStartedOn)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function daysNeededToUnlock(subject, freshCount) {
+  const n = Number(freshCount) || 0;
+  if (n <= 0) return 0;
+  const fun =
+    typeof isFunSubject === "function"
+      ? isFunSubject(subject)
+      : !!(typeof SUBJECTS !== "undefined" && SUBJECTS[subject] && SUBJECTS[subject].fun);
+  const cap = fun ? 2 : 4;
+  if (n < cap) return n >= 2 ? 2 : 1;
+  return cap;
+}
+
+/** Empty string when the next level may open. */
+function stageUnlockBlock(profile, subject, stageNum) {
+  const stage = Number(stageNum) || 1;
+  const meta =
+    typeof courseStageMeta === "function"
+      ? courseStageMeta(subject, stage)
+      : COURSE_STAGES[stage] || COURSE_STAGES[1];
+  const name = (meta && meta.name) || "this level";
+  const st = getCourseStageData(profile, subject, stage);
+  const path = (st && Array.isArray(st.path) && st.path) || [];
+  const done = path.filter((id) => st && st.completed && st.completed[id]).length;
+  if (!path.length || done < path.length) {
+    return `Finish the ${path.length || 0} ${name} lessons first (${done}/${path.length || 0} done)`;
+  }
+  const course = profile && profile.courses && profile.courses[subject];
+  const fresh = path.filter((id) => !isPrePaceLesson(course, stage, id, st.completed[id]));
+  const need = daysNeededToUnlock(subject, fresh.length);
+  if (!need) return "";
+  const dates = new Set();
+  fresh.forEach((id) => {
+    const rec = st.completed[id];
+    if (rec && rec.date) dates.add(String(rec.date));
+  });
+  if (dates.size >= need) return "";
+  return `${name} lessons are finished. This level is meant to last, so spread the new lessons over ${need} different days first (${dates.size}/${need} days so far)`;
+}
+
+function syncStageLessonPath(profile, subject, stageNum) {
+  const course = profile && profile.courses && profile.courses[subject];
+  if (!course || !course.stages) return;
+  const stage = Number(stageNum) || 1;
+  const st = course.stages[stage];
+  if (!st) return;
+  const want = Object.keys((typeof SKILLS !== "undefined" && SKILLS[subject]) || {}).filter((id) =>
+    lessonExistsForStage(subject, id, stage)
+  );
+  const path = Array.isArray(st.path) ? st.path.slice() : [];
+  const have = new Set(path);
+  want.forEach((id) => {
+    if (!have.has(id)) path.push(id);
+  });
+  st.path = dedupeLessonPath(path);
+}
 
 /**
  * After placement: always ensure a non-empty lesson path for the active stage.
@@ -1528,7 +1879,6 @@ function ensureCourseReady(profile, subject) {
     const keep = (course.stages && course.stages[1] && course.stages[1].completed) || {};
     buildCourse(profile, subject, 1);
     course = profile.courses[subject];
-    course.activeStage = 1;
     if (course.stages && course.stages[1]) {
       course.stages[1].completed = { ...keep, ...(course.stages[1].completed || {}) };
     }
@@ -1536,11 +1886,13 @@ function ensureCourseReady(profile, subject) {
   } else if (!funSubject && course && course.contentVersion !== FIRST_STEPS_VERSION) {
     buildCourse(profile, subject, 1);
     course = profile.courses[subject];
-    course.activeStage = 1;
     if (course.stages && course.stages[1]) course.stages[1].completed = {};
     course.contentVersion = FIRST_STEPS_VERSION;
   }
-  if (course) clearCompletionsPastActiveStage(course);
+  if (course) {
+    applyPacePlacement(profile, subject);
+    clearCompletionsPastActiveStage(course);
+  }
   const c = profile.courses[subject];
   if (!c) return null;
   const stage = Number(c.activeStage) || 1;
@@ -1559,8 +1911,8 @@ function ensureCourseReady(profile, subject) {
   }
   // Still empty? only skills that actually have this stage (never recycle First steps)
   if (!st || !st.path || !st.path.length) {
-    const skillIds = Object.keys(SKILLS[subject] || {}).filter((id) =>
-      lessonExistsForStage(subject, id, stage)
+    const skillIds = dedupeLessonPath(
+      Object.keys(SKILLS[subject] || {}).filter((id) => lessonExistsForStage(subject, id, stage))
     );
     c.stages[stage] = {
       path: skillIds,
@@ -1574,9 +1926,34 @@ function ensureCourseReady(profile, subject) {
         `Your ${SUBJECTS[subject].name} lessons are ready — start at the top!`,
     };
   }
+  Object.keys(c.stages || {}).forEach((k) => {
+    const stg = c.stages[k];
+    if (!stg || !Array.isArray(stg.path)) return;
+    const nextPath = dedupeLessonPath(stg.path);
+    if (nextPath.length !== stg.path.length) stg.path = nextPath;
+  });
+  const climbedNow = paceClimbLimit(c) || Number(c.activeStage) || 1;
+  const activeNow = Number(c.activeStage) || 1;
+  for (let s = 1; s <= Math.max(climbedNow, activeNow); s++) {
+    if (!c.stages[s] || !Array.isArray(c.stages[s].path) || !c.stages[s].path.length) {
+      if (s === activeNow || s === climbedNow) buildCourse(profile, subject, s);
+    }
+    syncStageLessonPath(profile, subject, s);
+  }
   // Do NOT auto-skip to the next stage here — kids need a clear "Level complete!" moment.
   // Unlock happens from the Level Complete screen / subject unlock button.
   return c.stages[c.activeStage] || c.stages[stage];
+}
+
+/** Same lesson must not appear twice in one level. Ticks on that lesson stay. */
+function dedupeLessonPath(path) {
+  const seen = new Set();
+  return (Array.isArray(path) ? path : []).filter((id) => {
+    const key = String(id || "");
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /** If Foundation (or any stage) is finished, move them on. Don't send them back to Q1. */
@@ -1636,19 +2013,25 @@ function maxStageWithContent(subject) {
   return max;
 }
 
-/** Stage N unlocks when N-1 is complete (stage 1 needs diagnostic). No empty stages. */
+/** Stage N unlocks when N-1 is mastered (stage 1 needs the placement test). */
 function canAccessStage(profile, subject, stageNum) {
   const stage = Number(stageNum) || 1;
   if (stage < 1 || stage > MAX_COURSE_STAGE) return false;
   if (!subjectHasStageContent(subject, stage)) return false;
-  if (stage === 1) return !!(profile.diagnostics?.[subject]?.completed);
-  return isStageComplete(profile, subject, stage - 1);
+  if (!profile?.diagnostics?.[subject]?.completed) return false;
+  if (stage === 1) return true;
+  const course = profile.courses && profile.courses[subject];
+  const climbed = paceClimbLimit(course);
+  if (climbed && stage <= climbed) return true;
+  return stageUnlockBlock(profile, subject, stage - 1) === "";
 }
 
 function funStageBank(subject) {
   if (subject === "karting" && typeof FUN_KARTING_STAGES !== "undefined") return FUN_KARTING_STAGES;
   if (subject === "horses" && typeof FUN_HORSES_STAGES !== "undefined") return FUN_HORSES_STAGES;
   if (subject === "investing" && typeof FUN_INVESTING_STAGES !== "undefined") return FUN_INVESTING_STAGES;
+  if (subject === "f1" && typeof FUN_F1_STAGES !== "undefined") return FUN_F1_STAGES;
+  if (subject === "horseworld" && typeof FUN_HORSEWORLD_STAGES !== "undefined") return FUN_HORSEWORLD_STAGES;
   return null;
 }
 
@@ -1683,12 +2066,14 @@ function getLessonMeta(subject, skillId, stageNum) {
 function buildCourse(profile, subject, stageNum) {
   if (!profile.courses) profile.courses = {};
   recoverCompletionsFromHistory(profile, subject);
+  const home =
+    typeof homeStageForLearner === "function" ? homeStageForLearner(profile.id, subject) : 1;
   const existing = profile.courses[subject]
     ? migrateCourseEntry(profile.courses[subject])
-    : { activeStage: 1, stages: {} };
+    : { activeStage: home, stages: {} };
   profile.courses[subject] = existing;
 
-  const stage = Number(stageNum) || existing.activeStage || 1;
+  const stage = Number(stageNum) || existing.activeStage || home;
   const diag = profile.diagnostics[subject];
   const skillDefs = SKILLS[subject];
   const skillIds = Object.keys(skillDefs);
@@ -1700,7 +2085,7 @@ function buildCourse(profile, subject, stageNum) {
   }
 
   const path = ranked.map((s) => s.id);
-  const filtered = path.filter((id) => lessonExistsForStage(subject, id, stage));
+  const filtered = dedupeLessonPath(path.filter((id) => lessonExistsForStage(subject, id, stage)));
   const prevCompleted = filterCompletionsForStage(
     existing.stages[stage]?.completed || {},
     stage
@@ -1738,6 +2123,11 @@ function makeStageFocusMessage(subject, ranked, diag, stageNum) {
       " and "
     )}. Finish this level to keep getting better.`;
   }
+  if (Number(stageNum) <= 3) {
+    return `${stageMeta.emoji} ${stageMeta.name} ${subName} (${stageMeta.gradeBand}): practising ${weak.join(
+      " and "
+    )}. Finish every lesson in this level before the next one opens.`;
+  }
   return `${stageMeta.emoji} ${stageMeta.name} ${subName} (${stageMeta.gradeBand}): prioritising ${weak.join(
     " and "
   )}. Finish this stage to unlock the next step toward A*.`;
@@ -1771,6 +2161,9 @@ function startCourseStage(profile, subject, stageNum) {
       { ...kept, ...(live.stages[stage].completed || {}) },
       stage
     );
+  }
+  if (live.paceVersion === PACE_VERSION) {
+    live.paceClimbedTo = Math.max(Number(live.paceClimbedTo) || 0, stage);
   }
   profile.courses[subject] = live;
   profile.updatedAt = Date.now();
@@ -1814,10 +2207,11 @@ function stageAStarWeight(subject, stageNum) {
   return STAGE_A_STAR_WEIGHTS[stageNum] || 0;
 }
 
-/** Drop ticks on levels above the current one (left over from the old hard Stage 1). */
+/** Drop ticks on levels above the placed/unlocked level (not merely the one on screen). */
 function clearCompletionsPastActiveStage(course) {
   if (!course || !course.stages || typeof course.stages !== "object") return;
-  const active = Number(course.activeStage) || 1;
+  const climbed = paceClimbLimit(course);
+  const active = climbed || Number(course.activeStage) || 1;
   const stages = course.stages;
   const keys = Array.isArray(stages) ? stages.map((_, i) => i) : Object.keys(stages);
   for (const k of keys) {
@@ -1872,9 +2266,9 @@ function makeFocusMessage(subject, ranked, diag) {
   if (fun) {
     return `We'll start with ${weak.join(" and ")}. This is a whole beginner course — not a handful of questions.`;
   }
-  return `Based on your test, we'll boost ${weak.join(" and ")} first (GCSE: ${
-    SKILLS[subject][ranked[0].id].gcse
-  }). You're already stronger on ${strong[0]} — we'll keep that sharp too!`;
+  return `Based on your test, we'll practise ${weak.join(
+    " and "
+  )} first. First steps is a long level, about two school years of work.`;
 }
 
 function scoreDiagnostic(subject, learnerId, answers) {
@@ -2297,18 +2691,13 @@ function stageLockReason(profile, subject, stageNum) {
   }
   if (!subjectHasStageContent(subject, stage)) return "This level has no lessons yet";
   if (canAccessStage(profile, subject, stage)) return "";
+  const block = stageUnlockBlock(profile, subject, stage - 1);
+  if (block) return block;
   const prevMeta =
     typeof courseStageMeta === "function"
       ? courseStageMeta(subject, stage - 1)
       : COURSE_STAGES[stage - 1] || COURSE_STAGES[1];
   const prevName = (prevMeta && prevMeta.name) || "the previous level";
-  const st = getCourseStageData(profile, subject, stage - 1);
-  const path = (st && Array.isArray(st.path) && st.path) || [];
-  const done = path.filter((id) => st && st.completed && st.completed[id]).length;
-  const total = path.length;
-  if (total) {
-    return `Finish the ${total} ${prevName} lessons first (${done}/${total} done)`;
-  }
   return `Finish every ${prevName} lesson first`;
 }
 
@@ -2669,12 +3058,19 @@ function buildPower5Questions(profile, subject) {
   const weak = Object.keys(SKILLS[subject] || {}).sort(
     (a, b) => (scores[a] ?? 50) - (scores[b] ?? 50)
   );
+  const activeStage =
+    typeof getActiveStage === "function" ? getActiveStage(profile, subject) || 1 : 1;
   const adaptLvEarly =
-    typeof getAdaptLevel === "function" ? getAdaptLevel(profile, subject) : 0;
-  const startStage = adaptLvEarly >= 3 ? 4 : adaptLvEarly >= 2 ? 3 : adaptLvEarly >= 1 ? 2 : 1;
+    typeof effectiveAdaptLevel === "function"
+      ? effectiveAdaptLevel(profile, subject, activeStage)
+      : 0;
+  // Stay on stages the child has reached. Do not pull locked GCSE questions into a drill.
   const stagesToTry = [];
-  for (let s = startStage; s <= 6; s++) stagesToTry.push(s);
-  for (let s = startStage - 1; s >= 1; s--) stagesToTry.push(s);
+  if (adaptLvEarly <= -1) {
+    for (let s = 1; s <= activeStage; s++) stagesToTry.push(s);
+  } else {
+    for (let s = activeStage; s >= 1; s--) stagesToTry.push(s);
+  }
   for (const skillId of weak) {
     for (const st of stagesToTry) {
       if (typeof getTeachModule !== "function") continue;
