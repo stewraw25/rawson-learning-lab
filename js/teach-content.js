@@ -129,7 +129,7 @@ const SVG = {
     <svg viewBox="0 0 280 100" class="teach-svg" aria-hidden="true">
       <line x1="40" y1="50" x2="240" y2="50" stroke="#5b8cff" stroke-width="4"/>
       <circle cx="140" cy="50" r="6" fill="#ffd166"/>
-      <text x="70" y="40" fill="#3dd6c6" font-size="16" font-weight="700">3 + □</text>
+      <text x="70" y="40" fill="#3dd6c6" font-size="16" font-weight="700">3 + 2</text>
       <text x="190" y="40" fill="#ff8c5a" font-size="16" font-weight="700">7</text>
       <text x="90" y="85" fill="#a8b0d6" font-size="12">3 and what make 7?</text>
     </svg>`,
@@ -374,66 +374,69 @@ const TEACH_MODULES = {
       },
     },
     algebra: {
-      title: "Missing numbers",
-      blurb: "Find the number that belongs in the box. Not GCSE algebra.",
+      title: "Pairs that make 10",
+      blurb: "Number bonds in words. No letters and no boxes.",
       videoKey: "algebra",
       teach: {
         points: [
-          "A box □ is a number we have not written yet.",
-          "3 + □ = 5 means: 3 and what make 5?",
-          "The answer is 2, because 3 + 2 = 5.",
+          "A pair that makes 10 is two numbers that add to 10.",
+          "7 and 3 make 10. 6 and 4 make 10.",
+          "Ask: what do I add to this number to reach 10?",
         ],
         visual: SVG.balance,
       },
       example: {
         title: "Worked example",
-        steps: ["5 + □ = 9", "Start at 5. Count up to 9: 6, 7, 8, 9.", "That was 4 jumps. So □ is 4."],
+        steps: ["Start at 6.", "Count on until you reach 10: 7, 8, 9, 10.", "That was 4. 6 and 4 make 10."],
       },
       practice: [
         {
-          q: "2 + □ = 6. What is □?",
+          q: "What do you add to 6 to make 10?",
           type: "typed",
           answer: "4",
-          explain: "2 and 4 make 6.",
+          explain: "6 and 4 make 10.",
+          ramp: 1,
         },
         {
-          q: "□ + 1 = 4. What is □?",
+          q: "What do you add to 2 to make 10?",
           type: "typed",
-          answer: "3",
-          explain: "3 and 1 make 4.",
+          answer: "8",
+          explain: "2 and 8 make 10.",
+          ramp: 1,
         },
         {
-          q: "10 − □ = 7. What is □?",
+          q: "Which pair makes 10?",
           type: "multi",
-          options: ["2", "3", "4", "17"],
-          answer: 1,
-          explain: "10 take away 3 is 7.",
+          options: ["7 and 3", "7 and 2", "9 and 2", "4 and 4"],
+          answer: 0,
+          explain: "7 and 3 make 10.",
+          ramp: 1,
         },
       ],
       struggle: {
-        points: [
-          "Use counters or fingers.",
-          "Ask: what do I add to the first number to reach the total?",
-        ],
+        points: ["Use your fingers. Count on until you get to 10."],
         practice: [
           {
-            q: "1 + □ = 2. What is □?",
+            q: "What do you add to 9 to make 10?",
             type: "typed",
             answer: "1",
-            explain: "1 and 1 make 2.",
+            explain: "9 and 1 make 10.",
+            ramp: 1,
           },
           {
-            q: "5 − □ = 5. What is □?",
+            q: "What do you add to 5 to make 10?",
             type: "typed",
-            answer: "0",
-            explain: "Take away 0 and 5 stays 5.",
+            answer: "5",
+            explain: "5 and 5 make 10.",
+            ramp: 1,
           },
           {
-            q: "□ + 0 = 3. What is □?",
+            q: "What do you add to 0 to make 10?",
             type: "multi",
-            options: ["0", "1", "3", "30"],
+            options: ["0", "1", "10", "100"],
             answer: 2,
-            explain: "3 and 0 make 3.",
+            explain: "0 and 10 make 10.",
+            ramp: 1,
           },
         ],
       },

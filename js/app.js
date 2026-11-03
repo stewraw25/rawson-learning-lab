@@ -2682,6 +2682,36 @@ function pathwayMapHtml(p) {
 }
 
 // —— SUBJECT HUB (kid-clear layout) ——
+function linkedCourseHtml(subject) {
+  const pair =
+    subject === "karting"
+      ? "f1"
+      : subject === "f1"
+        ? "karting"
+        : subject === "horses"
+          ? "horseworld"
+          : subject === "horseworld"
+            ? "horses"
+            : "";
+  if (!pair || typeof SUBJECTS === "undefined" || !SUBJECTS[pair]) return "";
+  const other = SUBJECTS[pair];
+  const note =
+    subject === "karting"
+      ? "Same flags and the same kind of sums, on Formula 1 cars."
+      : subject === "f1"
+        ? "The kart itself, the pedals and the club rules live in Go-karting."
+        : subject === "horses"
+          ? "Breeds, sports and famous horses live in Horse world."
+          : "Water, rugs and daily care live in Horses.";
+  return `<div class="card course-link-card mb-2">
+    <p class="course-link-kicker">Linked course</p>
+    <p class="course-link-note">${escapeHtml(note)}</p>
+    <button class="btn btn-secondary" type="button" id="btnLinkedCourse" data-linked-subject="${pair}">
+      ${other.emoji} Open ${escapeHtml(other.name)}
+    </button>
+  </div>`;
+}
+
 function renderSubject({ subject }) {
   if (!state.activeLearner) return go("home");
   const S = SUBJECTS[subject];
@@ -2694,7 +2724,11 @@ function renderSubject({ subject }) {
   }
 
   const courseRoot = p.courses[subject] ? ensureCourseShape(p, subject) : null;
-  const activeStage = Number(courseRoot?.activeStage) || 1;
+  const activeStage =
+    Number(courseRoot?.activeStage) ||
+    (typeof homeStageForLearner === "function"
+      ? homeStageForLearner(state.activeLearner, subject)
+      : 1);
   const stageMeta =
     typeof courseStageMeta === "function"
       ? courseStageMeta(subject, activeStage)
@@ -2711,6 +2745,10 @@ function renderSubject({ subject }) {
   const totalCount = path.length || 1;
   const stagePct = Math.round((doneCount / totalCount) * 100);
   const stageComplete = path.length > 0 && path.every((id) => completedMap[id]);
+  const unlockBlock =
+    stageComplete && typeof stageUnlockBlock === "function"
+      ? stageUnlockBlock(p, subject, activeStage)
+      : "";
   const nextId = path.length ? nextLesson(p, subject, activeStage) : null;
   const nextMeta = nextId ? getLessonMeta(subject, nextId, activeStage) : null;
   const maxS =
@@ -2718,7 +2756,7 @@ function renderSubject({ subject }) {
       ? maxStageWithContent(subject)
       : MAX_COURSE_STAGE;
   const nextStageNum =
-    stageComplete && activeStage < maxS ? activeStage + 1 : null;
+    stageComplete && !unlockBlock && activeStage < maxS ? activeStage + 1 : null;
   const nextStageMeta = nextStageNum
     ? typeof courseStageMeta === "function"
       ? courseStageMeta(subject, nextStageNum)
@@ -2756,6 +2794,13 @@ function renderSubject({ subject }) {
           ${nextStageMeta.emoji} Unlock ${escapeHtml(nextStageMeta.name)} →
         </button>
         <p class="muted level-complete-hint">Tap the big button to continue</p>
+      </div>`;
+  } else if (stageComplete && unlockBlock) {
+    nextStepHtml = `
+      <div class="card level-complete-card mb-2">
+        <p class="level-complete-kicker">Lessons finished</p>
+        <h2 class="level-complete-title" style="font-size:clamp(1.4rem,3.5vw,2rem)">This level is meant to last</h2>
+        <p class="level-complete-msg">${escapeHtml(unlockBlock)}</p>
       </div>`;
   } else if (stageComplete && activeStage >= maxS) {
     nextStepHtml = `
@@ -2906,7 +2951,11 @@ function renderSubject({ subject }) {
                   <span class="lesson-copy">
                     <strong>${escapeHtml(lesson.title)}</strong>
                     ${
-                      (subject === "karting" || subject === "investing" || subject === "horses") &&
+                      (subject === "karting" ||
+                        subject === "investing" ||
+                        subject === "horses" ||
+                        subject === "f1" ||
+                        subject === "horseworld") &&
                       typeof journeyStarsFor === "function" &&
                       journeyStarsFor(p, subject, skillId, activeStage)
                         ? `<span class="journey-inline-stars">${journeyStarsFor(
@@ -2961,6 +3010,9 @@ function renderSubject({ subject }) {
         <p class="muted" style="margin:0.25rem 0 0">For ${escapeHtml(
           kidName
         )} · ${escapeHtml(learner().yearGroup)}</p>
+        <p class="muted" style="margin:0.35rem 0 0">${escapeHtml(stageMeta.gradeBand || "")}. ${escapeHtml(
+          stageMeta.blurb || ""
+        )}</p>
         ${state.activeLearner === "bella" ? bellaThemeChip() : ""}
       </div>
     </div>
@@ -2968,13 +3020,21 @@ function renderSubject({ subject }) {
     ${difficultyCardHtml(state.activeLearner, subject)}
     ${typeof weekNoteHtml === "function" ? weekNoteHtml() : ""}
     ${
-      lockWhy && subject !== "karting" && subject !== "investing"
+      lockWhy &&
+      subject !== "karting" &&
+      subject !== "investing" &&
+      subject !== "f1" &&
+      subject !== "horseworld"
         ? `<p class="journey-lock">🔒 ${escapeHtml(lockWhy)}</p>`
         : ""
     }
+    ${linkedCourseHtml(subject)}
     ${nextStepHtml}
     ${
-      (subject === "karting" || subject === "investing") &&
+      (subject === "karting" ||
+        subject === "investing" ||
+        subject === "f1" ||
+        subject === "horseworld") &&
       typeof journeyPanelHtml === "function"
         ? journeyPanelHtml(p, subject)
         : ""
@@ -2988,7 +3048,11 @@ function renderSubject({ subject }) {
     }
     ${
       /* Keep stage chips small — not the main focus for kids */
-      stageChips && subject !== "karting" && subject !== "investing"
+      stageChips &&
+      subject !== "karting" &&
+      subject !== "investing" &&
+      subject !== "f1" &&
+      subject !== "horseworld"
         ? `<details class="card mb-2 more-options" open><summary>${
             isFunSubject(subject) ? "Rounds" : "Levels (Foundation → A*)"
           }</summary><div class="more-options-body">${stageChips}</div></details>`
@@ -3053,6 +3117,10 @@ function renderSubject({ subject }) {
   document.getElementById("btnOpenInvestCalc")?.addEventListener("click", () =>
     go("invest")
   );
+  document.getElementById("btnLinkedCourse")?.addEventListener("click", (e) => {
+    const next = e.currentTarget.dataset.linkedSubject;
+    if (next) go("subject", { subject: next });
+  });
   document.getElementById("btnJourneyMisses")?.addEventListener("click", () => {
     try {
       sessionStorage.setItem("journey-drill", "retry");
@@ -3677,7 +3745,8 @@ function renderLesson({ subject, skillId, stage }) {
       const q = list[session.practiceIndex];
       if (
         !q &&
-        (subject === "karting" || subject === "investing") &&
+        typeof georgeIsJourneySubject === "function" &&
+        georgeIsJourneySubject(subject) &&
         typeof journeyEmptyPracticeHtml === "function"
       ) {
         journeyHold = true;
@@ -3938,7 +4007,8 @@ function renderLesson({ subject, skillId, stage }) {
         )}`;
       } else {
         const journeySubject =
-          session.subject === "karting" || session.subject === "investing";
+          typeof georgeIsJourneySubject === "function" &&
+          georgeIsJourneySubject(session.subject);
         if (!journeySubject && ok && typeof hardenRemainingQueue === "function") {
           const trail = (session.history || []).slice().reverse();
           let consec = 0;
@@ -3985,7 +4055,8 @@ function renderLesson({ subject, skillId, stage }) {
       const advBtn = document.getElementById("btnAdvance");
       const remaining = session.queue.length - session.practiceIndex - 1;
       const journeySubject =
-        session.subject === "karting" || session.subject === "investing";
+        typeof georgeIsJourneySubject === "function" &&
+        georgeIsJourneySubject(session.subject);
       const willInject =
         !journeySubject &&
         !ok &&
@@ -4099,7 +4170,8 @@ function renderLesson({ subject, skillId, stage }) {
       session._keyHandler = null;
     }
     const scorePct = scoreSession(session);
-    const passed = scorePct >= 50;
+    const passMark = typeof LESSON_PASS_PCT === "number" ? LESSON_PASS_PCT : 70;
+    const passed = scorePct >= passMark;
     if (passed) {
       recordLesson(profile(), subject, skillId, scorePct, stageNum);
       if (typeof journeyAwardLesson === "function") {
@@ -4146,8 +4218,7 @@ function renderLesson({ subject, skillId, stage }) {
         /* ignore */
       }
     }
-    // A lesson only counts when at least half the answers were right.
-    // Two wrong warm-ups must not tick a GCSE lesson as finished.
+    // A lesson counts at 70% or better (about 3 out of 4).
     if (passed) {
       try {
         const course = profile().courses?.[subject];
@@ -4384,7 +4455,7 @@ function renderLessonResult({
       <button class="btn btn-primary btn-xl big-next-btn" type="button" id="btnRetryLesson">
         Try this lesson again →
       </button>
-      <p class="muted" style="margin-top:0.75rem">Get at least half of them right and it will count.</p>`;
+      <p class="muted" style="margin-top:0.75rem">Get at least 7 in every 10 right and it will count.</p>`;
   } else {
     primaryHtml = `
       <button class="btn btn-primary btn-xl big-next-btn" type="button" id="more">

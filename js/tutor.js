@@ -364,7 +364,8 @@ function dedupeQuestionQueue(queue) {
 function buildAdaptivePracticeQueue(mod, profile, subject, extra) {
   extra = extra || {};
   if (
-    (subject === "karting" || subject === "investing") &&
+    typeof georgeIsJourneySubject === "function" &&
+    georgeIsJourneySubject(subject) &&
     typeof buildJourneyQueue === "function"
   ) {
     return buildJourneyQueue(mod, profile, subject, extra);
@@ -609,7 +610,8 @@ function createTutorSession(subject, skillId, learnerId, stageNum) {
   // Karting and investing: never resume a saved loop of the old tiny bank.
   // Rebuild from questions he has not got right yet.
   if (
-    (subject === "karting" || subject === "investing") &&
+    typeof georgeIsJourneySubject === "function" &&
+    georgeIsJourneySubject(subject) &&
     typeof buildJourneyQueue === "function"
   ) {
     const phase = session.phase;

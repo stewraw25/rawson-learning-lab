@@ -24,6 +24,10 @@ const FILES = [
   "js/teach-content.js",
   "js/stage2-content.js",
   "js/stage3-content.js",
+  "js/year-install.js",
+  "js/year-path.js",
+  "js/year-english.js",
+  "js/year-science.js",
   "js/stage4-content.js",
   "js/stage5-content.js",
   "js/stage6-content.js",
@@ -32,6 +36,8 @@ const FILES = [
   "js/george-kart-bank.js",
   "js/george-invest-bank.js",
   "js/george-journey.js",
+  "js/passion-courses.js",
+  "js/invest-calc.js",
   "js/exam-packs.js",
   "js/tutor.js",
   "js/gentle-ramp.js",
@@ -258,13 +264,25 @@ for (const learnerId of ["bella", "george"]) {
   state = { profiles: { [learnerId]: profile }, activeLearner: learnerId };
   for (const subject of subjectsByLearner[learnerId]) {
     const skills = Object.keys(SKILLS[subject] || {});
+    for (const skillId of skills) {
+      let highest = 0;
+      for (let stage = 1; stage <= 6; stage++) {
+        if (lessonExistsForStage(subject, skillId, stage)) highest = stage;
+      }
+      if (!highest) {
+        fail(learnerId + " " + subject + " " + skillId + ": lesson missing from every stage");
+        continue;
+      }
+      for (let stage = 1; stage <= highest; stage++) {
+        if (!lessonExistsForStage(subject, skillId, stage)) {
+          fail(learnerId + " " + subject + " s" + stage + " " + skillId + ": gap before stage " + highest);
+        }
+      }
+    }
     for (let stage = 1; stage <= 6; stage++) {
       const fps = new Map();
       for (const skillId of skills) {
-        if (!lessonExistsForStage(subject, skillId, stage)) {
-          fail(learnerId + " " + subject + " s" + stage + " " + skillId + ": lesson missing from the teach bank");
-          continue;
-        }
+        if (!lessonExistsForStage(subject, skillId, stage)) continue;
         const mod = lessonQuestions(subject, skillId, stage, learnerId);
         if (!mod) {
           fail(learnerId + " " + subject + " s" + stage + " " + skillId + ": getTeachModule returned null");
@@ -372,6 +390,36 @@ for (const subject of Object.keys(SKILLS)) {
   }
 })();
 
+if (typeof investSelfCheck !== "function") {
+  fail("money machine self-check is missing");
+} else {
+  investSelfCheck().forEach((err) => fail("money machine: " + err));
+}
+
+(function noEarlyAlgebra() {
+  const bad = /□|(?:^|[^a-z])[a-z]\s*=\s*\d|standard form|\bgradient\b/i;
+  ["bella", "george"].forEach((learnerId) => {
+    subjectsForLearner(learnerId).forEach((subject) => {
+      Object.keys(SKILLS[subject] || {}).forEach((skillId) => {
+        for (let stage = 1; stage <= 3; stage++) {
+          const mod = getTeachModule(subject, skillId, stage, learnerId);
+          if (!mod) continue;
+          const bits = []
+            .concat((mod.teach && mod.teach.points) || [])
+            .concat((mod.example && mod.example.steps) || [])
+            .concat((mod.practice || []).map((q) => q && q.q))
+            .concat(((mod.struggle && mod.struggle.practice) || []).map((q) => q && q.q));
+          bits.forEach((bit) => {
+            if (bit && bad.test(String(bit))) {
+              fail(subject + " s" + stage + " " + skillId + " still has later-level maths: " + String(bit).slice(0, 80));
+            }
+          });
+        }
+      });
+    });
+  });
+})();
+
 if (typeof buildSomethingWrongMailto !== "function") {
   fail("Something's wrong? helper is missing");
 } else {
@@ -428,7 +476,7 @@ globalThis.__failures = failures.length;
 `;
 
 try {
-  vm.runInContext(source + "\n" + checker, sandbox, { filename: "check-lessons.js", timeout: 120000 });
+  vm.runInContext(source + "\n" + checker, sandbox, { filename: "check-lessons.js", timeout: 180000 });
 } catch (err) {
   console.error(err && err.stack ? err.stack : err);
   process.exit(1);

@@ -2,7 +2,8 @@
  * Compound investing calculator for Rawson Learning Lab.
  * Teaching toy — past returns are illustrations, not promises.
  *
- * Nominal periodic rate: i = APR / periodsPerYear (standard savings-calculator style).
+ * The yearly slider is an effective yearly rate. A lump left alone for one
+ * year grows by that percent. Regular payments use the matching slice of the year.
  */
 
 const INVEST_CALC_STORE = "rawson-invest-calc-v1";
@@ -32,9 +33,9 @@ const INVEST_STRATEGIES = {
     name: "Bitcoin",
     emoji: "₿",
     apr: 50,
-    pastLabel: "about 50% a year in one 10-year stretch",
+    pastLabel: "a wild past picture, not a forecast",
     pastNote:
-      "Bitcoin’s early years were wild. A recent 10-year stretch grew very fast — and other years it crashed. That speed cannot keep going forever. This is a past picture, not a promise.",
+      "Some stretches of Bitcoin’s past grew extremely fast, and other years it crashed. The 50% picture is only there to show a wild speed. It is not a measurement you should expect, and it cannot keep going.",
   },
 };
 
@@ -49,9 +50,26 @@ function investPeriodsPerYear(freq) {
 }
 
 function investPeriodicRate(annualPct, periodsPerYear) {
-  const r = Number(annualPct) || 0;
+  const annual = (Number(annualPct) || 0) / 100;
   const ppy = Number(periodsPerYear) || 12;
-  return r / 100 / ppy;
+  if (annual <= -1) return -0.999999;
+  if (ppy <= 1) return annual;
+  return Math.pow(1 + annual, 1 / ppy) - 1;
+}
+
+function investSelfCheck() {
+  const errors = [];
+  const zero = investFutureValue(10, 0, 1, 12);
+  if (Math.abs(zero - 120) > 1e-6) errors.push("0% for a year of £10 a month should be £120");
+  const fv = investFutureValue(20, 8, 10, 12);
+  if (!(fv > 20 * 12 * 10)) errors.push("8% growth should beat the cash put in");
+  const back = investPmtForTarget(fv, 8, 10, 12);
+  if (Math.abs(back - 20) > 0.02) errors.push("the payment for a target does not undo the future value");
+  const yrs = investYearsToTarget(20, fv, 8, 12);
+  if (Math.abs(yrs - 10) > 0.05) errors.push("the years to a target do not undo the future value");
+  const twenty = Math.round(100 * 0.2 * 100) / 100;
+  if (twenty !== 20) errors.push("20% of £100 should be £20");
+  return errors;
 }
 
 function investFutureValue(pmt, annualPct, years, periodsPerYear) {
@@ -185,26 +203,55 @@ function investDefaultState(learnerMeta) {
 
 function loadInvestCalcState(learnerId, learnerMeta) {
   const fallback = investDefaultState(learnerMeta);
+  let fromProfile = null;
+  try {
+    if (typeof profile === "function") {
+      const p = profile();
+      if (p && p.id === learnerId && p.investMachine && typeof p.investMachine === "object") {
+        fromProfile = p.investMachine;
+      }
+    }
+  } catch (_) {
+    fromProfile = null;
+  }
+  let fromLocal = null;
   try {
     const raw = localStorage.getItem(INVEST_CALC_STORE);
-    if (!raw) return fallback;
-    const all = JSON.parse(raw);
-    const saved = all && all[learnerId];
-    if (!saved || typeof saved !== "object") return fallback;
-    return { ...fallback, ...saved };
+    if (raw) {
+      const all = JSON.parse(raw);
+      if (all && all[learnerId] && typeof all[learnerId] === "object") fromLocal = all[learnerId];
+    }
   } catch (_) {
-    return fallback;
+    fromLocal = null;
   }
+  const profileAt = Number(fromProfile && fromProfile.savedAt) || 0;
+  const localAt = Number(fromLocal && fromLocal.savedAt) || 0;
+  const chosen = localAt > profileAt ? fromLocal : fromProfile || fromLocal;
+  if (!chosen) return fallback;
+  return { ...fallback, ...chosen };
 }
 
 function saveInvestCalcState(learnerId, data) {
+  const payload = { ...data, savedAt: Date.now() };
   try {
     const raw = localStorage.getItem(INVEST_CALC_STORE);
     const all = raw ? JSON.parse(raw) : {};
-    all[learnerId] = data;
+    all[learnerId] = payload;
     localStorage.setItem(INVEST_CALC_STORE, JSON.stringify(all));
   } catch (_) {
     /* ignore quota */
+  }
+  try {
+    if (typeof profile === "function" && typeof saveState === "function" && typeof state !== "undefined") {
+      const p = profile();
+      if (p && p.id === learnerId) {
+        p.investMachine = payload;
+        p.updatedAt = Date.now();
+        saveState(state);
+      }
+    }
+  } catch (_) {
+    /* profile save is best-effort; localStorage already has the numbers */
   }
 }
 
@@ -230,7 +277,8 @@ function investSnapshot(input) {
   const typedAmount = Math.max(0, Number(input.amount) || 0);
   const amount = useTwenty ? Math.round(earnings * 0.2 * 100) / 100 : typedAmount;
   const target = Math.max(1, Number(input.target) || INVEST_MILLION);
-  const strategy = INVEST_STRATEGIES[input.strategy] ? input.strategy : "sp500";
+  const strategy =
+    input.strategy === "mix" || INVEST_STRATEGIES[input.strategy] ? input.strategy : "custom";
   let apr = Number(input.apr);
   if (!isFinite(apr)) apr = INVEST_STRATEGIES[strategy].apr;
   apr = Math.max(INVEST_APR_MIN, Math.min(INVEST_APR_MAX, apr));
@@ -343,8 +391,10 @@ function investView(snap) {
   );
   const mixWild = investUnrealistic(snap.mix.fvLook, 20, snap.yearsToLook);
   const pastNote = isMix
-    ? "Equal split: one third gold (8%), one third S&P 500 (10%), one third Bitcoin (50% past stretch). Bitcoin’s past years make the mix look huge — they may not repeat."
-    : (strat ? strat.pastNote : INVEST_STRATEGIES.sp500.pastNote);
+    ? "Equal split: one third gold (8%), one third S&P 500 (10%), one third Bitcoin’s wild 50% picture. Bitcoin’s past years make the mix look huge — they may not repeat."
+    : strat
+      ? strat.pastNote
+      : "You moved the yearly rate yourself. A lump left for one year grows by that percent in this picture. It is not a forecast.";
   return {
     freqWord,
     freqWordly,
@@ -559,7 +609,7 @@ function renderInvestCalc() {
     }
     const earnEl = document.getElementById("invEarnings");
     const amtEl = document.getElementById("invAmount");
-    if (earnEl) earnEl.disabled = !snap.useTwenty;
+    if (earnEl) earnEl.disabled = false;
     if (amtEl) {
       amtEl.disabled = !!snap.useTwenty;
       if (snap.useTwenty) amtEl.value = String(snap.amount);
@@ -567,6 +617,7 @@ function renderInvestCalc() {
     const lookEl = document.getElementById("invLookAge");
     if (lookEl) {
       lookEl.min = String(snap.startAge);
+      lookEl.max = String(Math.max(snap.endAge, snap.lookAge));
       if (Number(lookEl.value) !== snap.lookAge) lookEl.value = String(snap.lookAge);
     }
     const aprEl = document.getElementById("invApr");
@@ -623,7 +674,7 @@ function renderInvestCalc() {
           </label>
           <label class="invest-field">
             <span>Show my pot at age</span>
-            <input id="invLookAge" type="range" min="${snap.startAge}" max="80" step="1" value="${snap.lookAge}" />
+            <input id="invLookAge" type="range" min="${snap.startAge}" max="${Math.max(snap.endAge, snap.lookAge)}" step="1" value="${snap.lookAge}" />
             <strong id="invLookAgeVal">Age ${snap.lookAge}</strong>
           </label>
         </div>
@@ -745,7 +796,9 @@ function renderInvestCalc() {
     });
     document.getElementById("invLookAge")?.addEventListener("input", live);
     document.getElementById("invApr")?.addEventListener("input", () => {
-      if (input.strategy === "mix") input.strategy = "sp500";
+      const aprNow = Number(document.getElementById("invApr")?.value);
+      const pictured = INVEST_STRATEGIES[input.strategy];
+      if (!pictured || pictured.apr !== aprNow) input.strategy = "custom";
       live();
     });
     document.getElementById("invTwenty")?.addEventListener("change", live);

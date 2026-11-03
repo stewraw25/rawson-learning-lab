@@ -121,35 +121,30 @@ const TEACH_MODULES_STAGE3 = {
       },
     },
     algebra: {
-      title: "Boxes and a letter",
-      blurb: "A missing number, then a letter that stands for one.",
+      title: "What do you add?",
+      blurb: "Missing numbers in a sentence. Still no letters.",
       videoKey: "algebra",
       teach: {
         points: [
-          "9 + □ = 14. Count on from 9 until you reach 14.",
-          "If n = 6, then n + 3 means 6 + 3.",
-          "2 × □ + 1 = 9. The box times 2, then add 1, makes 9. The box is 4.",
+          "Ask the question in words: what do you add to 40 to make 100?",
+          "Count on from 40: 50, 60, 70, 80, 90, 100. That is 60.",
+          "Letters that stand for numbers wait until secondary school.",
         ],
         visual: "",
       },
       example: {
         title: "Worked example",
-        steps: ["n = 6.", "n + 3 means start at 6 and add 3.", "6 + 3 = 9."],
+        steps: ["You have 25.", "You want 30.", "25 and 5 make 30, so you add 5."],
       },
       practice: [
-        s3Typed("9 + □ = 14. What is □?", "5", "9 and 5 make 14.", 1),
-        s3Typed("If n = 6, what is n + 3?", "9", "6 + 3 = 9.", 1),
-        s3Typed("3 × □ = 12. What is □?", "4", "3 groups of 4 make 12.", 2),
-        s3Typed(
-          "2 × □ + 1 = 9. What is □?",
-          "4",
-          "4 times 2 is 8, and 1 more is 9. The box is 4.",
-          3
-        ),
+        s3Typed("What do you add to 40 to make 100?", "60", "40 and 60 make 100.", 1),
+        s3Typed("What do you take from 50 to leave 35?", "15", "50 take away 15 is 35.", 1),
+        s3Typed("What is double 16?", "32", "16 and 16 make 32.", 2),
+        s3Typed("What do you add to 75 to make 100?", "25", "75 and 25 make 100.", 3),
       ],
       struggle: {
-        points: ["Put the number where the letter is, then do the sum."],
-        practice: [s3Typed("If n = 2, what is n + 1?", "3", "2 + 1 = 3.", 0)],
+        points: ["Say the sentence out loud. Then count on."],
+        practice: [s3Typed("What do you add to 25 to make 30?", "5", "25 and 5 make 30.", 0)],
       },
     },
     geometry: {

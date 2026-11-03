@@ -126,29 +126,29 @@ const TEACH_MODULES_STAGE2 = {
       },
     },
     algebra: {
-      title: "Missing numbers, a bit bigger",
-      blurb: "The box is still just a hidden number. A letter can be one too.",
+      title: "Count in threes",
+      blurb: "Groups of three. No letters and no boxes.",
       videoKey: "algebra",
       teach: {
         points: [
-          "8 + □ = 10 means: what do you add to 8 to make 10?",
-          "2 × □ = 8 means: 2 groups make 8, so one group is 4.",
-          "A letter can stand for a number. 3n = 21 means 3 groups make 21, so n is 7.",
+          "Counting in threes goes 3, 6, 9, 12.",
+          "3 groups of 4 is the same as 4 + 4 + 4.",
+          "You do not need a letter. Say the numbers out loud.",
         ],
         visual: "",
       },
       example: {
         title: "Worked example",
-        steps: ["8 + □ = 10.", "Count on from 8: 9, 10.", "That was 2. The box is 2."],
+        steps: ["Start at 3.", "Add another 3: that is 6.", "Add another 3: that is 9."],
       },
       practice: [
-        s2Typed("8 + □ = 10. What is □?", "2", "8 and 2 make 10.", 1),
-        s2Typed("11 − □ = 8. What is □?", "3", "11 take away 3 is 8.", 1),
-        s2Typed("2 × □ = 8. What is □?", "4", "2 groups of 4 make 8.", 2),
+        s2Typed("Count in threes: 3, 6, 9, 12. What comes next?", "15", "12 and 3 more is 15.", 1),
+        s2Typed("What is 3 × 4?", "12", "Four groups of 3 make 12.", 1),
+        s2Typed("What is 3 × 5?", "15", "Five groups of 3 make 15.", 2),
       ],
       struggle: {
-        points: ["Count on with your fingers until you reach the total."],
-        practice: [s2Typed("5 + □ = 6. What is □?", "1", "5 and 1 make 6.", 0)],
+        points: ["Add 3 each time. Use your fingers if you need to."],
+        practice: [s2Typed("What is 3 × 2?", "6", "Two groups of 3 make 6.", 0)],
       },
     },
     geometry: {
@@ -587,7 +587,7 @@ const TEACH_MODULES_STAGE2 = {
         points: [
           "Change one thing, such as how much water a plant gets.",
           "Keep the light the same, or you will not know what mattered.",
-          "The thing you measure has a long name: the dependent variable.",
+          "Write down the thing you measure, such as how tall the plant grows.",
         ],
         visual: "",
       },
@@ -596,7 +596,7 @@ const TEACH_MODULES_STAGE2 = {
         steps: [
           "Two plants, same light.",
           "You change only the water.",
-          "You measure how tall they grow. That measurement is the dependent variable.",
+          "You measure how tall they grow, and you write that height down.",
         ],
       },
       practice: [
