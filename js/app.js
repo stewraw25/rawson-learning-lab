@@ -1417,6 +1417,8 @@ function recentScoresSummary(id) {
       stageName: prog.stageName,
       stageEmoji: prog.stageEmoji,
       stagePct: prog.stagePct,
+      stageLessonDone: prog.stageLessonDone,
+      stageLessonTotal: prog.stageLessonTotal,
       pathwayPct: prog.pathwayPct,
       statusLabel: prog.statusLabel,
       started: prog.started,
@@ -1438,10 +1440,12 @@ function scoreBoardCard(id) {
   const { p, L, subjects, lastLesson, avg } = recentScoresSummary(id);
   const bars = subjects
     .map((s) => {
-      const pct = s.started ? s.pathwayPct : 0;
+      const pct = s.started ? s.stagePct : 0;
       const label = !s.started
         ? "Not started"
-        : `${s.stageEmoji} ${s.stageName} · ${pct}% to A*`;
+        : `${s.stageEmoji} ${s.stageName} · ${s.stageLessonDone || 0} of ${
+            s.stageLessonTotal || 0
+          }`;
       return `
         <div class="home-score-row">
           <span>${s.emoji} ${s.name}</span>
@@ -2120,12 +2124,15 @@ function subjectDashCard(subject) {
   if (!p) {
     return `<article class="card subject-card"><h3>${S.name}</h3></article>`;
   }
-  let overall = null;
+  let levelPct = 0;
   let diag = null;
   let next = null;
   let status = "Placement test ready";
   try {
-    overall = subjectOverall(p, subject);
+    // Bar is lessons finished on THIS level. The A* climb weights First steps
+    // at about 5%, so a full level used to draw as an empty bar.
+    const summary = subjectProgressSummary(p, subject);
+    levelPct = summary && summary.started ? summary.stagePct : 0;
     diag = p.diagnostics && p.diagnostics[subject];
     if (diag && diag.completed) {
       ensureCourseShape(p, subject);
@@ -2139,9 +2146,14 @@ function subjectDashCard(subject) {
         typeof maxStageWithContent === "function"
           ? maxStageWithContent(subject)
           : MAX_COURSE_STAGE;
+      const doneN = summary.stageLessonDone || 0;
+      const totalN = summary.stageLessonTotal || 0;
+      const countBit = totalN ? `${doneN} of ${totalN}` : "";
       if (next) {
         const meta = getLessonMeta(subject, next, active);
-        status = `${stageMeta.emoji} ${stageMeta.name}: ${meta.title || next}`;
+        status = countBit
+          ? `${stageMeta.emoji} ${stageMeta.name}: ${countBit} · next ${meta.title || next}`
+          : `${stageMeta.emoji} ${stageMeta.name}: ${meta.title || next}`;
       } else if (active < maxS && isStageComplete(p, subject, active)) {
         const nextMeta =
           typeof courseStageMeta === "function"
@@ -2153,8 +2165,9 @@ function subjectDashCard(subject) {
           ? "⭐ Path complete — revise anytime"
           : `${stageMeta.name} complete — revise anytime`;
       } else {
-        const pct = pathwayProgressPct(p, subject);
-        status = `${stageMeta.name} · pathway ${pct}% to A*`;
+        status = countBit
+          ? `${stageMeta.name}: ${countBit}`
+          : `${stageMeta.name}`;
       }
     } else {
       status = "Placement test ready";
@@ -2174,7 +2187,7 @@ function subjectDashCard(subject) {
         <h3>${S.name}</h3>
         <p class="muted" style="margin:0;font-size:0.85rem;min-height:2.4em">${status}</p>
         <div class="skill-meter">
-          <div class="skill-fill" style="width:${overall ?? 0}%"></div>
+          <div class="skill-fill" style="width:${levelPct}%"></div>
         </div>
       </div>
     </article>`;

@@ -460,6 +460,92 @@ if (typeof buildSomethingWrongMailto !== "function") {
   }
 }
 
+function checkProgressRestore() {
+  const george = {
+    id: "george",
+    xp: 10,
+    level: 1,
+    badges: [],
+    lessonHistory: [
+      { subject: "karting", skillId: "safety", stage: 6, score: 100, date: "2026-11-02" },
+      { subject: "karting", skillId: "flags", stage: 6, score: 86, date: "2026-11-03" },
+      { subject: "karting", skillId: "pits", stage: 6, score: 40, date: "2026-11-03" },
+      { subject: "maths", skillId: "algebra", stage: 2, score: 80, date: "2026-08-20" },
+      { subject: "maths", skillId: "y-place", stage: 1, score: 100, date: "2026-11-04" },
+    ],
+    diagnostics: {
+      karting: { completed: true, score: 100, skillScores: {} },
+      maths: { completed: true, score: 100, skillScores: {} },
+    },
+    courses: {
+      karting: {
+        activeStage: 1,
+        paceVersion: "pace-years-v1",
+        homeStage: 1,
+        paceClimbedTo: 1,
+        paceStartedOn: "2026-11-04",
+        contentVersion: "fun-long-v1",
+        paceDone: { s6: ["safety", "flags", "pits"] },
+        stages: {
+          s1: { path: ["safety"], completed: { safety: { score: 100, date: "2026-09-09", stage: 1 } }, generatedAt: 1 },
+          s6: { path: ["safety", "flags", "pits", "line"], completed: {}, generatedAt: 1 },
+        },
+      },
+      maths: {
+        activeStage: 1,
+        paceVersion: "pace-years-v1",
+        homeStage: 1,
+        paceClimbedTo: 1,
+        paceStartedOn: "2026-11-04",
+        contentVersion: "first-steps-v1",
+        paceDone: { s2: ["algebra"] },
+        stages: {
+          s1: {
+            path: ["y-place", "algebra"],
+            completed: { "y-place": { score: 100, date: "2026-11-04", stage: 1 } },
+            generatedAt: 1,
+          },
+          s2: { path: ["algebra"], completed: {}, generatedAt: 1 },
+        },
+      },
+    },
+  };
+  const p = normalizeProfile("george", george);
+  const kart = p.courses.karting;
+  if (!kart || Number(kart.activeStage) !== 6) {
+    fail("karting climb should reopen Champion (stage 6), got " + (kart && kart.activeStage));
+  }
+  if (!kart.stages[6] || !kart.stages[6].completed.safety || !kart.stages[6].completed.flags) {
+    fail("karting Champion ticks were not restored from history");
+  }
+  if (kart.stages[6].completed.pits) {
+    fail("a failed karting sitting (under 50) must not come back as finished");
+  }
+  if (Number(kart.paceClimbedTo) < 6) fail("karting paceClimbedTo should keep Champion unlocked");
+  const maths = p.courses.maths;
+  if (!maths || Number(maths.activeStage) !== 1) {
+    fail("maths should stay on First steps for George, got " + (maths && maths.activeStage));
+  }
+  if (maths.stages[2] && maths.stages[2].completed && maths.stages[2].completed.algebra) {
+    fail("old maths stage 2 work must not climb back over the year-group placement");
+  }
+  kart.activeStage = 2;
+  const again = normalizeProfile("george", p);
+  if (Number(again.courses.karting.activeStage) !== 2) {
+    fail("after the climb is restored, choosing an earlier level must stick");
+  }
+  if (!again.courses.karting.stages[6].completed.safety) {
+    fail("switching level must not wipe Champion ticks");
+  }
+  const summary = subjectProgressSummary(again, "maths");
+  if (!summary.started || summary.stageNum !== 1) fail("maths summary should stay on First steps");
+  if (!(summary.stagePct > summary.pathwayPct)) {
+    fail("First steps level percent should be larger than the 5% A* sliver");
+  }
+}
+
+checkProgressRestore();
+
 // Report
 if (notes.length) {
   console.log("NOTES (" + notes.length + ")");

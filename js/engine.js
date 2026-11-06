@@ -1419,6 +1419,9 @@ function migrateCourseEntry(c) {
     paceClimbedTo: Number(c.paceClimbedTo) || 0,
     paceStartedOn: c.paceStartedOn || "",
     paceDone,
+    // Set once the fun-course climb has been put back. Stops every load
+    // jumping the open level after a child switches stage on purpose.
+    climbRestored: c.climbRestored || "",
   };
 }
 
@@ -1441,6 +1444,7 @@ function serializeCourseEntry(c) {
     paceClimbedTo: Number(m.paceClimbedTo) || 0,
     paceStartedOn: m.paceStartedOn || "",
     paceDone: m.paceDone && typeof m.paceDone === "object" ? m.paceDone : {},
+    climbRestored: m.climbRestored || "",
   };
 }
 
@@ -1490,6 +1494,7 @@ function mergeCourseEntry(a, b) {
     paceClimbedTo: pace.paceClimbedTo,
     paceStartedOn: pace.paceStartedOn,
     paceDone: pace.paceDone,
+    climbRestored: (A && A.climbRestored) || (B && B.climbRestored) || "",
   };
 }
 
@@ -1617,6 +1622,68 @@ function prepareProfileForCloud(profile, learnerId) {
  * Re-apply completed ticks from lessonHistory.
  * Rebuilds were wiping the path; history still has every lesson the kids finished.
  */
+function subjectIsFunCourse(subject) {
+  if (typeof isFunSubject === "function") return isFunSubject(subject);
+  return !!(typeof SUBJECTS !== "undefined" && SUBJECTS[subject] && SUBJECTS[subject].fun);
+}
+
+/** Highest saved score for one lesson sitting, or null if history is silent. */
+function bestHistoryScore(hist, subject, stage, skillId) {
+  let best = null;
+  const want = String(skillId || "");
+  for (const h of hist || []) {
+    if (!h || h.subject !== subject || String(h.skillId || "") !== want) continue;
+    const st = h.stage == null || h.stage === "" ? 1 : Number(h.stage);
+    if (st !== stage) continue;
+    const score = Number(h.score);
+    if (!Number.isFinite(score)) continue;
+    if (best == null || score > best) best = score;
+  }
+  return best;
+}
+
+/**
+ * Fun courses (karting, horses, money, Formula 1) keep every level the child
+ * actually passed. The Nov 2026 pace reset parked everyone on First steps and
+ * cleared later ticks; lesson history and paceDone still have them.
+ * Core maths, English and science stay on the year-group home level.
+ */
+function restoreFunClimb(profile, subject, course, hist) {
+  if (!course || !subjectIsFunCourse(subject)) return;
+  const snap = course.paceDone && typeof course.paceDone === "object" ? course.paceDone : {};
+  for (const [key, ids] of Object.entries(snap)) {
+    const stage = parseStageStorageKey(key);
+    if (!Number.isFinite(stage) || stage < 1 || !Array.isArray(ids)) continue;
+    if (!course.stages[stage]) course.stages[stage] = normaliseStageRecord(null);
+    const done = course.stages[stage].completed;
+    for (const skillId of ids) {
+      const id = String(skillId || "");
+      if (!id || done[id]) continue;
+      const best = bestHistoryScore(hist, subject, stage, id);
+      if (best != null && best < 50) continue;
+      done[id] = {
+        score: best != null ? best : 70,
+        date: course.paceStartedOn || (typeof todayKey === "function" ? todayKey() : ""),
+        stage,
+      };
+    }
+  }
+  let frontier = 0;
+  for (const [k, st] of Object.entries(course.stages || {})) {
+    const n = parseStageStorageKey(k);
+    if (!Number.isFinite(n) || n < 1 || !st || !st.completed) continue;
+    const any = Object.keys(st.completed).some((id) => st.completed[id]);
+    if (any) frontier = Math.max(frontier, n);
+  }
+  if (frontier < 1) return;
+  course.paceClimbedTo = Math.max(Number(course.paceClimbedTo) || 1, frontier);
+  // One-time: open the level they had reached. After that, stage chips stick.
+  if (course.climbRestored !== "fun-climb-v1") {
+    if ((Number(course.activeStage) || 1) < frontier) course.activeStage = frontier;
+    course.climbRestored = "fun-climb-v1";
+  }
+}
+
 function recoverCompletionsFromHistory(profile, subject) {
   if (!profile || !subject) return null;
   if (!profile.courses || typeof profile.courses !== "object") profile.courses = {};
@@ -1628,6 +1695,7 @@ function recoverCompletionsFromHistory(profile, subject) {
   const c = profile.courses[subject];
   applyPacePlacement(profile, subject);
   const climbed = paceClimbLimit(c);
+  const fun = subjectIsFunCourse(subject);
   const hist = Array.isArray(profile.lessonHistory) ? profile.lessonHistory : [];
   for (const h of hist) {
     if (!h || h.subject !== subject || !h.skillId) continue;
@@ -1636,13 +1704,14 @@ function recoverCompletionsFromHistory(profile, subject) {
     if (!Number.isFinite(stage) || stage < 1) continue;
     // Old GCSE sittings must not climb back over the pace reset,
     // even years later when a higher level is finally unlocked.
-    if (c.paceVersion === PACE_VERSION) {
+    // Fun courses are not that reset — a finished karting season stays finished.
+    if (!fun && c.paceVersion === PACE_VERSION) {
       const home = Number(c.homeStage) || 1;
       const started = c.paceStartedOn ? String(c.paceStartedOn) : "";
       const when = h.date ? String(h.date) : "";
       if (stage > home && (!when || !started || when < started)) continue;
     }
-    if (climbed && stage > climbed) continue;
+    if (!fun && climbed && stage > climbed) continue;
     if (!c.stages[stage]) {
       c.stages[stage] = normaliseStageRecord(null);
     }
@@ -1661,6 +1730,7 @@ function recoverCompletionsFromHistory(profile, subject) {
       };
     }
   }
+  if (fun) restoreFunClimb(profile, subject, c, hist);
   return c;
 }
 
@@ -2228,8 +2298,16 @@ function pathwayProgressPct(profile, subject) {
       ? maxStageWithContent(subject)
       : MAX_COURSE_STAGE;
   const active = Math.max(1, Number(getActiveStage(profile, subject)) || 1);
-  // Never credit later levels they have not unlocked yet (stale ticks inflate the bar)
-  const upTo = Math.min(maxS, active);
+  // Credit every level they have unlocked, including ones above the level
+  // currently open. New lessons added to an earlier level must not hide a
+  // later level that is already finished.
+  let climbed = 0;
+  try {
+    climbed = paceClimbLimit(profile.courses && profile.courses[subject]);
+  } catch (_) {
+    climbed = 0;
+  }
+  const upTo = Math.min(maxS, Math.max(active, climbed || 0));
 
   let totalW = 0;
   for (let s = 1; s <= maxS; s++) totalW += stageAStarWeight(subject, s);
@@ -2246,7 +2324,6 @@ function pathwayProgressPct(profile, subject) {
         const done = st.path.filter((id) => st.completed && st.completed[id]).length;
         score += w * (done / st.path.length);
       }
-      break;
     }
   }
   return Math.min(100, Math.round(score));
@@ -2670,10 +2747,8 @@ function subjectWorkStats(profile, subject) {
   return {
     done: s.stageLessonDone,
     total: s.stageLessonTotal,
-    pct: s.pathwayPct,
-    label: `${s.stageLessonDone} of ${s.stageLessonTotal || "?"} on ${s.stageName} · ${
-      s.pathwayPct
-    }% to A*`,
+    pct: s.stagePct,
+    label: `${s.stageLessonDone} of ${s.stageLessonTotal || "?"} on ${s.stageName}`,
   };
 }
 
