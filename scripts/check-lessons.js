@@ -42,6 +42,7 @@ const FILES = [
   "js/tutor.js",
   "js/gentle-ramp.js",
   "js/week-content.js",
+  "js/week3-content.js",
   "js/report-problem.js",
 ];
 
@@ -313,7 +314,7 @@ for (const learnerId of ["bella", "george"]) {
         session.phase = "practice";
         let guard = 0;
         const asked = [];
-        while (!session.finished && session.phase !== "complete" && guard < 40) {
+        while (!session.finished && session.phase !== "complete" && guard < 80) {
           guard++;
           const list = currentPracticeList(session);
           const q = list[session.practiceIndex];
@@ -522,6 +523,10 @@ function checkProgressRestore() {
     fail("a failed karting sitting (under 50) must not come back as finished");
   }
   if (Number(kart.paceClimbedTo) < 6) fail("karting paceClimbedTo should keep Champion unlocked");
+  const champName = subjectProgressSummary(p, "karting").stageName;
+  if (champName !== "Champion") {
+    fail("karting summary should say Champion, got " + champName);
+  }
   const maths = p.courses.maths;
   if (!maths || Number(maths.activeStage) !== 1) {
     fail("maths should stay on First steps for George, got " + (maths && maths.activeStage));
@@ -529,13 +534,33 @@ function checkProgressRestore() {
   if (maths.stages[2] && maths.stages[2].completed && maths.stages[2].completed.algebra) {
     fail("old maths stage 2 work must not climb back over the year-group placement");
   }
-  kart.activeStage = 2;
+  p.courses.karting.activeStage = 2;
   const again = normalizeProfile("george", p);
   if (Number(again.courses.karting.activeStage) !== 2) {
     fail("after the climb is restored, choosing an earlier level must stick");
   }
   if (!again.courses.karting.stages[6].completed.safety) {
     fail("switching level must not wipe Champion ticks");
+  }
+  const laps = savedStageProgress(p, "karting", 1);
+  if (!laps || laps.name !== "First laps") {
+    fail("karting stage 1 should be called First laps, got " + (laps && laps.name));
+  }
+  if (!laps.total || laps.done < 1) {
+    fail("First laps should show the lessons already saved");
+  }
+  if (typeof creditSavedLessonStars === "function") {
+    const beforeCorrect = (p.journey && p.journey.karting && p.journey.karting.correct) || [];
+    creditSavedLessonStars(p, "karting");
+    const stars = p.journey && p.journey.karting && p.journey.karting.stars;
+    if (!stars || Number(stars["s6:safety"]) < 3) {
+      fail("a saved 100% Champion lesson should show three stars");
+    }
+    if (stars && stars["s6:pits"]) fail("a failed lesson must not gain stars");
+    const afterCorrect = (p.journey.karting && p.journey.karting.correct) || [];
+    if (afterCorrect.length !== beforeCorrect.length) {
+      fail("showing saved lessons must not retire new questions");
+    }
   }
   const summary = subjectProgressSummary(again, "maths");
   if (!summary.started || summary.stageNum !== 1) fail("maths summary should stay on First steps");
@@ -545,6 +570,22 @@ function checkProgressRestore() {
 }
 
 checkProgressRestore();
+
+(function weekThreeIsOffered() {
+  const profile = defaultProfile("george");
+  state = { profiles: { george: profile, bella: defaultProfile("bella") }, activeLearner: "george" };
+  const easy = createTutorSession("maths", "number", "george", 1);
+  const easyWeeks = ((easy && easy.queue) || []).filter((q) => Number(q.week) === 3);
+  if (!easyWeeks.length) fail("First steps maths does not offer this week's questions");
+  const secure = createTutorSession("maths", "number", "bella", 3);
+  const secureWeeks = ((secure && secure.queue) || []).filter((q) => Number(q.week) === 3);
+  if (!secureWeeks.length) fail("Secure maths does not offer this week's questions");
+  const cheer = createTutorSession("karting", "k-cheer", "george", 1);
+  const cheerWeeks = ((cheer && cheer.queue) || []).filter((q) => Number(q.week) === 3);
+  if (!cheerWeeks.length) fail("Cheering from the safe side does not offer this week's questions");
+  const saved = savedStageProgress(profile, "karting", 1);
+  if (!saved || saved.name !== "First laps") fail("a new karting lesson should still name the level First laps");
+})();
 
 // Report
 if (notes.length) {

@@ -511,17 +511,21 @@ function _pickRamp(sorted, level) {
   const seen = new Set(rest.map((q) => _qSeenFp(q)));
   const weeks = [];
   if (lv >= 0) {
-    for (const q of sorted) {
-      if (!q || !q.week) continue;
+    const weekQs = sorted
+      .filter((q) => q && q.week)
+      .slice()
+      .sort((a, b) => (Number(b.week) || 0) - (Number(a.week) || 0));
+    for (const q of weekQs) {
       const fp = _qSeenFp(q);
       if (!fp || seen.has(fp)) continue;
-      if (weeks.length >= 2) break;
+      if (weeks.length >= 4) break;
       weeks.push(q);
       seen.add(fp);
     }
   }
   const plain = rest.filter((q) => !(q && q.week));
-  const keptWeeks = [...rest.filter((q) => q && q.week), ...weeks].slice(0, 2);
+  // Newest week first, so this week's questions are not hidden behind last week's.
+  const keptWeeks = weeks.slice(0, 4);
   const room = 8 - keptWeeks.length;
   return [...plain.slice(0, Math.max(0, room)), ...keptWeeks];
 }

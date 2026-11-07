@@ -587,14 +587,21 @@ h2.section-title {
 }
 .home-score-row {
   display: grid;
-  grid-template-columns: 5.5rem 1fr 4rem;
-  gap: 0.5rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 0.65rem;
   align-items: center;
   font-size: 0.82rem;
   font-weight: 700;
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.55rem;
+}
+.home-score-row > strong {
+  text-align: right;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  max-width: 12rem;
 }
 .home-score-bar {
+  grid-column: 1 / -1;
   height: 8px;
   background: rgba(0, 0, 0, 0.28);
   border-radius: 99px;
@@ -758,8 +765,10 @@ body.theme-learner-bella .time-board {
     grid-template-columns: 1fr;
   }
   .home-score-row {
-    grid-template-columns: 4.5rem 1fr 3.5rem;
     font-size: 0.75rem;
+  }
+  .home-score-row > strong {
+    max-width: 9.5rem;
   }
   .home-hero {
     min-height: 340px;
@@ -978,10 +987,19 @@ body.theme-learner-bella .time-board {
 .quiz-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
   margin-bottom: 1rem;
   flex-wrap: wrap;
+}
+.quiz-saved {
+  margin: 0.35rem 0 0;
+  font-weight: 800;
+  color: var(--gold);
+}
+.quiz-this-lesson {
+  min-width: min(100%, 180px);
+  flex: 1;
 }
 .progress-track {
   flex: 1;
@@ -1855,6 +1873,22 @@ body[data-learner="george"] .coach-online {
 }
 .lesson-row.is-locked .lesson-action {
   color: var(--muted);
+}
+@media (max-width: 640px) {
+  .lesson-row {
+    grid-template-columns: 2.4rem minmax(0, 1fr);
+  }
+  .lesson-action {
+    grid-column: 2;
+    white-space: normal;
+    font-size: 0.82rem;
+  }
+  .quiz-this-lesson {
+    width: 100%;
+  }
+}
+@media (min-width: 721px) and (max-width: 980px) {
+  .grid-3 { grid-template-columns: 1fr 1fr; }
 }
 .more-options {
   cursor: default;
