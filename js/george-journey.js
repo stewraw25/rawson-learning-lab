@@ -286,6 +286,48 @@ function journeyScheduleRetry(session, question) {
   session.queue = [...(session.queue || []), { ...question, _retry: true, _src: "retry" }];
 }
 
+/**
+ * Finished lessons already saved should show their stars.
+ * New questions in those lessons stay unanswered, so a fresh week is still there to do.
+ */
+function creditSavedLessonStars(profile, subject) {
+  if (!profile || !profile.courses || !profile.courses[subject]) return;
+  const course = profile.courses[subject];
+  const stages = course.stages || {};
+  for (const [key, st] of Object.entries(stages)) {
+    const stage = typeof parseStageStorageKey === "function" ? parseStageStorageKey(key) : Number(key);
+    if (!Number.isFinite(stage) || stage < 1 || !st || !st.completed) continue;
+    for (const [skillId, rec] of Object.entries(st.completed)) {
+      if (!rec) continue;
+      const score = Number(rec.score);
+      if (!Number.isFinite(score) || score < 50) continue;
+      journeyAwardLesson(profile, subject, skillId, stage, score);
+    }
+  }
+}
+
+function journeyLessonBits(profile, subject, stage) {
+  const st =
+    typeof getCourseStageData === "function" ? getCourseStageData(profile, subject, stage) : null;
+  const path = (st && st.path) || [];
+  const doneLessons = path.filter((id) => st && st.completed && st.completed[id]).length;
+  const round = journeyRoundStats(profile, subject, stage);
+  const lessonPct = path.length ? Math.round((doneLessons / path.length) * 100) : 0;
+  const qPct = round.total ? Math.round((round.cleared / round.total) * 100) : 0;
+  const meta =
+    typeof courseStageMeta === "function" ? courseStageMeta(subject, stage) : { name: "" };
+  const name = (meta && meta.name) || "this level";
+  return {
+    path,
+    doneLessons,
+    round,
+    bar: Math.max(lessonPct, qPct),
+    line: path.length
+      ? `${doneLessons} of ${path.length} ${name} lessons done · ${round.cleared} of ${round.total} questions cleared`
+      : `${round.cleared} of ${round.total} questions cleared`,
+  };
+}
+
 function journeyAwardLesson(profile, subject, skillId, stage, scorePct) {
   if (!profile || (subject !== "horses" && !georgeIsJourneySubject(subject))) return 0;
   const log = ensureJourney(profile, subject);
@@ -529,11 +571,17 @@ function journeyBadgeChips(profile, subject) {
 function journeyPanelHtml(profile, subject) {
   if (!profile || !georgeIsJourneySubject(subject)) return "";
   if (typeof installGeorgeBanks === "function") installGeorgeBanks();
+  try {
+    creditSavedLessonStars(profile, subject);
+  } catch (_) {
+    /* stars are a display of saved lessons — the lessons themselves stay */
+  }
   const stage =
     typeof getActiveStage === "function" ? Number(getActiveStage(profile, subject)) || 1 : 1;
   const maxS = typeof maxStageWithContent === "function" ? maxStageWithContent(subject) : 6;
   const score = journeyScore(profile, subject);
-  const round = journeyRoundStats(profile, subject, stage);
+  const bits = journeyLessonBits(profile, subject, stage);
+  const round = bits.round;
   const streak = Number(profile.streak) || 0;
   const nodes = [];
   let lockWhy = "";
@@ -548,6 +596,24 @@ function journeyPanelHtml(profile, subject) {
       !unlocked && typeof stageLockReason === "function" ? stageLockReason(profile, subject, s) : "";
     if (!unlocked && why && !lockWhy) lockWhy = why;
     const stars = journeyStageStarSum(profile, subject, s);
+    let lessonCount = "";
+    try {
+      const stN = typeof getCourseStageData === "function" ? getCourseStageData(profile, subject, s) : null;
+      const pathN = (stN && stN.path) || [];
+      const doneN = pathN.filter((id) => stN.completed && stN.completed[id]).length;
+      if (pathN.length) lessonCount = doneN + " of " + pathN.length;
+    } catch (_) {
+      lessonCount = "";
+    }
+    const nodeStatus = !unlocked
+      ? "Locked"
+      : done
+        ? "Podium"
+        : lessonCount
+          ? lessonCount
+          : stars
+            ? stars + " ★"
+            : "Ready";
     nodes.push(
       `<button type="button" class="journey-node ${s === stage ? "is-active" : ""} ${
         done ? "is-done" : ""
@@ -556,22 +622,18 @@ function journeyPanelHtml(profile, subject) {
       } title="${escapeHtml(why || meta.name)}">
         <span class="journey-node-emoji">${done ? "🏆" : meta.emoji}</span>
         <span class="journey-node-name">${escapeHtml(meta.name)}</span>
-        <span class="journey-node-meta">${
-          unlocked ? (done ? "Podium" : stars ? stars + " ★" : "Ready") : "Locked"
-        }</span>
+        <span class="journey-node-meta">${escapeHtml(nodeStatus)}</span>
       </button>`
     );
   }
   const diagDone = !!(profile.diagnostics && profile.diagnostics[subject] && profile.diagnostics[subject].completed);
-  const st = diagDone && typeof getCourseStageData === "function" ? getCourseStageData(profile, subject, stage) : null;
-  const path = (st && st.path) || [];
-  const doneLessons = path.filter((id) => st && st.completed && st.completed[id]).length;
+  const path = bits.path || [];
+  const doneLessons = bits.doneLessons;
   const position = path.length ? Math.max(1, path.length - doneLessons) : 12;
   const posLabel =
     path.length && doneLessons >= path.length ? "P1 · round won" : `P${position} on the grid`;
   const pot = journeyFormatPot(score.points);
   const potPct = Math.max(6, Math.min(100, Math.round((score.points / 10000) * 100)));
-  const qPct = round.total ? Math.round((round.cleared / round.total) * 100) : 0;
   const missN = journeyMissList(profile, subject, stage).length;
 
   const childName =
@@ -597,9 +659,9 @@ function journeyPanelHtml(profile, subject) {
         <div><span>Streak</span><strong>${streak} day${streak === 1 ? "" : "s"}</strong></div>
         <div><span>Grid</span><strong>${escapeHtml(posLabel)}</strong></div>
       </div>
-      <div class="journey-bar" aria-hidden="true"><i style="width:${qPct}%"></i></div>
+      <div class="journey-bar" aria-hidden="true"><i style="width:${bits.bar}%"></i></div>
       <p class="journey-goal"><strong>Next goal.</strong> ${escapeHtml(journeyNextGoal(profile, subject, stage))}</p>
-      <p class="muted journey-note">${round.cleared} of ${round.total} questions cleared this round · ${missN} miss${
+      <p class="muted journey-note">${escapeHtml(bits.line)} · ${missN} miss${
         missN === 1 ? "" : "es"
       } waiting. ${
         missN
@@ -637,9 +699,9 @@ function journeyPanelHtml(profile, subject) {
         <div><span>Streak</span><strong>${streak} day${streak === 1 ? "" : "s"}</strong></div>
         <div><span>Round</span><strong>${escapeHtml(roundName)}</strong></div>
       </div>
-      <div class="journey-bar" aria-hidden="true"><i style="width:${qPct}%"></i></div>
+      <div class="journey-bar" aria-hidden="true"><i style="width:${bits.bar}%"></i></div>
       <p class="journey-goal"><strong>Next goal.</strong> ${escapeHtml(journeyNextGoal(profile, subject, stage))}</p>
-      <p class="muted journey-note">${round.cleared} of ${round.total} questions cleared this round · ${missN} miss${
+      <p class="muted journey-note">${escapeHtml(bits.line)} · ${missN} miss${
         missN === 1 ? "" : "es"
       } waiting. ${
         missN ? "Misses come back on purpose." : "Nothing repeats unless you ask for a practice lap."
@@ -674,11 +736,11 @@ function journeyPanelHtml(profile, subject) {
       <div><span>Pretend pot</span><strong>${pot}</strong></div>
       <div><span>Stars</span><strong>${score.starSum}</strong></div>
       <div><span>Streak</span><strong>${streak} day${streak === 1 ? "" : "s"}</strong></div>
-      <div><span>Cleared</span><strong>${round.cleared}/${round.total || "—"}</strong></div>
+      <div><span>Lessons</span><strong>${bits.doneLessons}/${bits.path.length || "—"}</strong></div>
     </div>
-    <div class="journey-bar" aria-hidden="true"><i style="width:${qPct}%"></i></div>
+    <div class="journey-bar" aria-hidden="true"><i style="width:${bits.bar}%"></i></div>
     <p class="journey-goal"><strong>Next goal.</strong> ${escapeHtml(journeyNextGoal(profile, subject, stage))}</p>
-    <p class="muted journey-note">Past growth in these lessons is an illustration, not a promise. ${
+    <p class="muted journey-note">${escapeHtml(bits.line)}. Past growth in these lessons is an illustration, not a promise. ${
       missN
         ? missN + " miss" + (missN === 1 ? "" : "es") + " will come back so you can try again."
         : "Questions you get right do not come back unless you tap a practice lap."

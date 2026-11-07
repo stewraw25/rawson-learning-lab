@@ -2734,6 +2734,13 @@ function renderSubject({ subject }) {
   // Always repair empty courses — keeps completed lesson scores
   if (diag?.completed) {
     ensureCourseReady(p, subject);
+    if (typeof creditSavedLessonStars === "function") {
+      try {
+        creditSavedLessonStars(p, subject);
+      } catch (_) {
+        /* stars only reflect lessons already saved */
+      }
+    }
   }
 
   const courseRoot = p.courses[subject] ? ensureCourseShape(p, subject) : null;
@@ -3697,6 +3704,16 @@ function renderLesson({ subject, skillId, stage }) {
     }
     const prog = sessionProgress(session);
     const skillName = SKILLS[subject]?.[skillId]?.name || skillId;
+    const saved =
+      typeof savedStageProgress === "function"
+        ? savedStageProgress(profile(), subject, stageNum)
+        : null;
+    const savedLine =
+      saved && saved.total
+        ? `<p class="quiz-saved">${escapeHtml(saved.emoji)} Saved: <strong>${saved.done} of ${
+            saved.total
+          }</strong> ${escapeHtml(saved.name)} lessons done</p>`
+        : "";
     let bodyHtml = "";
 
     if (session.phase === "teach") {
@@ -3831,9 +3848,10 @@ function renderLesson({ subject, skillId, stage }) {
       stageMeta.emoji + " " + stageMeta.name
     )} · ${escapeHtml(skillName)}</div>
           <strong>${escapeHtml(mod.title)}</strong>
+          ${savedLine}
         </div>
-        <div style="min-width:160px">
-          <div class="muted" style="font-size:0.75rem;margin-bottom:0.25rem">${escapeHtml(
+        <div class="quiz-this-lesson">
+          <div class="muted" style="font-size:0.75rem;margin-bottom:0.25rem">This lesson · ${escapeHtml(
             prog.label
           )} · ${prog.pct}%</div>
           <div class="progress-track"><span style="width:${prog.pct}%"></span></div>

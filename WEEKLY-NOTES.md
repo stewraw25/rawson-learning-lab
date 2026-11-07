@@ -1,30 +1,38 @@
-# Weekly notes — 2 November 2026
+# Weekly notes — 7 November 2026
 
-First weekly review. Nothing here is live until Stewart merges it.
+Nothing here is live until Stewart merges it. Saved progress was not reset.
 
-## Fixed
+## George’s note (Friday 6 November, 10:05)
 
-- A handful of questions were repeated (the same horse-water question twice in the placement test, the same simile, the same “knights often rode”, and two “field horses still need” questions). Each one now asks something different.
-- Some exam explanations were only a symbol or the word “No.” They now say why.
-- A typed answer such as “twelve” or “£8” was marked wrong when the real answer was 12 or 8. Those are accepted now. A different number is still wrong.
-- Bella’s money page said “George’s pot”. It now uses whichever child is learning.
-- If a level is locked, the reason is written on the subject page (for example “Finish the 6 First steps lessons first”), not only inside a closed menu.
-- Pressing Check with no answer used to pop up a box that froze the page. It now shows a line on the page and points at Something’s wrong?
-- A right answer used to jump on in half a second. It now waits a moment, and opening Something’s wrong? stops the jump.
-- Horses now earn stars and badges the same way karting and money do.
+Go-karting, First laps, “Cheering from the safe side”, on the Teach screen. He wrote that it was not showing he had done any of it, and he had done a lot.
+
+That lesson itself is still not ticked. He was on the teaching page and had not finished it. His other karting is saved: 7 of 15 First laps, Getting quicker 4 of 12, Race craft, Club racer and Hot lap finished, Champion 10 of 12. The hub bars from last week’s fix already show that. What he was looking at only said “This lesson · Learn · 8%”, so the finished lessons were invisible.
+
+The Teach screen now says, for example, “Saved: 7 of 15 First laps lessons done”, and still shows how far he is in the lesson he has open. The season card leads with lessons done. A finished round no longer draws as an empty bar just because the old questions were not stored one by one. Stars for lessons he already passed are filled in. New questions stay available. Nothing was marked done that he has not finished.
+
+## Also fixed
+
+- Fun courses on the hub and the home board use their own names (First laps, Champion, Horsemaster), not “A* Mastery”.
+- Long labels such as “Champion · 10 of 12” no longer get cut off on the home board. The bar sits on its own line.
+- On a phone, a lesson row stacks the button under the title so “Finish the lesson above first” stays on the screen.
+- On a tablet, the subject cards sit in two columns.
+- A new week of questions is offered first (up to four), newest week first, so this week is not hidden behind last week’s.
 
 ## Added
 
-- **Something’s wrong?** on every lesson, placement question, Power 5, exam question, and the Learn window. The child can pick Stuck, The answer seems wrong, A button doesn’t work, or Too hard, and can type a short note. Email Stewart opens a message to stewraw25@hotmail.co.uk. The subject starts with “Something’s wrong - Rawson Learning Lab”. The message includes the child’s name, the section, the lesson, the question and the note. **Skip this and carry on** is always there, so a question cannot trap them. A copy is saved in the browser (the last 100 notes) if Mail is not set up. No accounts and no secret keys.
-- A fresh week of questions inside the lessons that already exist (so unlocking the next level is unchanged). Two easy ones in every First steps lesson, and one harder one in every Intermediate lesson:
-  - Maths 18, English 15, Science 12, Horses 24
-  - George’s karting 36 (First laps and Getting quicker)
-  - Money, for both children, 36 (Pocket money and The snowball)
-- Stars, badges and saved progress still work. A new “Fresh questions” badge appears when a new question is answered right.
-- `node scripts/check-lessons.js` checks every question for both children: one correct answer, an explanation, no duplicate, and the lesson can be finished. It also checks the problem-button email and the saved note.
+Fresh questions inside the lessons that already exist. Two easy ones in every early lesson, then one step up, then one Secure-level question. No algebra. No new levels, so nobody jumps toward GCSE.
 
-## Next week
+- Maths 24 (First steps 12, Intermediate 6, Secure 6)
+- English 20 (10, 5, 5)
+- Science 16 (8, 4, 4)
+- Horses 38 (First yard 22, Daily care 8, Riding on 8)
+- Go-karting 54 (First laps 30, Getting quicker 12, Race craft 12)
+- Money 54, for both children (Pocket money 30, The snowball 12, Real things 12)
+- Formula 1 24, still its own section (First grid 12, Reading the race 6, How it works 6)
+- Horse world 24 (First horses 12, How they move 6, Famous and real 6)
 
-- Read any notes the children send. If Mail does not open on the iPad, the notes are still in that browser. A Parent zone list of those notes would make them easier to see.
-- Add the next step up (Secure / Race craft / Real things / Riding on) once this week’s questions have been seen, still with no repeats.
-- Keep running `node scripts/check-lessons.js` before anything goes live.
+Stars, badges and saved lessons stay. `node scripts/check-lessons.js` plays every lesson for both children: a right answer finishes it, a wrong one does not, nothing repeats inside a level, and early lessons stay free of algebra.
+
+## Checked against their real progress
+
+Loaded the family’s saved progress in the browser and blocked any write back, so the live copy was not touched. George’s home board shows Go-karting Champion 10 of 12. Opening Cheering from the safe side shows the saved 7 of 15 line, the teaching page, and a practice question that marks the right answer. Bella-Rose’s board shows Horsemaster 4 of 8. Phone and tablet widths do not scroll sideways.

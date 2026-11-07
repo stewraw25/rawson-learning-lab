@@ -2668,7 +2668,10 @@ function subjectProgressSummary(profile, subject) {
     }
     const active = getActiveStage(profile, subject) || 1;
     stageNum = active;
-    const meta = COURSE_STAGES[active] || COURSE_STAGES[1];
+    const meta =
+      typeof courseStageMeta === "function"
+        ? courseStageMeta(subject, active)
+        : COURSE_STAGES[active] || COURSE_STAGES[1];
     stageName = meta.name;
     stageEmoji = meta.emoji || "📘";
     const st = getCourseStageData(profile, subject, active);
@@ -2708,6 +2711,7 @@ function subjectProgressSummary(profile, subject) {
     overall = pathwayPct;
   }
 
+  const funCourse = subjectIsFunCourse(subject);
   let statusLabel = "Not started";
   if (!placementDone) statusLabel = "Needs placement test";
   else if (
@@ -2717,12 +2721,14 @@ function subjectProgressSummary(profile, subject) {
         ? maxStageWithContent(subject)
         : MAX_COURSE_STAGE)
   )
-    statusLabel = "A* path complete";
+    statusLabel = funCourse ? `${stageName} complete` : "A* path complete";
   else if (stagePct >= 100) statusLabel = `${stageName} complete — unlock next`;
   else
-    statusLabel = `${stageEmoji} ${stageName} · ${stageLessonDone}/${
-      stageLessonTotal || "?"
-    } lessons · ${pathwayPct}% to A*`;
+    statusLabel = funCourse
+      ? `${stageEmoji} ${stageName} · ${stageLessonDone}/${stageLessonTotal || "?"} lessons`
+      : `${stageEmoji} ${stageName} · ${stageLessonDone}/${
+          stageLessonTotal || "?"
+        } lessons · ${pathwayPct}% to A*`;
 
   return {
     started: placementDone || doneCount > 0,
@@ -2755,6 +2761,33 @@ function subjectWorkStats(profile, subject) {
 function subjectOverall(profile, subject) {
   const s = subjectProgressSummary(profile, subject);
   return s.overall;
+}
+
+/** Lessons already saved on this level. Shown inside a lesson so a new page does not look empty. */
+function savedStageProgress(profile, subject, stageNum) {
+  const stage = Number(stageNum) || 1;
+  const meta =
+    typeof courseStageMeta === "function"
+      ? courseStageMeta(subject, stage)
+      : COURSE_STAGES[stage] || COURSE_STAGES[1];
+  let done = 0;
+  let total = 0;
+  try {
+    const st = getCourseStageData(profile, subject, stage);
+    const path = (st && Array.isArray(st.path) && st.path) || [];
+    total = path.length;
+    done = path.filter((id) => st.completed && st.completed[id]).length;
+  } catch (_) {
+    /* ignore */
+  }
+  const name = (meta && meta.name) || "";
+  return {
+    done,
+    total,
+    name,
+    emoji: (meta && meta.emoji) || "",
+    label: total ? `${done} of ${total} ${name} lessons done` : "",
+  };
 }
 
 /** Why a locked stage chip is locked (empty string if it is open). */
@@ -3033,7 +3066,11 @@ function findNextAction(profile) {
     const next = nextLesson(profile, sub, stage);
     if (next) {
       const meta = getLessonMeta(sub, next, stage);
-      const stName = (COURSE_STAGES[stage] || {}).name || `Stage ${stage}`;
+      const stageMeta =
+        typeof courseStageMeta === "function"
+          ? courseStageMeta(sub, stage)
+          : COURSE_STAGES[stage] || {};
+      const stName = stageMeta.name || `Stage ${stage}`;
       return {
         type: "lesson",
         subject: sub,
@@ -3048,7 +3085,10 @@ function findNextAction(profile) {
         : MAX_COURSE_STAGE;
     if (stage < maxS && isStageComplete(profile, sub, stage)) {
       const ns = stage + 1;
-      const nm = COURSE_STAGES[ns];
+      const nm =
+        typeof courseStageMeta === "function"
+          ? courseStageMeta(sub, ns)
+          : COURSE_STAGES[ns];
       return {
         type: "unlock",
         subject: sub,
