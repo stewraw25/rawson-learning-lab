@@ -1762,6 +1762,10 @@ const PACE_VERSION = "pace-years-v1";
 /** A lesson counts when about 7 in every 10 answers are right (3 of 4). */
 const LESSON_PASS_PCT = 70;
 
+function lessonCountsAsDone(scorePct) {
+  return (Number(scorePct) || 0) >= LESSON_PASS_PCT;
+}
+
 function homeStageForLearner(learnerId, subject) {
   const fun =
     typeof isFunSubject === "function"
@@ -1896,8 +1900,9 @@ function stageUnlockBlock(profile, subject, stageNum) {
   const st = getCourseStageData(profile, subject, stage);
   const path = (st && Array.isArray(st.path) && st.path) || [];
   const done = path.filter((id) => st && st.completed && st.completed[id]).length;
-  if (!path.length || done < path.length) {
-    return `Finish the ${path.length || 0} ${name} lessons first (${done}/${path.length || 0} done)`;
+  if (!path.length) return `Finish every ${name} lesson first`;
+  if (done < path.length) {
+    return `Finish the ${path.length} ${name} lessons first (${done}/${path.length} done)`;
   }
   const course = profile && profile.courses && profile.courses[subject];
   const fresh = path.filter((id) => !isPrePaceLesson(course, stage, id, st.completed[id]));
@@ -2437,10 +2442,13 @@ function recordDiagnostic(profile, subject, answers, result) {
 
 function recordLesson(profile, subject, skillId, scorePct, stageNum) {
   if (!profile.courses[subject]) buildCourse(profile, subject, 1);
-  const course = migrateCourseEntry(profile.courses[subject]);
+  let course = migrateCourseEntry(profile.courses[subject]);
   profile.courses[subject] = course;
   const stage = Number(stageNum) || course.activeStage || 1;
-  if (!course.stages[stage]) buildCourse(profile, subject, stage);
+  if (!course.stages[stage]) {
+    buildCourse(profile, subject, stage);
+    course = profile.courses[subject];
+  }
   const st = course.stages[stage];
   if (!st.completed || typeof st.completed !== "object" || Array.isArray(st.completed)) {
     st.completed = {};
@@ -2793,10 +2801,8 @@ function savedStageProgress(profile, subject, stageNum) {
 /** Why a locked stage chip is locked (empty string if it is open). */
 function stageLockReason(profile, subject, stageNum) {
   const stage = Number(stageNum) || 1;
-  if (stage <= 1) {
-    if (!profile?.diagnostics?.[subject]?.completed) return "Take the placement test first";
-    return "";
-  }
+  if (!profile?.diagnostics?.[subject]?.completed) return "Take the placement test first";
+  if (stage <= 1) return "";
   if (!subjectHasStageContent(subject, stage)) return "This level has no lessons yet";
   if (canAccessStage(profile, subject, stage)) return "";
   const block = stageUnlockBlock(profile, subject, stage - 1);

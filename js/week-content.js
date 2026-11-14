@@ -781,7 +781,7 @@ const WEEK_INVEST = {
 };
 
 const WEEK_NOTE =
-  "New this week: more easy questions in First steps, then a step up in Intermediate and Secure. Stars, badges and saved lessons stay.";
+  "New this week: more questions in the early lessons, then a step up. Stars, badges and saved lessons stay. A question you have already got right does not come back unless you ask.";
 
 function weekNoteHtml() {
   return `<p class="week-note">${WEEK_NOTE}</p>`;

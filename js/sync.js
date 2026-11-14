@@ -48,12 +48,29 @@ function ensureCloudEnabled() {
   return isSyncEnabled();
 }
 
+/** A practice copy on this computer must not read or write the family's cloud lessons. */
+function cloudSyncAllowedHere() {
+  try {
+    const host = String(location.hostname || "");
+    if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0") return false;
+  } catch (e) {
+    /* no browser location (the lesson checker) — cloud stays as configured */
+  }
+  return true;
+}
+
 function isSyncEnabled() {
+  if (!cloudSyncAllowedHere()) return false;
   const c = getSyncConfig();
   return !!(c && c.databaseURL && c.familyCode);
 }
 
 async function testCloudConnection() {
+  if (!cloudSyncAllowedHere()) {
+    throw new Error(
+      "Cloud sync stays off on this computer so a practice run cannot change the family's saved lessons."
+    );
+  }
   ensureCloudEnabled();
   const root = familyRoot();
   if (!root) throw new Error("Sync not configured");

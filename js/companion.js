@@ -457,9 +457,27 @@ function bindCoachPanel(profile, learnerMeta, nextAct) {
   });
 }
 
-/** Tiny rotating fact strip for lessons */
-function lessonFunFactHtml(subject, skillId) {
-  const facts = {
+/** Tiny rotating fact strip for lessons. Early levels stay primary-school. */
+function lessonFunFactHtml(subject, skillId, stageNum) {
+  const stage = Number(stageNum) || 1;
+  const early = {
+    maths: [
+      "Even careful people double-check a sum.",
+      "Ten tens make a hundred. Counting the tens is a good check.",
+      "Slow is fine. A rush is how an easy sum goes wrong.",
+    ],
+    english: [
+      "Authors rewrite sentences. A first try is allowed to be messy.",
+      "A silly example helps a grammar rule stick.",
+      "Reading a little every day grows the words you know.",
+    ],
+    science: [
+      "A fair test changes one thing and keeps the rest the same.",
+      "Scientists learn from a test that did not do what they expected.",
+      "A plant in the dark cannot make its food. Light matters.",
+    ],
+  };
+  const later = {
     maths: [
       "Even NASA engineers double-check their arithmetic.",
       "The word ‘algebra’ comes from Arabic — a thousand-year-old toolkit.",
@@ -476,6 +494,7 @@ function lessonFunFactHtml(subject, skillId) {
       "You are made of elements forged in ancient stars. Science is personal.",
     ],
   };
+  const facts = stage <= 3 ? early : later;
   const bank = facts[subject] || COACH_FACTS;
   const line = bank[Math.abs(hashStr(skillId || subject)) % bank.length];
   return `<p class="fun-fact-strip">💡 <strong>Did you know?</strong> ${escapeHtmlCoach(line)}</p>`;
