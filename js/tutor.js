@@ -432,37 +432,45 @@ function buildAdaptivePracticeQueue(mod, profile, subject, extra) {
     const fp = _qSeenFp(q);
     return fp && !mastered.has(fp) && !recent.has(fp);
   });
+  if (extra.deliberate) {
+    return dedupeQuestionQueue(pool).map((q) => ({ ...q, _deliberate: true, _src: "lap" }));
+  }
   if (fresh.length < 3) {
     fresh = pool.filter((q) => {
       const fp = _qSeenFp(q);
       return fp && !mastered.has(fp);
     });
   }
-  if (fresh.length < 3) fresh = pool.slice();
+  // A question already got right stays retired. Asking it again is a practice go.
   // Easier stays on the warm-ups. A pile of unseen GCSE questions must not
   // push those warm-ups out of the lesson.
   if (level <= -2) {
     const gentle = pool.filter((q) => Number(q._ramp) <= 1);
     if (gentle.length) {
-      const gentleFresh = gentle.filter((q) => {
+      fresh = gentle.filter((q) => {
         const fp = _qSeenFp(q);
-        return fp && !mastered.has(fp) && !recent.has(fp);
+        return fp && !mastered.has(fp);
       });
-      fresh = gentleFresh.length >= 2 ? gentleFresh : gentle;
     }
   }
   fresh = _orderRamp(fresh);
 
   let queue = _pickRamp(fresh, level);
   queue = dedupeQuestionQueue(queue);
-  if (!queue.length) queue = dedupeQuestionQueue(pool);
   return queue;
 }
 
-/** Easy (0) → stretch (3). An explicit ramp wins. Week questions sit at the hard end. */
+/** Easy (0) → stretch (3). An explicit ramp wins.
+ *  Early week questions are still early: they must show on the easier setting.
+ *  A step-up week question stays off that setting. */
 function _rampOf(q, index, total, listHasExplicit) {
   if (q && typeof q.ramp === "number" && !Number.isNaN(Number(q.ramp))) return Number(q.ramp);
-  if (q && q.week) return 3;
+  if (q && q.week) {
+    const stage = Number(q._stage) || 1;
+    if (stage <= 1) return 1;
+    if (stage <= 3) return 2;
+    return 3;
+  }
   if (q && (q._src === "help" || q._diff === 0)) {
     // Later-stage "help" copies are still GCSE. They must not lead an easier lesson.
     if (Number(q._stage) >= 4) return 2;
@@ -508,26 +516,25 @@ function _pickRamp(sorted, level) {
     const gentleOnly = lv <= -2 ? sorted.filter((q) => Number(q._ramp) <= 1) : [];
     rest = (gentleOnly.length ? gentleOnly : sorted).slice(0, 4);
   }
-  const seen = new Set(rest.map((q) => _qSeenFp(q)));
-  const weeks = [];
-  if (lv >= 0) {
-    const weekQs = sorted
-      .filter((q) => q && q.week)
-      .slice()
-      .sort((a, b) => (Number(b.week) || 0) - (Number(a.week) || 0));
-    for (const q of weekQs) {
-      const fp = _qSeenFp(q);
-      if (!fp || seen.has(fp)) continue;
-      if (weeks.length >= 4) break;
-      weeks.push(q);
-      seen.add(fp);
-    }
-  }
   const plain = rest.filter((q) => !(q && q.week));
-  // Newest week first, so this week's questions are not hidden behind last week's.
-  const keptWeeks = weeks.slice(0, 4);
-  const room = 8 - keptWeeks.length;
-  return [...plain.slice(0, Math.max(0, room)), ...keptWeeks];
+  // Newest week first, so this week is not hidden behind last week.
+  // Easier only keeps the gentle week questions (First steps), not the step up.
+  const weekQs = sorted
+    .filter((q) => q && q.week)
+    .slice()
+    .sort((a, b) => (Number(b.week) || 0) - (Number(a.week) || 0));
+  const weeks = [];
+  const seenWeek = new Set();
+  for (const q of weekQs) {
+    if (lv < 0 && Number(q._ramp) > 1) continue;
+    const fp = _qSeenFp(q);
+    if (!fp || seenWeek.has(fp)) continue;
+    if (weeks.length >= 4) break;
+    weeks.push(q);
+    seenWeek.add(fp);
+  }
+  const room = 8 - weeks.length;
+  return [...plain.slice(0, Math.max(0, room)), ...weeks];
 }
 
 function createTutorSession(subject, skillId, learnerId, stageNum) {
@@ -639,6 +646,7 @@ function sessionProgress(session) {
   if (session.phase === "example") return { label: "Example", pct: 18 };
   if (session.phase === "complete" || session.finished)
     return { label: "Complete!", pct: 100 };
+  if (!(session.queue || []).length) return { label: "Cleared", pct: 100 };
   const n = Math.max(1, (session.queue || []).length);
   const idx = Math.min(session.practiceIndex, n);
   const pct = 20 + Math.round((idx / n) * 75);
@@ -930,8 +938,8 @@ function handleDontKnow(session, question) {
 
   try {
     if (
-      session.subject === "karting" ||
-      session.subject === "investing"
+      typeof georgeIsJourneySubject === "function" &&
+      georgeIsJourneySubject(session.subject)
     ) {
       if (typeof journeyNoteAnswer === "function" && state.profiles && session.learnerId) {
         const prof = state.profiles[session.learnerId];
@@ -960,7 +968,8 @@ function handleDontKnow(session, question) {
 function advanceAfterAnswer(session, wasCorrect) {
   if (
     session &&
-    (session.subject === "karting" || session.subject === "investing")
+    typeof georgeIsJourneySubject === "function" &&
+    georgeIsJourneySubject(session.subject)
   ) {
     session.practiceIndex++;
     if (session.practiceIndex >= (session.queue || []).length) {

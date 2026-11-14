@@ -43,6 +43,7 @@ const FILES = [
   "js/gentle-ramp.js",
   "js/week-content.js",
   "js/week3-content.js",
+  "js/week4-content.js",
   "js/report-problem.js",
 ];
 
@@ -571,20 +572,104 @@ function checkProgressRestore() {
 
 checkProgressRestore();
 
-(function weekThreeIsOffered() {
+(function weekFourIsOffered() {
   const profile = defaultProfile("george");
   state = { profiles: { george: profile, bella: defaultProfile("bella") }, activeLearner: "george" };
   const easy = createTutorSession("maths", "number", "george", 1);
-  const easyWeeks = ((easy && easy.queue) || []).filter((q) => Number(q.week) === 3);
+  const easyWeeks = ((easy && easy.queue) || []).filter((q) => Number(q.week) === 4);
   if (!easyWeeks.length) fail("First steps maths does not offer this week's questions");
+  const firstWeek = ((easy && easy.queue) || []).find((q) => q && q.week);
+  if (!firstWeek || Number(firstWeek.week) !== 4) {
+    fail("newest week is not offered before older weeks");
+  }
   const secure = createTutorSession("maths", "number", "bella", 3);
-  const secureWeeks = ((secure && secure.queue) || []).filter((q) => Number(q.week) === 3);
+  const secureWeeks = ((secure && secure.queue) || []).filter((q) => Number(q.week) === 4);
   if (!secureWeeks.length) fail("Secure maths does not offer this week's questions");
+  const stillThere = ((secure && secure.queue) || []).some((q) => Number(q.week) === 3);
+  if (!stillThere) fail("last week's Secure questions were wiped");
   const cheer = createTutorSession("karting", "k-cheer", "george", 1);
-  const cheerWeeks = ((cheer && cheer.queue) || []).filter((q) => Number(q.week) === 3);
+  const cheerWeeks = ((cheer && cheer.queue) || []).filter((q) => Number(q.week) === 4);
   if (!cheerWeeks.length) fail("Cheering from the safe side does not offer this week's questions");
   const saved = savedStageProgress(profile, "karting", 1);
   if (!saved || saved.name !== "First laps") fail("a new karting lesson should still name the level First laps");
+
+  setDifficultyChoice(profile, "maths", "easier");
+  const gentle = createTutorSession("maths", "number", "george", 1);
+  const gentleWeeks = ((gentle && gentle.queue) || []).filter((q) => Number(q.week) === 4);
+  if (!gentleWeeks.length) fail("easier First steps does not offer this week's easy questions");
+  const gentleHard = ((gentle && gentle.queue) || []).filter((q) => Number(q._stage) >= 4);
+  if (gentleHard.length) fail("easier First steps pulled a later-stage question");
+  const secureEasy = createTutorSession("maths", "algebra", "george", 3);
+  const secureEasyBad = ((secureEasy && secureEasy.queue) || []).filter(
+    (q) => q && q.week && Number(q._ramp) > 1
+  );
+  if (secureEasyBad.length) fail("easier setting offered a step-up question");
+
+  const fresh = defaultProfile("bella");
+  state = { profiles: { bella: fresh, george: profile }, activeLearner: "bella" };
+  const mod = getTeachModule("english", "grammar", 1, "bella");
+  (mod.practice || []).forEach((q) => noteMasteredQuestion(fresh, "english", q));
+  ((mod.struggle && mod.struggle.practice) || []).forEach((q) => noteMasteredQuestion(fresh, "english", q));
+  const again = createTutorSession("english", "grammar", "bella", 1);
+  const repeated = ((again && again.queue) || []).filter((q) => {
+    const fp = questionFingerprint(q);
+    return fp && (fresh.masteredQs.english || []).indexOf(fp) !== -1;
+  });
+  if (repeated.length) fail("a question Bella had already got right came back");
+  const practice = buildAdaptivePracticeQueue(mod, fresh, "english", {
+    skillId: "grammar",
+    stage: 1,
+    learnerId: "bella",
+    deliberate: true,
+  });
+  if (!practice.length) fail("a practice go could not bring the questions back on purpose");
+
+  if (typeof lessonCountsAsDone !== "function") fail("lesson pass mark helper is missing");
+  else {
+    if (lessonCountsAsDone(60)) fail("60% must not count as a finished lesson");
+    if (!lessonCountsAsDone(75)) fail("75% should count as a finished lesson");
+  }
+
+  const f1 = createTutorSession("f1", "f-flags", "george", 1);
+  if (!f1 || !f1.queue || !f1.queue.length) fail("Formula 1 flags has no questions");
+  const sample = f1.queue[0];
+  handleDontKnow(f1, sample);
+  const retries = (f1.queue || []).filter((q) => questionFingerprint(q) === questionFingerprint(sample));
+  if (retries.length !== 2) {
+    fail("an 'I don't know' in Formula 1 should come back once, not loop (" + retries.length + ")");
+  }
+})();
+
+(function checkSaveRoundTrip() {
+  const profile = defaultProfile("george");
+  state = {
+    version: 1,
+    activeLearner: "george",
+    profiles: { george: profile, bella: defaultProfile("bella") },
+  };
+  profile.diagnostics.karting = { completed: true, score: 80, skillScores: {}, date: "2026-11-14" };
+  recordLesson(profile, "karting", "safety", 100, 6);
+  unlockBadge(profile, "lesson_1");
+  const cloud = prepareProfileForCloud(profile, "george");
+  const keys = Object.keys((cloud.courses.karting && cloud.courses.karting.stages) || {});
+  if (!keys.includes("s6")) fail("cloud save did not keep Champion as s6");
+  if (keys.some((k) => /^\d+$/.test(k))) fail("cloud save used a numeric stage key");
+  saveState(state);
+  const loaded = loadState();
+  const again = loaded.profiles.george;
+  const champ = again.courses.karting && again.courses.karting.stages && again.courses.karting.stages[6];
+  if (!champ || !champ.completed || !champ.completed.safety) {
+    fail("reloading the page wiped a saved Champion lesson");
+  }
+  if (!(again.badges || []).includes("lesson_1")) fail("reloading the page wiped a badge");
+  const wiped = JSON.parse(JSON.stringify(cloud));
+  wiped.courses.karting.stages = [];
+  wiped.courses.karting.stages[6] = cloud.courses.karting.stages.s6;
+  const restored = normalizeProfile("george", wiped);
+  const back = restored.courses.karting.stages[6];
+  if (!back || !back.completed || !back.completed.safety) {
+    fail("a Firebase array wipe was not repaired from the saved lesson");
+  }
 })();
 
 // Report
@@ -618,6 +703,7 @@ const learnHtml = fs.readFileSync(path.join(ROOT, "learn.html"), "utf8");
 const wiring = [];
 if (!indexSrc.includes("js/report-problem.js")) wiring.push("index.html does not load report-problem.js");
 if (!indexSrc.includes("js/week-content.js")) wiring.push("index.html does not load week-content.js");
+if (!indexSrc.includes("js/week4-content.js")) wiring.push("index.html does not load week4-content.js");
 if (!learnHtml.includes("js/report-problem.js")) wiring.push("learn.html does not load report-problem.js");
 if ((appSrc.match(/reportButtonHtml\(\)/g) || []).length < 4) {
   wiring.push("lesson, placement, Power 5 and exam screens need the problem button");

@@ -3574,6 +3574,24 @@ function teachClipPanelHtml(mod, skipped) {
 }
 
 // —— ADAPTIVE LESSON (Teach → Example → Practice → branch if stuck) ——
+function coreClearedPracticeHtml(profile, subject, skillId, stage) {
+  const course = profile && profile.courses && profile.courses[subject];
+  const st = course && course.stages && (course.stages[stage] || course.stages["s" + stage]);
+  const saved = !!(st && st.completed && st.completed[skillId]);
+  const title = saved ? "This lesson is already saved" : "You have already got these right";
+  const line = saved
+    ? "The questions stay retired, so the same one does not come back. You can practise them again on purpose, or go back."
+    : "Nothing repeats on its own. Have a practice go and get about 7 in every 10 if you still need this lesson to count.";
+  return `
+    <div class="phase-pill">Cleared</div>
+    <h3 class="teach-heading">${title}</h3>
+    <p class="muted">${line}</p>
+    <div class="journey-actions" style="margin-top:1rem">
+      <button type="button" class="btn btn-primary" id="btnCorePractice">Practice these again</button>
+      <button type="button" class="btn btn-secondary" id="btnCoreBack">Back to the subject</button>
+    </div>`;
+}
+
 function renderLesson({ subject, skillId, stage }) {
   if (!state.activeLearner) return go("home");
   if (!subject || !SUBJECTS[subject] || !skillId) {
@@ -3635,6 +3653,7 @@ function renderLesson({ subject, skillId, stage }) {
   let revealed = false;
   let finishing = false;
   let journeyHold = false;
+  let coreHold = false;
   let clipSkippedThisLesson = false;
   try {
     clipSkippedThisLesson = !!(
@@ -3675,7 +3694,7 @@ function renderLesson({ subject, skillId, stage }) {
       paint();
       return;
     }
-    if (journeyHold || !currentPracticeList(session)[session.practiceIndex]) {
+    if (journeyHold || coreHold || !currentPracticeList(session)[session.practiceIndex]) {
       leaveLessonToSubject(subject, session);
       return;
     }
@@ -3726,7 +3745,7 @@ function renderLesson({ subject, skillId, stage }) {
       )}" />
         ${
           typeof lessonFunFactHtml === "function"
-            ? lessonFunFactHtml(subject, skillId)
+            ? lessonFunFactHtml(subject, skillId, stageNum)
             : ""
         }
         <h3 class="teach-heading">${escapeHtml(mod.title)}</h3>
@@ -3780,15 +3799,22 @@ function renderLesson({ subject, skillId, stage }) {
         typeof journeyEmptyPracticeHtml === "function"
       ) {
         journeyHold = true;
+        coreHold = false;
         bodyHtml = journeyEmptyPracticeHtml(profile(), subject, skillId, stageNum);
+      } else if (!q && !session.practiceTotal) {
+        journeyHold = false;
+        coreHold = true;
+        bodyHtml = coreClearedPracticeHtml(profile(), subject, skillId, stageNum);
       } else if (!q) {
         journeyHold = false;
+        coreHold = false;
         session.phase = "complete";
         session.finished = true;
         finishSession();
         return;
       } else {
       journeyHold = false;
+      coreHold = false;
       const isHelp = q._src === "help" || q._diff === 0;
       const eased = !!session.easedAfterIdk;
       const journeyPill = q._retry
@@ -3945,7 +3971,28 @@ function renderLesson({ subject, skillId, stage }) {
       document.getElementById("btnJourneyLap")?.addEventListener("click", () => refill("lap"));
     }
 
-    if (session.phase === "practice" && !journeyHold) {
+    if (coreHold) {
+      document.getElementById("btnCorePractice")?.addEventListener("click", () => {
+        session.queue = buildAdaptivePracticeQueue(mod, profile(), subject, {
+          skillId,
+          stage: stageNum,
+          learnerId: state.activeLearner,
+          deliberate: true,
+        });
+        session.practiceIndex = 0;
+        session.phase = "practice";
+        session.finished = false;
+        coreHold = false;
+        answerVal = null;
+        revealed = false;
+        paint();
+      });
+      document.getElementById("btnCoreBack")?.addEventListener("click", () => {
+        leaveLessonToSubject(subject, session);
+      });
+    }
+
+    if (session.phase === "practice" && !journeyHold && !coreHold) {
       wirePracticeQuestion();
     }
   }
@@ -4201,8 +4248,10 @@ function renderLesson({ subject, skillId, stage }) {
       session._keyHandler = null;
     }
     const scorePct = scoreSession(session);
-    const passMark = typeof LESSON_PASS_PCT === "number" ? LESSON_PASS_PCT : 70;
-    const passed = scorePct >= passMark;
+    const passed =
+      typeof lessonCountsAsDone === "function"
+        ? lessonCountsAsDone(scorePct)
+        : scorePct >= 70;
     if (passed) {
       recordLesson(profile(), subject, skillId, scorePct, stageNum);
       if (typeof journeyAwardLesson === "function") {
@@ -4427,7 +4476,10 @@ function renderLessonResult({
   if (subject && SUBJECTS[subject]) lastLessonSubject = subject;
   const stageNum = Number(stage) || 1;
   const p = profile();
-  const passed = (Number(scorePct) || 0) >= 50;
+  const passed =
+    typeof lessonCountsAsDone === "function"
+      ? lessonCountsAsDone(scorePct)
+      : (Number(scorePct) || 0) >= 70;
   let nextId = nextSkill;
   if (passed) {
     try {
@@ -4513,7 +4565,11 @@ function renderLessonResult({
       <h1 class="simple-done-title">${escapeHtml(mod?.title || "Well done!")}</h1>
       <p class="simple-done-score">${scorePct}%</p>
       ${
-        (subject === "karting" || subject === "investing") &&
+        (subject === "karting" ||
+          subject === "investing" ||
+          subject === "horses" ||
+          subject === "f1" ||
+          subject === "horseworld") &&
         typeof journeyStarsFor === "function"
           ? `<p class="journey-inline-stars">${journeyStarsFor(
               p,
