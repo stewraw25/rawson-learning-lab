@@ -2730,7 +2730,13 @@ function subjectProgressSummary(profile, subject) {
         : MAX_COURSE_STAGE)
   )
     statusLabel = funCourse ? `${stageName} complete` : "A* path complete";
-  else if (stagePct >= 100) statusLabel = `${stageName} complete — unlock next`;
+  else if (stagePct >= 100) {
+    const wait =
+      typeof stageUnlockBlock === "function" ? stageUnlockBlock(profile, subject, stageNum) : "";
+    statusLabel = wait
+      ? `${stageName} finished — next level waits a few days`
+      : `${stageName} complete — unlock next`;
+  }
   else
     statusLabel = funCourse
       ? `${stageEmoji} ${stageName} · ${stageLessonDone}/${stageLessonTotal || "?"} lessons`
@@ -3095,6 +3101,15 @@ function findNextAction(profile) {
         typeof courseStageMeta === "function"
           ? courseStageMeta(sub, ns)
           : COURSE_STAGES[ns];
+      if (typeof canAccessStage === "function" && !canAccessStage(profile, sub, ns)) {
+        const why =
+          typeof stageUnlockBlock === "function" ? stageUnlockBlock(profile, sub, stage) : "";
+        return {
+          type: "subject",
+          subject: sub,
+          label: why || `${SUBJECTS[sub].name}: next level waits`,
+        };
+      }
       return {
         type: "unlock",
         subject: sub,

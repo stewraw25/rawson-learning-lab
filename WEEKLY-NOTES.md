@@ -1,19 +1,13 @@
-# Weekly notes — 14 November 2026
+# Weekly notes — 21 November 2026
 
 Nothing here is live until Stewart merges it. Saved progress was not reset, and this week’s checks did not write to the family’s cloud copy.
 
-No problem reports arrived from the “Something’s wrong” button this week.
+No problem reports arrived from the “Something’s wrong” button this week. The button still opens, saves a note on this device, and can email Stewart.
 
 ## Fixed
 
-- A lesson only counts as finished at 7 in every 10 or better. A 6-out-of-10 sitting used to say “Lesson finished · saved” and skip on to the next lesson. It now says “Have another go” and stays on the same lesson. Older sittings that were already saved are left as they are.
-- A question a child has already got right stays retired. It used to come back once only a few new ones were left, and an empty lesson could finish itself at 0% and look stuck. The lesson now says it is cleared, and “Practice these again” brings the questions back only when they ask.
-- This week’s easy questions show on the easier setting. A step-up question does not.
-- In Formula 1 and Horse world, “I don’t know” and a miss come back once, the same as go-karting and Money. They do not shuffle the lesson into a loop.
-- Horses, Formula 1 and Horse world show their stars on the finished-lesson screen, the same as go-karting and Money.
-- Saving a lesson on a level that had not been opened yet could throw and drop the tick. It now keeps the tick. A reload still keeps the lesson and the badge, and a cloud copy still uses s1, s2… so a save cannot be wiped by being stored as a list.
-- Trying the site on this computer no longer talks to the family’s cloud lessons, so a practice run cannot change them.
-- Early and middle lessons no longer show a “did you know” line about algebra, GCSE, or star-forged elements. Those lines wait for the later levels.
+- Finishing a level in one sitting no longer opens the next level. The celebration screen and the hub button used to say Unlock and skip the wait. They now explain that the level is meant to last, and the lessons stay saved. Formula 1 needs two different days. Maths, English and Science need four, so Bella-Rose cannot reach GCSE Core on the day she finishes Secure, and George cannot race through First steps into the later levels.
+- A crash button that said “Reset local data” used to send the browser to the live site. It now reloads this copy only.
 
 ## Added
 

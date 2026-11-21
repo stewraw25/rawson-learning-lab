@@ -212,6 +212,17 @@ function climbNextFor(profile, subject) {
       typeof courseStageMeta === "function"
         ? courseStageMeta(subject, s.stageNum + 1)
         : COURSE_STAGES[s.stageNum + 1];
+    const held =
+      typeof canAccessStage === "function" && !canAccessStage(profile, subject, s.stageNum + 1);
+    if (held) {
+      const why =
+        typeof stageUnlockBlock === "function" ? stageUnlockBlock(profile, subject, s.stageNum) : "";
+      return {
+        type: "subject",
+        subject,
+        label: why || (nxt ? `${nxt.name} waits` : "Next level waits"),
+      };
+    }
     return {
       type: "unlock",
       subject,
@@ -1044,9 +1055,9 @@ function showFatalError(err) {
     '<p style="font-size:0.85rem;opacity:0.8">' +
     msg.replace(/</g, "&lt;") +
     "</p>" +
-    '<p><a href="?v=18" style="color:#a5d6a7">Reload clean link</a></p>' +
+    '<p><a href="./" style="color:#a5d6a7">Reload clean link</a></p>' +
     '<p style="margin-top:1rem">' +
-    '<a href="?v=18&amp;reset=1" id="btnResetLocal" ' +
+    '<a href="?reset=1" id="btnResetLocal" ' +
     'style="display:inline-block;padding:0.75rem 1rem;border-radius:10px;background:#43a047;color:#fff;font-weight:700;text-decoration:none">' +
     "Reset local data &amp; reload</a></p>" +
     '<p style="font-size:0.8rem;opacity:0.7;margin-top:1rem">Your exam scores are still in the family cloud and will reload after reset.</p>' +
@@ -1062,8 +1073,8 @@ function showFatalError(err) {
       } catch (_) {
         /* ignore */
       }
-      window.location.href =
-        "https://stewraw25.github.io/rawson-learning-lab/?v=18&reset=1&t=" + Date.now();
+      const path = window.location.pathname || "/";
+      window.location.href = path + "?reset=1&t=" + Date.now();
     };
   }
 }
@@ -1765,6 +1776,9 @@ function renderDashboard() {
     if (nextAct.type === "unlock") {
       await unlockAndOpenStage(nextAct.subject, nextAct.stage);
       return;
+    }
+    if (nextAct.type === "subject") {
+      return go("subject", { subject: nextAct.subject });
     }
     if (nextAct.type === "exam") {
       return go("exam", {
@@ -4370,6 +4384,13 @@ function renderLevelComplete({ subject, stage, skillId, scorePct }) {
       ? maxStageWithContent(subject)
       : MAX_COURSE_STAGE;
   const nextStage = stageNum < maxS ? stageNum + 1 : null;
+  const nextOpen =
+    !!nextStage &&
+    (typeof canAccessStage !== "function" || canAccessStage(p, subject, nextStage));
+  const waitWhy =
+    nextStage && !nextOpen && typeof stageUnlockBlock === "function"
+      ? stageUnlockBlock(p, subject, stageNum)
+      : "";
   const nextMeta = nextStage
     ? typeof courseStageMeta === "function"
       ? courseStageMeta(subject, nextStage)
@@ -4407,11 +4428,21 @@ function renderLevelComplete({ subject, stage, skillId, scorePct }) {
         </p>
         <div class="level-complete-bar" aria-hidden="true"><i style="width:100%"></i></div>
         ${
-          nextMeta
+          nextMeta && nextOpen
             ? `<button type="button" class="btn btn-primary btn-xl level-complete-cta" id="btnUnlockLevel">
                  ${nextMeta.emoji} Unlock ${escapeHtml(nextMeta.name)} →
                </button>
                <p class="muted level-complete-hint">Tap the big button to start the next level</p>`
+            : nextMeta
+              ? `<p class="level-complete-msg">${escapeHtml(
+                  waitWhy || "This level is meant to last. The next one opens after a few days."
+                )}</p>
+               <button type="button" class="btn btn-primary btn-xl level-complete-cta" id="btnLevelStay">
+                 Back to ${escapeHtml(SUBJECTS[subject].name)} →
+               </button>
+               <p class="muted level-complete-hint">Your lessons are saved. Come back on another day for ${escapeHtml(
+                 nextMeta.name
+               )}.</p>`
             : `<button type="button" class="btn btn-primary btn-xl level-complete-cta" id="btnUnlockLevel">
                  ⭐ A* path complete — back to ${escapeHtml(SUBJECTS[subject].name)} →
                </button>
@@ -4425,12 +4456,16 @@ function renderLevelComplete({ subject, stage, skillId, scorePct }) {
   if (typeof fireConfetti === "function") fireConfetti();
 
   document.getElementById("btnUnlockLevel")?.addEventListener("click", async () => {
-    if (nextStage && nextMeta) {
+    if (nextStage && nextMeta && nextOpen) {
       await unlockAndOpenStage(subject, nextStage);
     } else {
       await save({ quiet: true });
       go("subject", { subject });
     }
+  });
+  document.getElementById("btnLevelStay")?.addEventListener("click", async () => {
+    await save({ quiet: true });
+    go("subject", { subject });
   });
 }
 
@@ -4439,6 +4474,12 @@ async function unlockAndOpenStage(subject, nextStage) {
   const p = profile();
   if (!p || !SUBJECTS[subject]) return;
   const stage = Number(nextStage) || 2;
+  // The subject page already explains a same-day wait. Do not open the next
+  // level from the celebration screen or the hub until that wait is over.
+  if (typeof canAccessStage === "function" && !canAccessStage(p, subject, stage)) {
+    go("subject", { subject });
+    return;
+  }
   startCourseStage(p, subject, stage);
   if (!p.courses[subject]) {
     p.courses[subject] = { activeStage: stage, stages: {} };
@@ -5214,8 +5255,9 @@ node worker/local-voice-proxy.mjs
       } catch (_) {
         /* ignore */
       }
-      // Keep cloud config so auto-sync still works
-      window.history.replaceState({}, "", "?v=18");
+      // Keep cloud config so auto-sync still works. Stay on this copy of the site.
+      const path = window.location.pathname || "/";
+      window.history.replaceState({}, "", path);
     }
   } catch (_) {
     /* ignore */

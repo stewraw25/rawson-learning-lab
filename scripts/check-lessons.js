@@ -44,6 +44,7 @@ const FILES = [
   "js/week-content.js",
   "js/week3-content.js",
   "js/week4-content.js",
+  "js/week5-content.js",
   "js/report-problem.js",
 ];
 
@@ -572,30 +573,30 @@ function checkProgressRestore() {
 
 checkProgressRestore();
 
-(function weekFourIsOffered() {
+(function weekFiveIsOffered() {
   const profile = defaultProfile("george");
   state = { profiles: { george: profile, bella: defaultProfile("bella") }, activeLearner: "george" };
   const easy = createTutorSession("maths", "number", "george", 1);
-  const easyWeeks = ((easy && easy.queue) || []).filter((q) => Number(q.week) === 4);
+  const easyWeeks = ((easy && easy.queue) || []).filter((q) => Number(q.week) === 5);
   if (!easyWeeks.length) fail("First steps maths does not offer this week's questions");
   const firstWeek = ((easy && easy.queue) || []).find((q) => q && q.week);
-  if (!firstWeek || Number(firstWeek.week) !== 4) {
+  if (!firstWeek || Number(firstWeek.week) !== 5) {
     fail("newest week is not offered before older weeks");
   }
   const secure = createTutorSession("maths", "number", "bella", 3);
-  const secureWeeks = ((secure && secure.queue) || []).filter((q) => Number(q.week) === 4);
+  const secureWeeks = ((secure && secure.queue) || []).filter((q) => Number(q.week) === 5);
   if (!secureWeeks.length) fail("Secure maths does not offer this week's questions");
-  const stillThere = ((secure && secure.queue) || []).some((q) => Number(q.week) === 3);
+  const stillThere = ((secure && secure.queue) || []).some((q) => Number(q.week) === 4);
   if (!stillThere) fail("last week's Secure questions were wiped");
   const cheer = createTutorSession("karting", "k-cheer", "george", 1);
-  const cheerWeeks = ((cheer && cheer.queue) || []).filter((q) => Number(q.week) === 4);
+  const cheerWeeks = ((cheer && cheer.queue) || []).filter((q) => Number(q.week) === 5);
   if (!cheerWeeks.length) fail("Cheering from the safe side does not offer this week's questions");
   const saved = savedStageProgress(profile, "karting", 1);
   if (!saved || saved.name !== "First laps") fail("a new karting lesson should still name the level First laps");
 
   setDifficultyChoice(profile, "maths", "easier");
   const gentle = createTutorSession("maths", "number", "george", 1);
-  const gentleWeeks = ((gentle && gentle.queue) || []).filter((q) => Number(q.week) === 4);
+  const gentleWeeks = ((gentle && gentle.queue) || []).filter((q) => Number(q.week) === 5);
   if (!gentleWeeks.length) fail("easier First steps does not offer this week's easy questions");
   const gentleHard = ((gentle && gentle.queue) || []).filter((q) => Number(q._stage) >= 4);
   if (gentleHard.length) fail("easier First steps pulled a later-stage question");
@@ -672,6 +673,69 @@ checkProgressRestore();
   }
 })();
 
+(function sameDayDoesNotOpenTheNextLevel() {
+  function finishToday(profile, subject, stage) {
+    profile.diagnostics[subject] = {
+      completed: true,
+      score: 60,
+      skillScores: {},
+      date: todayKey(),
+    };
+    if (!profile.courses[subject]) buildCourse(profile, subject, stage);
+    ensureCourseReady(profile, subject);
+    const course = profile.courses[subject];
+    course.activeStage = stage;
+    if (!course.stages[stage] || !course.stages[stage].path) buildCourse(profile, subject, stage);
+    const st = course.stages[stage];
+    const today = todayKey();
+    (st.path || []).forEach((id) => {
+      st.completed[id] = { score: 100, date: today, stage: stage };
+    });
+    return st;
+  }
+
+  const george = defaultProfile("george");
+  state = { profiles: { george: george, bella: defaultProfile("bella") }, activeLearner: "george" };
+  const grid = finishToday(george, "f1", 1);
+  if (!grid.path || grid.path.length < 2) fail("Formula 1 First grid has no lesson path to lock");
+  if (canAccessStage(george, "f1", 2)) {
+    fail("finishing Formula 1 First grid in one day must not open Reading the race");
+  }
+  const why = stageUnlockBlock(george, "f1", 1);
+  if (!why || why.indexOf("meant to last") === -1) {
+    fail("the lock should say the level is meant to last, got " + why);
+  }
+  const live = george.courses.f1.stages[1];
+  george.courses.f1.paceStartedOn = "2026-11-01";
+  (live.path || []).forEach((id, i) => {
+    live.completed[id] = {
+      score: 100,
+      date: i % 2 === 0 ? "2026-11-19" : "2026-11-20",
+      stage: 1,
+    };
+  });
+  if (stageUnlockBlock(george, "f1", 1)) {
+    fail("two different days should clear the Formula 1 wait: " + stageUnlockBlock(george, "f1", 1));
+  }
+  if (!canAccessStage(george, "f1", 2)) fail("Reading the race should open after two different days");
+
+  const bella = defaultProfile("bella");
+  state = { profiles: { bella: bella, george: george }, activeLearner: "bella" };
+  const secure = finishToday(bella, "maths", 3);
+  if (Number(bella.courses.maths.activeStage) !== 3 && Number(bella.courses.maths.homeStage) !== 3) {
+    /* home stage is applied inside ensureCourseReady */
+  }
+  bella.courses.maths.activeStage = 3;
+  if (!secure.path || !secure.path.length) fail("Bella's Secure maths has no lessons");
+  if (canAccessStage(bella, "maths", 4)) {
+    fail("finishing Secure maths in one day must not open GCSE Core");
+  }
+  const mathsWhy = stageUnlockBlock(bella, "maths", 3);
+  if (!mathsWhy || mathsWhy.indexOf("meant to last") === -1) {
+    fail("Secure should say it is meant to last, got " + mathsWhy);
+  }
+})();
+
 // Report
 if (notes.length) {
   console.log("NOTES (" + notes.length + ")");
@@ -704,6 +768,16 @@ const wiring = [];
 if (!indexSrc.includes("js/report-problem.js")) wiring.push("index.html does not load report-problem.js");
 if (!indexSrc.includes("js/week-content.js")) wiring.push("index.html does not load week-content.js");
 if (!indexSrc.includes("js/week4-content.js")) wiring.push("index.html does not load week4-content.js");
+if (!indexSrc.includes("js/week5-content.js")) wiring.push("index.html does not load week5-content.js");
+if (appSrc.includes("github.io/rawson-learning-lab/?v=18")) {
+  wiring.push("a crash button still sends the browser to the live site");
+}
+if (!appSrc.includes("btnLevelStay")) {
+  wiring.push("the level-complete screen can still skip the multi-day wait");
+}
+if (!appSrc.includes("!canAccessStage(p, subject, stage)")) {
+  wiring.push("Unlock does not check the multi-day wait");
+}
 if (!learnHtml.includes("js/report-problem.js")) wiring.push("learn.html does not load report-problem.js");
 if ((appSrc.match(/reportButtonHtml\(\)/g) || []).length < 4) {
   wiring.push("lesson, placement, Power 5 and exam screens need the problem button");
