@@ -246,3 +246,15 @@ body[data-learner="bella"] .time-board,
   border-color: rgba(183, 110, 132, 0.28);
   background: rgba(183, 110, 132, 0.1);
 }
+
+/* Review + GCSE ladder panels match Bella's other dark pink cards */
+body.theme-learner-bella .ladder-panel,
+body.theme-learner-bella .review-panel,
+body.theme-bella .ladder-panel,
+body.theme-bella .review-panel,
+body[data-learner="bella"] .ladder-panel,
+body[data-learner="bella"] .review-panel {
+  background: linear-gradient(165deg, rgba(78, 48, 62, 0.96), rgba(55, 34, 46, 0.98));
+  border: 1px solid rgba(212, 165, 180, 0.24);
+  box-shadow: 0 12px 28px rgba(20, 8, 14, 0.3);
+}

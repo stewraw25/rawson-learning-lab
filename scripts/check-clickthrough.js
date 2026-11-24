@@ -679,7 +679,9 @@ function matrixMarkdown(rows, title) {
   return lines.join("\n");
 }
 
-(async () => {
+module.exports = { IN_PAGE_WALKER, startStaticServer, loadPuppeteer, chromePath, STORAGE_KEY };
+
+if (require.main === module) (async () => {
   const args = parseArgs(process.argv);
   if (!args.base && !args.serve) {
     console.error("Need --base URL or --serve /path/to/repo");

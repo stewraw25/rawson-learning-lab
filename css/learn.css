@@ -214,28 +214,60 @@
 .mini-bridge p { margin: 0 0 0.7rem; line-height: 1.45; }
 .mini-revisit { margin-top: 0.8rem; font-size: 0.95rem; line-height: 1.45; }
 
-/* Stage 2: GCSE ladder, review, video fallback */
+/* Stage 2: GCSE ladder, review, video fallback.
+   Dark cards that follow the learner theme (garden green for George, pink for Bella-Rose). */
 .ladder-panel, .review-panel {
   margin: 0 0 1rem;
   padding: 1rem 1.1rem;
   border-radius: 16px;
-  background: rgba(255,255,255,0.7);
-  border: 1px solid rgba(25, 55, 40, 0.08);
+  background:
+    linear-gradient(180deg, rgba(243, 230, 200, 0.06), transparent 45%),
+    var(--surface, #2a3d30);
+  border: 1px solid var(--line, rgba(243, 230, 200, 0.12));
+  color: var(--text, #f7f1e3);
+  box-shadow: var(--shadow, 0 12px 40px rgba(0, 0, 0, 0.28));
 }
-.ladder-panel h3, .review-panel h3 { margin: 0 0 0.4rem; }
+.ladder-panel h3, .review-panel h3 { margin: 0 0 0.4rem; color: var(--text, #f7f1e3); }
+.ladder-panel .muted, .review-panel .muted { color: var(--muted, #b7c4b0); }
 .ladder-list { margin: 0.6rem 0 0; padding: 0; list-style: none; }
-.ladder-row { padding: 0.65rem 0; border-top: 1px solid rgba(25, 55, 40, 0.08); }
+.ladder-row { padding: 0.65rem 0; border-top: 1px solid var(--line, rgba(243, 230, 200, 0.12)); }
 .ladder-row:first-child { border-top: 0; }
 .ladder-row p { margin: 0.2rem 0 0; }
-.ladder-band { display: inline-block; margin-left: 0.35rem; font-size: 0.85rem; color: #3d5a45; }
-.ladder-mark { display: inline-block; margin-left: 0.4rem; font-size: 0.8rem; padding: 0.1rem 0.45rem; border-radius: 999px; background: #e8f3dc; color: #1f3d28; }
-.ladder-row.is-here { background: rgba(197, 225, 165, 0.28); margin: 0 -0.6rem; padding-left: 0.6rem; padding-right: 0.6rem; border-radius: 10px; }
-.ladder-row.is-done .ladder-mark { background: #d5ecd0; }
-.ladder-row.is-locked { opacity: 0.72; }
-.review-due { border-color: rgba(196, 140, 60, 0.35); background: rgba(255, 244, 220, 0.55); }
+.ladder-band { display: inline-block; margin-left: 0.35rem; font-size: 0.85rem; color: var(--muted, #b7c4b0); }
+.ladder-mark { display: inline-block; margin-left: 0.4rem; font-size: 0.8rem; padding: 0.1rem 0.45rem; border-radius: 999px; background: rgba(243, 230, 200, 0.12); color: var(--text, #f7f1e3); border: 1px solid var(--line, rgba(243, 230, 200, 0.12)); }
+.ladder-row.is-here { background: rgba(197, 225, 165, 0.12); box-shadow: inset 3px 0 0 var(--leaf, #66bb6a); margin: 0 -0.6rem; padding-left: 0.6rem; padding-right: 0.6rem; border-radius: 10px; }
+.ladder-row.is-done .ladder-mark { background: rgba(129, 199, 132, 0.2); border-color: rgba(129, 199, 132, 0.45); }
+.ladder-row.is-locked { opacity: 0.8; }
+.review-due { border-color: rgba(232, 197, 71, 0.45); background: linear-gradient(180deg, rgba(232, 197, 71, 0.1), transparent 60%), var(--surface, #2a3d30); }
+.review-list a { color: var(--gold, #e8c547); }
+body.theme-learner-bella .ladder-row.is-here,
+body[data-learner="bella"] .ladder-row.is-here { background: rgba(212, 165, 180, 0.14); }
 .review-list { margin: 0.4rem 0 0; padding-left: 1.1rem; }
 .review-list li { margin: 0.25rem 0; }
 .clip-fallback { margin: 0.45rem 0 0; font-size: 0.9rem; }
-.clip-kicker { margin: 0 0 0.5rem; font-size: 0.86rem; letter-spacing: 0.02em; text-transform: uppercase; color: #3d5a45; }
+.clip-kicker { margin: 0 0 0.5rem; font-size: 0.86rem; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted, #b7c4b0); }
 .clip-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #111; border-radius: 12px; overflow: hidden; }
 .clip-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+/* Previous question (look back only) */
+.btn-prev-q[disabled] { opacity: 0.45; cursor: not-allowed; }
+.prev-q-box {
+  margin-top: 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: rgba(243, 230, 200, 0.06);
+  border: 1px dashed var(--line, rgba(243, 230, 200, 0.2));
+  color: var(--text, #f7f1e3);
+}
+.prev-q-box p { margin: 0 0 0.5rem; line-height: 1.45; }
+.prev-q-label { font-size: 0.8rem; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted, #b7c4b0); }
+.prev-q-line.is-right strong { color: var(--ok, #81c784); }
+.prev-q-line.is-wrong strong { color: var(--danger, #e57373); }
+.prev-q-passage { border-left: 3px solid var(--line, rgba(243, 230, 200, 0.2)); padding-left: 0.75rem; margin: 0 0 0.6rem; }
+
+/* Right / wrong after every answer */
+.feedback .fb-mark { display: inline-flex; align-items: center; justify-content: center; width: 1.6em; height: 1.6em; border-radius: 50%; font-weight: 900; margin-right: 0.15rem; vertical-align: middle; }
+.feedback .fb-good { background: #2e7d32; color: #fff; }
+.feedback .fb-bad { background: #c62828; color: #fff; }
+.feedback .fb-answer { color: var(--text, #f7f1e3); }
+.feedback .fb-explain { display: block; margin-top: 0.4rem; font-weight: 600; color: var(--text, #f7f1e3); opacity: 0.9; }
