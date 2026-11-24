@@ -48,6 +48,19 @@ https://stewraw25.github.io/rawson-learning-lab/
 
 Open `index.html` in a browser, or serve the folder with any static server.
 
+## Lesson checks
+
+```bash
+node scripts/check-lessons.js
+# Click through every lesson in a headless browser (needs Chrome + puppeteer-core):
+node scripts/check-clickthrough.js --serve . --out /tmp/clickthrough
+# Or against the live site:
+node scripts/check-clickthrough.js --base https://stewraw25.github.io/rawson-learning-lab/ --out /tmp/clickthrough
+```
+
+The click-through test answers every question for both children, in every subject, topic and stage. It checks that the next set loads, the screen does not go blank, buttons do not stick, questions do not repeat, and progress is saved under `rawson-learning-lab-v1`.
+
+
 ## Curriculum note
 
 Stage 1 starts at Year 2–4 (George is 10 and Bella-Rose is 12, both catching up at home). Later stages still climb toward GCSE. Progress bars count **lessons finished**, not the placement-test score.

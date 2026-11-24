@@ -27,6 +27,8 @@ let homePaintGeneration = 0;
 let currentScreen = "home";
 /** Live in-progress quiz — remounting the same lesson must NOT restart Q1 */
 let liveLesson = null;
+/** Prevents a remount from replacing a lesson that is already finishing. */
+let lessonFinishLock = null;
 let liveDiag = null;
 let navLock = false;
 /** Subject of the lesson on screen — Browser Back must return here, not the hub. */
@@ -3596,12 +3598,25 @@ function coreClearedPracticeHtml(profile, subject, skillId, stage) {
   const line = saved
     ? "The questions stay retired, so the same one does not come back. You can practise them again on purpose, or go back."
     : "Nothing repeats on its own. Have a practice go and get about 7 in every 10 if you still need this lesson to count.";
+  const nextId =
+    typeof nextLesson === "function" ? nextLesson(profile, subject, stage, skillId) : null;
+  const nextTitle =
+    nextId && typeof getLessonMeta === "function"
+      ? getLessonMeta(subject, nextId, stage).title
+      : nextId;
   return `
     <div class="phase-pill">Cleared</div>
     <h3 class="teach-heading">${title}</h3>
     <p class="muted">${line}</p>
     <div class="journey-actions" style="margin-top:1rem">
-      <button type="button" class="btn btn-primary" id="btnCorePractice">Practice these again</button>
+      ${
+        nextId && nextId !== skillId
+          ? `<button type="button" class="btn btn-primary" id="btnCoreNext">Next: ${escapeHtml(
+              nextTitle || "continue"
+            )} →</button>`
+          : ""
+      }
+      <button type="button" class="${nextId && nextId !== skillId ? "btn btn-secondary" : "btn btn-primary"}" id="btnCorePractice">Practice these again</button>
       <button type="button" class="btn btn-secondary" id="btnCoreBack">Back to the subject</button>
     </div>`;
 }
@@ -3634,6 +3649,10 @@ function renderLesson({ subject, skillId, stage }) {
   }
 
   const liveKey = `${state.activeLearner}:${subject}:${skillId}:${stageNum}`;
+  if (lessonFinishLock && lessonFinishLock.key === liveKey) {
+    // finishSession is already moving to the result or the next set
+    return;
+  }
   if (
     liveLesson &&
     liveLesson.key === liveKey &&
@@ -4131,6 +4150,17 @@ function renderLesson({ subject, skillId, stage }) {
     }
 
     if (coreHold) {
+      document.getElementById("btnCoreNext")?.addEventListener("click", () => {
+        const nextId =
+          typeof nextLesson === "function"
+            ? nextLesson(profile(), subject, stageNum, skillId)
+            : null;
+        if (nextId && nextId !== skillId) {
+          go("lesson", { subject, skillId: nextId, stage: stageNum });
+        } else {
+          leaveLessonToSubject(subject, session);
+        }
+      });
       document.getElementById("btnCorePractice")?.addEventListener("click", () => {
         session.queue = buildAdaptivePracticeQueue(mod, profile(), subject, {
           skillId,
@@ -4538,6 +4568,7 @@ function renderLesson({ subject, skillId, stage }) {
     finishing = true;
     session.finished = true;
     session.phase = "complete";
+    lessonFinishLock = { key: liveKey, subject, skillId, stage: stageNum, at: Date.now() };
     if (liveLesson && liveLesson.key === liveKey) liveLesson = null;
     if (typeof clearQuizSession === "function") {
       clearQuizSession(state.activeLearner, subject, skillId, stageNum);
@@ -4638,6 +4669,9 @@ function renderLesson({ subject, skillId, stage }) {
         skillId,
         scorePct,
       });
+      setTimeout(() => {
+        if (lessonFinishLock && lessonFinishLock.key === liveKey) lessonFinishLock = null;
+      }, 0);
       return;
     }
 
@@ -4652,6 +4686,9 @@ function renderLesson({ subject, skillId, stage }) {
       stage: stageNum,
       nextSkill: nextSkill === skillId ? null : nextSkill,
     });
+    setTimeout(() => {
+      if (lessonFinishLock && lessonFinishLock.key === liveKey) lessonFinishLock = null;
+    }, 0);
   }
 
   if (liveLesson && liveLesson.key === liveKey) liveLesson.paint = paint;

@@ -852,6 +852,44 @@ checkMiniLessonsAndProgressGuard();
   }
 })();
 
+function checkClickthroughGuards() {
+  if (typeof STORAGE_KEY === "undefined" || STORAGE_KEY !== "rawson-learning-lab-v1") {
+    fail("STORAGE_KEY must stay rawson-learning-lab-v1");
+  }
+  if (typeof excludeMiniLessonQuestions !== "function" || typeof miniLessonQuestionFps !== "function") {
+    fail("practice queues must drop questions already used in a mini-lesson");
+    return;
+  }
+  const keys = typeof MINI_LESSONS === "object" && MINI_LESSONS ? Object.keys(MINI_LESSONS) : [];
+  keys.forEach((k) => {
+    const parts = k.split(":");
+    const subject = parts[0];
+    const skillId = parts[1];
+    const stage = Number(parts[2]);
+    ["george", "bella"].forEach((learnerId) => {
+      const profile = defaultProfile(learnerId);
+      profile.diagnostics[subject] = { completed: true, score: 60, skillScores: {}, date: "2026-11-24" };
+      state = { profiles: { [learnerId]: profile }, activeLearner: learnerId };
+      const session = createTutorSession(subject, skillId, learnerId, stage);
+      if (!session) {
+        fail(k + " " + learnerId + ": createTutorSession returned null");
+        return;
+      }
+      const used = miniLessonQuestionFps(subject, skillId, stage);
+      const queue = session.queue || [];
+      if (!queue.length) fail(k + " " + learnerId + ": practice queue is empty after dropping repeats");
+      queue.forEach((q) => {
+        const fp = questionFingerprint(q);
+        if (fp && used.has(fp)) {
+          fail(k + " " + learnerId + " repeats a teach-along question in practice: " + fp);
+        }
+      });
+    });
+  });
+}
+
+checkClickthroughGuards();
+
 // Report
 if (notes.length) {
   console.log("NOTES (" + notes.length + ")");
@@ -890,6 +928,12 @@ if (appSrc.includes("github.io/rawson-learning-lab/?v=18")) {
 }
 if (!appSrc.includes("btnLevelStay")) {
   wiring.push("the level-complete screen can still skip the multi-day wait");
+}
+if (!appSrc.includes("btnCoreNext")) {
+  wiring.push("the cleared-questions screen has no Next lesson button");
+}
+if (!appSrc.includes("lessonFinishLock")) {
+  wiring.push("finishing a lesson is not protected against a remount");
 }
 if (!appSrc.includes("!canAccessStage(p, subject, stage)")) {
   wiring.push("Unlock does not check the multi-day wait");
