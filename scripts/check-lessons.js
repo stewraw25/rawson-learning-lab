@@ -28,6 +28,7 @@ const FILES = [
   "js/year-path.js",
   "js/year-english.js",
   "js/year-science.js",
+  "js/mini-lessons.js",
   "js/stage4-content.js",
   "js/stage5-content.js",
   "js/stage6-content.js",
@@ -318,6 +319,24 @@ for (const learnerId of ["bella", "george"]) {
         const asked = [];
         while (!session.finished && session.phase !== "complete" && guard < 80) {
           guard++;
+          if (session.phase === "exit" && typeof currentMiniQuestion === "function") {
+            const mini = getMiniLesson(subject, skillId, stage);
+            const q = currentMiniQuestion(session, mini);
+            if (!q) {
+              fail(where + ": exit check is missing");
+              break;
+            }
+            const user = q.type === "multi" ? Number(q.answer) : q.answer;
+            const ok = handlePracticeAnswer(session, q, user);
+            if (!ok) {
+              fail(where + ": exit check marked a correct answer wrong — " + q.q);
+              break;
+            }
+            session.exitDone = true;
+            session.phase = "complete";
+            session.finished = true;
+            break;
+          }
           const list = currentPracticeList(session);
           const q = list[session.practiceIndex];
           if (!q) {
@@ -572,6 +591,103 @@ function checkProgressRestore() {
 }
 
 checkProgressRestore();
+
+function checkMiniLessonsAndProgressGuard() {
+  const keys = [
+    "maths:y-place:1",
+    "english:y-caps:1",
+    "science:y-alive:1",
+    "maths:y-place:3",
+    "english:y-sent:3",
+    "science:y-plants:3",
+  ];
+  if (typeof MINI_LESSONS === "undefined") {
+    fail("MINI_LESSONS is missing");
+    return;
+  }
+  keys.forEach((k) => {
+    const mini = MINI_LESSONS[k];
+    if (!mini) {
+      fail("missing mini lesson " + k);
+      return;
+    }
+    if (!mini.goal || String(mini.goal).length < 20) fail(k + ": goal is too short");
+    if (!mini.teach || !mini.teach.paragraphs || mini.teach.paragraphs.length < 2) {
+      fail(k + ": needs a short explanation");
+    }
+    if (!mini.teach.visual || !MINI_SVG[mini.teach.visual]) fail(k + ": missing diagram");
+    if (!mini.example || !mini.example.steps || mini.example.steps.length < 2) {
+      fail(k + ": needs a step-by-step example");
+    }
+    if (!mini.guided || mini.guided.length < 2) fail(k + ": needs guided practice");
+    (mini.guided || []).forEach((q, i) => {
+      checkQuestion(q, k + " guided " + (i + 1));
+      if (!q.hint) fail(k + " guided " + (i + 1) + ": missing hint");
+    });
+    if (!mini.exit) fail(k + ": missing exit check");
+    else checkQuestion(mini.exit, k + " exit");
+    (mini.prereq || []).forEach((q, i) => checkQuestion(q, k + " prereq " + (i + 1)));
+    const parts = k.split(":");
+    const sess = createTutorSession(parts[0], parts[1], parts[0] === "maths" && parts[2] === "3" ? "bella" : parts[2] === "3" ? "bella" : "george", Number(parts[2]));
+    if (!sess || sess.phase !== "goal") fail(k + ": session should start on the goal, got " + (sess && sess.phase));
+    const phases = miniLessonPhases(mini);
+    if (phases[0] !== "goal" || phases.indexOf("practice") < 0 || phases.indexOf("exit") < 0) {
+      fail(k + ": reusable phase list is incomplete");
+    }
+  });
+  const ordinary = createTutorSession("maths", "number", "george", 1);
+  if (!ordinary || ordinary.phase !== "teach") {
+    fail("ordinary lessons must still start on teach, not the mini-lesson goal");
+  }
+
+  if (typeof STORAGE_KEY === "undefined" || STORAGE_KEY !== "rawson-learning-lab-v1") {
+    fail("STORAGE_KEY must stay rawson-learning-lab-v1");
+  }
+  if (typeof PACE_VERSION === "undefined" || PACE_VERSION !== "pace-years-v1") {
+    fail("PACE_VERSION must stay pace-years-v1");
+  }
+  if (typeof recoverCompletionsFromHistory !== "function") fail("recoverCompletionsFromHistory is missing");
+  if (typeof mergeProfiles !== "function") fail("mergeProfiles is missing");
+  if (typeof serializeCourseEntry !== "function") fail("serializeCourseEntry is missing");
+  if (typeof preferRemoteProfile !== "function") fail("preferRemoteProfile is missing");
+
+  const empty = defaultProfile("george");
+  if (empty.updatedAt !== 0) fail("empty shells must still use updatedAt 0");
+  const rich = defaultProfile("george");
+  rich.updatedAt = 1;
+  rich.xp = 40;
+  rich.lessonHistory = [
+    { subject: "maths", skillId: "y-place", stage: 1, score: 100, date: "2026-11-01" },
+    { subject: "maths", skillId: "number", stage: 1, score: 80, date: "2026-11-02" },
+  ];
+  rich.diagnostics.maths = { completed: true, score: 70, skillScores: { number: 70, operations: 60 } };
+  buildCourse(rich, "maths", 1);
+  recoverCompletionsFromHistory(rich, "maths");
+  const ticks = rich.courses.maths && rich.courses.maths.stages && rich.courses.maths.stages[1] && rich.courses.maths.stages[1].completed;
+  if (!ticks || !ticks["y-place"] || Number(ticks["y-place"].score) < 100) {
+    fail("lesson-history recovery must still restore a finished y-place lesson");
+  }
+  if (!ticks.number) fail("lesson-history recovery must still restore number");
+
+  const wipedCloud = defaultProfile("george"); // updatedAt 0
+  if (preferRemoteProfile(rich, wipedCloud)) {
+    fail("an empty cloud shell must not beat real local progress");
+  }
+  const merged = mergeProfiles(rich, wipedCloud, "george");
+  const mergedTicks = merged.courses.maths.stages[1].completed;
+  if (!mergedTicks["y-place"] || Number(mergedTicks["y-place"].score) < 100) {
+    fail("mergeProfiles must not wipe y-place ticks with an empty shell");
+  }
+  const onWire = serializeCourseEntry(merged.courses.maths);
+  if (!onWire || !onWire.stages || onWire.stages[1] || !onWire.stages.s1) {
+    fail("cloud-safe stage keys must still be s1, s2, not numeric 1");
+  }
+  const loaded = loadState();
+  if (!loaded.profiles.george || !loaded.profiles.bella) fail("loadState must still keep both children");
+}
+
+checkMiniLessonsAndProgressGuard();
+
 
 (function weekFiveIsOffered() {
   const profile = defaultProfile("george");

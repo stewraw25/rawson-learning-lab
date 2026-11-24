@@ -1167,7 +1167,7 @@ function checkAnswer(question, userAnswer) {
 }
 
 /**
- * Full Rawson pathway: current level → GCSE A* (grades 8–9).
+ * Full Rawson pathway: current level through to GCSE, working towards grades 8–9.
  * Each stage unlocks when the previous stage is 100% complete for that subject.
  */
 const COURSE_STAGES = {
@@ -1213,11 +1213,11 @@ const COURSE_STAGES = {
   },
   6: {
     id: 6,
-    name: "A* Mastery",
+    name: "Grades 8–9 stretch",
     emoji: "⭐",
-    short: "A*",
+    short: "8–9",
     gradeBand: "Higher-tier stretch",
-    blurb: "Grade 8–9 stretch after the GCSE course.",
+    blurb: "Working towards grades 8–9 after the GCSE course. This is practice, not a promised grade.",
   },
 };
 
@@ -2205,7 +2205,7 @@ function makeStageFocusMessage(subject, ranked, diag, stageNum) {
   }
   return `${stageMeta.emoji} ${stageMeta.name} ${subName} (${stageMeta.gradeBand}): prioritising ${weak.join(
     " and "
-  )}. Finish this stage to unlock the next step toward A*.`;
+  )}. Finish this stage to unlock the next step, working towards grades 8–9.`;
 }
 
 /** Start a later level. Never silently no-op on the Unlock button. */
@@ -2261,8 +2261,8 @@ function countCompletedStages(profile, subject) {
 }
 
 /**
- * Share of the A* climb each level is worth.
- * First steps is a tiny rung — most of the journey is GCSE Core / Higher / A*.
+ * Share of the full climb each level is worth.
+ * First steps is a tiny rung — most of the journey is GCSE Core, Higher and the grades 8–9 stretch.
  */
 const STAGE_A_STAR_WEIGHTS = {
   1: 5,
@@ -2634,7 +2634,7 @@ function retailorRemainingPath(profile, subject, stageNum) {
 /**
  * Honest subject progress for parents / scoreboards.
  * Never treats a high placement test as “nearly finished the course”.
- * Overall % is the climb from First steps → A* (six levels), not quiz scores.
+ * Overall % is the climb from First steps through the six levels, not quiz scores.
  */
 function subjectProgressSummary(profile, subject) {
   const empty = {
@@ -2729,7 +2729,7 @@ function subjectProgressSummary(profile, subject) {
         ? maxStageWithContent(subject)
         : MAX_COURSE_STAGE)
   )
-    statusLabel = funCourse ? `${stageName} complete` : "A* path complete";
+    statusLabel = funCourse ? `${stageName} complete` : "Pathway complete — keep practising";
   else if (stagePct >= 100) {
     const wait =
       typeof stageUnlockBlock === "function" ? stageUnlockBlock(profile, subject, stageNum) : "";
@@ -2742,7 +2742,7 @@ function subjectProgressSummary(profile, subject) {
       ? `${stageEmoji} ${stageName} · ${stageLessonDone}/${stageLessonTotal || "?"} lessons`
       : `${stageEmoji} ${stageName} · ${stageLessonDone}/${
           stageLessonTotal || "?"
-        } lessons · ${pathwayPct}% to A*`;
+        } lessons · ${pathwayPct}% of the pathway`;
 
   return {
     started: placementDone || doneCount > 0,

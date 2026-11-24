@@ -29,7 +29,7 @@ Maths, English, Science, plus extras:
 | 3 | Secure | Race craft / Real things / Riding on |
 | 4 | GCSE Core | Club racer / Markets / Horse sports |
 | 5 | GCSE Higher | Hot lap / Your plan / Yard pro |
-| 6 | A* Mastery | Champion / Long-term / Horsemaster |
+| 6 | Grades 8–9 stretch | Champion / Long-term / Horsemaster |
 
 Finish **every lesson in a stage** to unlock the next. Progress = lessons finished, not the placement-test score. Fun courses keep kid names — never slap “GCSE Intermediate” on karting.
 

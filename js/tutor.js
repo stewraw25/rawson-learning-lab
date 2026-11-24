@@ -233,6 +233,11 @@ function persistQuizSession(session) {
         queue: session.queue,
         history: session.history,
         startedAt: session.startedAt,
+        prereqIndex: session.prereqIndex || 0,
+        guidedIndex: session.guidedIndex || 0,
+        exampleStep: session.exampleStep || 0,
+        hintShown: !!session.hintShown,
+        exitDone: !!session.exitDone,
       })
     );
   } catch (_) {
@@ -565,7 +570,12 @@ function createTutorSession(subject, skillId, learnerId, stageNum) {
     skillId,
     learnerId,
     stage,
-    phase: "teach", // teach | example | practice | complete
+    phase: "teach", // teach | example | practice | complete (mini: goal|prereq|guided|exit)
+    prereqIndex: 0,
+    guidedIndex: 0,
+    exampleStep: 0,
+    hintShown: false,
+    exitDone: false,
     /** One queue — wrong answers may INSERT extra help Qs after current, never reset to 0 */
     queue,
     extendedHarder: 0,
@@ -584,6 +594,9 @@ function createTutorSession(subject, skillId, learnerId, stageNum) {
     startedAt: Date.now(),
     finished: false,
   };
+  if (typeof getMiniLesson === "function" && getMiniLesson(subject, skillId, stage)) {
+    session.phase = "goal";
+  }
   // Resume mid-quiz if the screen remounted (this was sending kids back to Q1)
   if (typeof sessionStorage !== "undefined") {
     try {
@@ -612,6 +625,11 @@ function createTutorSession(subject, skillId, learnerId, stageNum) {
           if (Array.isArray(saved.queue) && saved.queue.length) session.queue = saved.queue;
           if (Array.isArray(saved.history)) session.history = saved.history;
           if (saved.startedAt) session.startedAt = saved.startedAt;
+          if (typeof saved.prereqIndex === "number") session.prereqIndex = saved.prereqIndex;
+          if (typeof saved.guidedIndex === "number") session.guidedIndex = saved.guidedIndex;
+          if (typeof saved.exampleStep === "number") session.exampleStep = saved.exampleStep;
+          session.hintShown = !!saved.hintShown;
+          session.exitDone = !!saved.exitDone;
         }
       }
     } catch (_) {
@@ -642,6 +660,11 @@ function currentPracticeList(session) {
 }
 
 function sessionProgress(session) {
+  if (typeof getMiniLesson === "function" && typeof miniLessonProgress === "function") {
+    const mini = getMiniLesson(session.subject, session.skillId, session.stage);
+    const miniProg = mini ? miniLessonProgress(session, mini) : null;
+    if (miniProg) return miniProg;
+  }
   if (session.phase === "teach") return { label: "Learn", pct: 8 };
   if (session.phase === "example") return { label: "Example", pct: 18 };
   if (session.phase === "complete" || session.finished)
@@ -1058,6 +1081,17 @@ function advanceAfterAnswer(session, wasCorrect) {
       session.phase = "practice";
       session.finished = false;
       return { done: false, leveledUp: true };
+    }
+    if (
+      typeof getMiniLesson === "function" &&
+      !session.exitDone
+    ) {
+      const mini = getMiniLesson(session.subject, session.skillId, session.stage);
+      if (mini && mini.exit) {
+        session.phase = "exit";
+        session.finished = false;
+        return { done: false };
+      }
     }
     session.phase = "complete";
     session.finished = true;

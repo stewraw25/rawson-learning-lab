@@ -192,7 +192,7 @@ function updateLiveTimePill() {
 }
 
 /**
- * Honest Zero → A* climb. Never uses placement/quiz % as “finished”.
+ * Honest climb from first steps through GCSE. Never uses placement/quiz % as “finished”.
  * One bar per core subject = share of the six-level path, not a 100% skill score.
  */
 function climbNextFor(profile, subject) {
@@ -281,13 +281,13 @@ function progressGraphsHtml(profile, opts) {
         const label = (meta && meta.name) || "Level " + n;
         return `<span class="${cls}" title="${escapeHtml(
           why ? label + " — " + why : label
-        )}">${n === 6 ? "A*" : n}</span>`;
+        )}">${n === 6 ? "8–9" : n}</span>`;
       }).join("");
       const where = !s.started
         ? "Not started — still at the bottom"
         : s.stageNum >= MAX_COURSE_STAGE && s.stagePct >= 100
-          ? "A* path complete — revise to stay sharp"
-          : `Level ${s.stageNum} of ${MAX_COURSE_STAGE} · ${s.stageName} · ${climbPct}% of the way to A*`;
+          ? "Pathway complete — revise to stay sharp"
+          : `Level ${s.stageNum} of ${MAX_COURSE_STAGE} · ${s.stageName} · ${climbPct}% of the pathway`;
       return `
         <article class="climb-row" data-subject="${sub}">
           <div class="climb-row-head">
@@ -310,17 +310,17 @@ function progressGraphsHtml(profile, opts) {
   return `
     <div class="card progress-graphs-card climb-card mb-2">
       <h3 style="margin:0 0 0.25rem;font-family:var(--display)">${
-        kidMode ? "⛰️ Your climb to A*" : "Path to A* (honest progress)"
+        kidMode ? "⛰️ Your climb, working towards grades 8–9" : "Pathway progress (honest, no promised grade)"
       }</h3>
       <p class="muted" style="margin:0 0 0.85rem;font-size:0.9rem">
         ${
           kidMode
-            ? "First steps is the bottom rung — a small slice of the climb. GCSE A* is at the top and takes every level after that."
-            : "Bars are weighted toward GCSE Core, Higher and A*. Finishing First steps is only about 5% of the climb, not a third of A*."
+            ? "First steps is the bottom rung — a small slice of the climb. The grades 8–9 stretch is at the top and takes every level after that. No grade is promised."
+            : "Bars are weighted toward GCSE Core, Higher and the grades 8–9 stretch. Finishing First steps is only about 5% of the climb, not a third of the pathway."
         }
       </p>
       <div class="climb-list">${rows}</div>
-      <p class="muted climb-legend">1 First steps · 2 Intermediate · 3 Secure · 4 GCSE Core · 5 Higher · A*</p>
+      <p class="muted climb-legend">1 First steps · 2 Intermediate · 3 Secure · 4 GCSE Core · 5 Higher · 8–9 stretch</p>
     </div>`;
 }
 
@@ -1530,7 +1530,7 @@ function renderHome() {
         <img class="hero-logo" src="assets/logo.svg" width="96" height="96" alt="Rawson Learning Lab" />
         <p class="home-kicker">Rawson Learning Lab</p>
         <h2>Homeschooling with <span class="sparkle">AI tutors</span> — so learning fits around life</h2>
-        <p class="lead">Personal paths for <strong>Bella-Rose</strong> &amp; <strong>George</strong> · English, Maths &amp; Science · GCSE → A*</p>
+        <p class="lead">Personal paths for <strong>Bella-Rose</strong> &amp; <strong>George</strong> · English, Maths &amp; Science · working towards grades 8–9</p>
         <div class="home-hero-cta">
           <button class="btn btn-primary btn-lg btn-bella" type="button" data-pick="bella">Bella-Rose 🌸</button>
           <button class="btn btn-secondary btn-lg" type="button" data-pick="george">George 🍃</button>
@@ -1572,8 +1572,8 @@ function renderHome() {
         </article>
         <article class="card home-feature">
           <img src="${illustFor("pathway","george").src}" alt="" />
-          <h3>Path to GCSE A*</h3>
-          <p class="muted">Six stages: F → I → S → C → H → A*. Finish every lesson in a level to unlock the next.</p>
+          <h3>Working towards grades 8–9</h3>
+          <p class="muted">Six stages: F → I → S → C → H → 8–9 stretch. Finish every lesson in a level to unlock the next. No grade is promised.</p>
         </article>
       </div>
     </section>
@@ -2143,7 +2143,7 @@ function subjectDashCard(subject) {
   let next = null;
   let status = "Placement test ready";
   try {
-    // Bar is lessons finished on THIS level. The A* climb weights First steps
+    // Bar is lessons finished on THIS level. The pathway climb weights First steps
     // at about 5%, so a full level used to draw as an empty bar.
     const summary = subjectProgressSummary(p, subject);
     levelPct = summary && summary.started ? summary.stagePct : 0;
@@ -2269,7 +2269,7 @@ function examPacksCardHtml(subject, p, activeStage) {
       <img src="${illustFor("exam").src}" alt="${escapeHtml(illustFor("exam").alt)}" class="exam-art" />
       <div>
         <h3 style="margin-top:0">3. Exam &amp; revision</h3>
-        <p class="muted" style="margin:0">Practice with feedback, or timed mocks like a real paper. Unlock packs as you climb GCSE Core → Higher → A*.</p>
+        <p class="muted" style="margin:0">Practice with feedback, or timed mocks like a real paper. Unlock packs as you climb GCSE Core → Higher → grades 8–9 stretch.</p>
       </div>
     </div>
     <div class="course-list mt-1">${rows}</div>
@@ -2653,7 +2653,7 @@ function renderExamResult({
   );
 }
 
-/** Visual map of the 6-stage GCSE → A* pathway */
+/** Visual map of the 6-stage pathway, working towards grades 8–9 */
 function pathwayMapHtml(p) {
   const stages = [];
   for (let s = 1; s <= MAX_COURSE_STAGE; s++) stages.push(COURSE_STAGES[s]);
@@ -2841,7 +2841,7 @@ function renderSubject({ subject }) {
       <div class="card level-complete-card next-step-done mb-2">
         <p class="level-complete-kicker">Progress bar full · 100%</p>
         <div class="level-complete-badge">⭐</div>
-        <h2 class="level-complete-title" style="font-size:clamp(1.6rem,4vw,2.2rem)">A* path complete!</h2>
+        <h2 class="level-complete-title" style="font-size:clamp(1.6rem,4vw,2.2rem)">Pathway complete — keep practising</h2>
         <p class="level-complete-msg">${S.name} mastery finished — revise, or blitz a Power 5.</p>
         <button class="btn btn-primary btn-xl level-complete-cta" type="button" id="btnSubjectPower5">
           ⚡ Power 5 ${S.name} →
@@ -3088,7 +3088,7 @@ function renderSubject({ subject }) {
       subject !== "f1" &&
       subject !== "horseworld"
         ? `<details class="card mb-2 more-options" open><summary>${
-            isFunSubject(subject) ? "Rounds" : "Levels (Foundation → A*)"
+            isFunSubject(subject) ? "Rounds" : "Levels (First steps → 8–9 stretch)"
           }</summary><div class="more-options-body">${stageChips}</div></details>`
         : ""
     }
@@ -3550,7 +3550,7 @@ function renderDiagnosticResult({ subject, result }) {
     <div class="card mb-2">
       <h3 style="margin-top:0;font-family:var(--display)">How this placement went</h3>
       <div class="skill-bars">${skillHtml}</div>
-      <p class="muted mt-1" style="font-size:0.85rem">This is today’s quiz, not the whole GCSE. 100% here does not mean A* — the climb still starts at the bottom.</p>
+      <p class="muted mt-1" style="font-size:0.85rem">This is today’s quiz, not the whole GCSE. 100% here is not a grade 8 or 9 — the climb still starts at the bottom, and no grade is promised.</p>
     </div>
     <button class="btn btn-primary btn-lg btn-block" type="button" id="toCourse">See my personalised ${
       S.name
@@ -3679,7 +3679,22 @@ function renderLesson({ subject, skillId, stage }) {
   }
   liveLesson = { key: liveKey, session, paint: null };
 
+  const mini =
+    typeof getMiniLesson === "function"
+      ? getMiniLesson(subject, skillId, stageNum)
+      : null;
+
   function lessonQuestionText() {
+    if (mini) {
+      if (session.phase === "goal") return mini.goal || "";
+      if (session.phase === "teach") return mini.title || mod.title || "";
+      if (session.phase === "example") return (mini.example && mini.example.title) || "";
+      const mq =
+        typeof currentMiniQuestion === "function"
+          ? currentMiniQuestion(session, mini)
+          : null;
+      if (mq) return mq.q || "";
+    }
     if (session.phase === "teach") return mod.title || "";
     if (session.phase === "example") return (mod.example && mod.example.title) || "";
     const list = currentPracticeList(session);
@@ -3692,6 +3707,46 @@ function renderLesson({ subject, skillId, stage }) {
       clearTimeout(window.__autoNextTimer);
       window.__autoNextTimer = null;
     }
+    if (mini && typeof miniLessonNextPhase === "function") {
+      if (typeof stopSpeaking === "function") stopSpeaking();
+      if (session.phase === "prereq" || session.phase === "guided" || session.phase === "exit") {
+        if (revealed) {
+          const advBtn = document.getElementById("btnAdvance");
+          if (advBtn) {
+            advBtn.click();
+            return;
+          }
+        }
+        advanceMiniQuestion();
+        return;
+      }
+      if (session.phase === "example") {
+        const steps = (mini.example && mini.example.steps) || [];
+        if ((Number(session.exampleStep) || 0) < steps.length - 1) {
+          session.exampleStep = (Number(session.exampleStep) || 0) + 1;
+          if (typeof persistQuizSession === "function") persistQuizSession(session);
+          paint();
+          return;
+        }
+      }
+      if (session.phase === "practice") {
+        /* fall through to the usual practice skip */
+      } else {
+        const next = miniLessonNextPhase(mini, session.phase);
+        if (next === "complete") {
+          finishSession();
+          return;
+        }
+        session.phase = next;
+        if (next === "practice" && session.practiceIndex == null) session.practiceIndex = 0;
+        answerVal = null;
+        revealed = false;
+        session.hintShown = false;
+        if (typeof persistQuizSession === "function") persistQuizSession(session);
+        paint();
+        return;
+      }
+    }
     if (session.phase === "teach") {
       if (typeof stopSpeaking === "function") stopSpeaking();
       session.phase = "example";
@@ -3700,7 +3755,7 @@ function renderLesson({ subject, skillId, stage }) {
       return;
     }
     if (session.phase === "example") {
-      session.phase = "practice";
+      session.phase = mini && mini.guided && mini.guided.length ? "guided" : "practice";
       if (session.practiceIndex == null) session.practiceIndex = 0;
       answerVal = null;
       revealed = false;
@@ -3723,9 +3778,58 @@ function renderLesson({ subject, skillId, stage }) {
     answerVal = null;
     revealed = false;
     if (!currentPracticeList(session)[session.practiceIndex]) {
+      if (mini && mini.exit && !session.exitDone) {
+        session.phase = "exit";
+        answerVal = null;
+        revealed = false;
+        if (typeof persistQuizSession === "function") persistQuizSession(session);
+        paint();
+        return;
+      }
       finishSession();
       return;
     }
+    if (typeof persistQuizSession === "function") persistQuizSession(session);
+    paint();
+  }
+
+  function goMiniPhase(next) {
+    if (typeof stopSpeaking === "function") stopSpeaking();
+    if (next === "complete") {
+      finishSession();
+      return;
+    }
+    session.phase = next;
+    if (next === "practice" && (session.practiceIndex == null)) session.practiceIndex = 0;
+    answerVal = null;
+    revealed = false;
+    session.hintShown = false;
+    if (typeof persistQuizSession === "function") persistQuizSession(session);
+    paint();
+  }
+
+  function advanceMiniQuestion() {
+    if (!mini) return;
+    if (session.phase === "prereq") {
+      session.prereqIndex = (Number(session.prereqIndex) || 0) + 1;
+      if (session.prereqIndex >= (mini.prereq || []).length) {
+        goMiniPhase("teach");
+        return;
+      }
+    } else if (session.phase === "guided") {
+      session.guidedIndex = (Number(session.guidedIndex) || 0) + 1;
+      if (session.guidedIndex >= (mini.guided || []).length) {
+        goMiniPhase("practice");
+        return;
+      }
+    } else if (session.phase === "exit") {
+      session.exitDone = true;
+      goMiniPhase("complete");
+      return;
+    }
+    answerVal = null;
+    revealed = false;
+    session.hintShown = false;
     if (typeof persistQuizSession === "function") persistQuizSession(session);
     paint();
   }
@@ -3749,7 +3853,20 @@ function renderLesson({ subject, skillId, stage }) {
         : "";
     let bodyHtml = "";
 
-    if (session.phase === "teach") {
+    if (
+      mini &&
+      typeof miniLessonBodyHtml === "function" &&
+      ["goal", "prereq", "teach", "example", "guided", "exit"].indexOf(session.phase) !== -1
+    ) {
+      bodyHtml = miniLessonBodyHtml({
+        mini,
+        session,
+        stageName: stageMeta.name,
+        isRevise,
+        escapeHtml,
+        speakEnabled: typeof getVoicePrefs === "function" && getVoicePrefs().enabled,
+      });
+    } else if (session.phase === "teach") {
       bodyHtml = `
         <div class="phase-pill">📖 Teach · ${escapeHtml(stageMeta.name)}${
         isRevise ? " · revise" : ""
@@ -3906,11 +4023,19 @@ function renderLesson({ subject, skillId, stage }) {
       lesson: mod.title,
       stage: stageMeta.name,
       screen:
-        session.phase === "teach"
-          ? "Teach"
-          : session.phase === "example"
-            ? "Example"
-            : "Question",
+        session.phase === "goal"
+          ? "Goal"
+          : session.phase === "prereq"
+            ? "Ready check"
+            : session.phase === "teach"
+              ? "Teach"
+              : session.phase === "example"
+                ? "Example"
+                : session.phase === "guided"
+                  ? "Guided practice"
+                  : session.phase === "exit"
+                    ? "End check"
+                    : "Question",
       question: lessonQuestionText(),
       onSkip: skipLessonStep,
     });
@@ -3947,7 +4072,23 @@ function renderLesson({ subject, skillId, stage }) {
       };
     }
 
-    if (adv && session.phase === "teach") {
+    if (mini && adv && session.phase === "goal") {
+      adv.onclick = () =>
+        goMiniPhase(mini.prereq && mini.prereq.length ? "prereq" : "teach");
+    } else if (mini && adv && session.phase === "teach") {
+      adv.onclick = () => goMiniPhase("example");
+    } else if (mini && adv && session.phase === "example") {
+      adv.onclick = () => {
+        const steps = (mini.example && mini.example.steps) || [];
+        if ((Number(session.exampleStep) || 0) < steps.length - 1) {
+          session.exampleStep = (Number(session.exampleStep) || 0) + 1;
+          if (typeof persistQuizSession === "function") persistQuizSession(session);
+          paint();
+          return;
+        }
+        goMiniPhase(mini.guided && mini.guided.length ? "guided" : "practice");
+      };
+    } else if (adv && session.phase === "teach") {
       adv.onclick = () => {
         if (typeof stopSpeaking === "function") stopSpeaking();
         session.phase = "example";
@@ -3963,6 +4104,10 @@ function renderLesson({ subject, skillId, stage }) {
         if (typeof persistQuizSession === "function") persistQuizSession(session);
         paint();
       };
+    }
+
+    if (mini && (session.phase === "prereq" || session.phase === "guided" || session.phase === "exit")) {
+      wireMiniQuestion();
     }
 
     if (journeyHold) {
@@ -4008,6 +4153,153 @@ function renderLesson({ subject, skillId, stage }) {
 
     if (session.phase === "practice" && !journeyHold && !coreHold) {
       wirePracticeQuestion();
+    }
+  }
+
+  function wireMiniQuestion() {
+    const q = currentMiniQuestion(session, mini);
+    const body = document.getElementById("qBody");
+    if (!body || !q) return;
+    answerVal = null;
+    revealed = false;
+    if (session._keyHandler) {
+      window.removeEventListener("keydown", session._keyHandler);
+      session._keyHandler = null;
+    }
+    const doCheck = () => document.getElementById("btnCheck")?.click();
+    if (q.type === "multi") {
+      body.innerHTML = `<div class="options">${q.options
+        .map(
+          (opt, i) =>
+            `<button type="button" class="option" data-i="${i}"><span class="opt-key">${
+              i + 1
+            }</span> ${escapeHtml(opt)}</button>`
+        )
+        .join("")}</div>`;
+      body.querySelectorAll(".option").forEach((btn) => {
+        btn.onclick = () => {
+          if (revealed) return;
+          const already = btn.classList.contains("selected");
+          body.querySelectorAll(".option").forEach((b) => b.classList.remove("selected"));
+          btn.classList.add("selected");
+          answerVal = Number(btn.dataset.i);
+          if (already) doCheck();
+        };
+      });
+      session._keyHandler = (e) => {
+        if (revealed) return;
+        if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+        const n = Number(e.key);
+        if (n >= 1 && n <= (q.options?.length || 0)) {
+          const btn = body.querySelector(`.option[data-i="${n - 1}"]`);
+          if (btn) btn.click();
+        }
+        if (e.key === "Enter") doCheck();
+      };
+      window.addEventListener("keydown", session._keyHandler);
+    } else {
+      body.innerHTML = `<input class="input-answer" id="typedAns" placeholder="Type your answer…" autocomplete="off" />`;
+      const input = document.getElementById("typedAns");
+      input.focus();
+      input.oninput = () => {
+        answerVal = input.value;
+      };
+      input.onkeydown = (e) => {
+        if (e.key === "Enter") doCheck();
+      };
+    }
+
+    const hintBtn = document.getElementById("btnMiniHint");
+    if (hintBtn) {
+      hintBtn.onclick = () => {
+        session.hintShown = true;
+        if (typeof persistQuizSession === "function") persistQuizSession(session);
+        paint();
+      };
+    }
+
+    const checkBtn = document.getElementById("btnCheck");
+    if (checkBtn) {
+      checkBtn.onclick = () => {
+        if (revealed) return;
+        if (answerVal === null || answerVal === "") {
+          nudgePickAnswer();
+          return;
+        }
+        revealed = true;
+        if (session._keyHandler) {
+          window.removeEventListener("keydown", session._keyHandler);
+          session._keyHandler = null;
+        }
+        const ok = checkAnswer(q, answerVal);
+        if (session.phase === "guided" || session.phase === "exit") {
+          handlePracticeAnswer(session, q, answerVal);
+        }
+        const fb = document.getElementById("feedback");
+        if (fb) {
+          fb.className = `feedback ${ok ? "good" : "bad"}`;
+          fb.innerHTML = ok
+            ? `✓ Nice! ${escapeHtml(q.explain || "Correct!")}`
+            : `Not quite. ${escapeHtml(q.explain || "Read the tip, then press Next.")}`;
+        }
+        if (q.type === "multi") {
+          body.querySelectorAll(".option").forEach((btn) => {
+            const i = Number(btn.dataset.i);
+            if (i === q.answer) btn.classList.add("correct");
+            if (i === answerVal && !ok) btn.classList.add("wrong");
+            btn.disabled = true;
+          });
+        }
+        const advBtn = document.getElementById("btnAdvance");
+        if (advBtn) {
+          const lastPrereq =
+            session.phase === "prereq" &&
+            (Number(session.prereqIndex) || 0) >= (mini.prereq || []).length - 1;
+          const lastGuided =
+            session.phase === "guided" &&
+            (Number(session.guidedIndex) || 0) >= (mini.guided || []).length - 1;
+          advBtn.style.display = "inline-flex";
+          advBtn.textContent =
+            session.phase === "exit"
+              ? "Finish lesson →"
+              : lastPrereq
+                ? "Show the lesson →"
+                : lastGuided
+                  ? "I'm ready to practise →"
+                  : "Next →";
+          advBtn.onclick = () => advanceMiniQuestion();
+          if (ok) scheduleAutoNext(advBtn);
+          else advBtn.focus();
+        }
+        if (!ok && session.phase === "prereq" && mini.bridge) {
+          const box = document.getElementById("miniBridge");
+          if (box) {
+            box.innerHTML = `
+              <div class="mini-bridge">
+                <p>This idea builds on <strong>${escapeHtml(mini.bridge.label)}</strong>. ${escapeHtml(
+              mini.bridge.reason || ""
+            )} You can try that lesson first, or carry on and I'll explain.</p>
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                  <button class="btn btn-secondary" type="button" id="btnMiniBridge">Try ${escapeHtml(
+                    mini.bridge.label
+                  )} first</button>
+                  <button class="btn btn-ghost" type="button" id="btnMiniContinue">Explain it anyway</button>
+                </div>
+              </div>`;
+            document.getElementById("btnMiniBridge").onclick = () => {
+              go("lesson", {
+                subject: mini.bridge.subject,
+                skillId: mini.bridge.skillId,
+                stage: mini.bridge.stage,
+              });
+            };
+            document.getElementById("btnMiniContinue").onclick = () => {
+              goMiniPhase("teach");
+            };
+          }
+        }
+        if (typeof persistQuizSession === "function") persistQuizSession(session);
+      };
     }
   }
 
@@ -4368,7 +4660,7 @@ function renderLesson({ subject, skillId, stage }) {
 
 /**
  * Big celebration when a stage/level bar hits 100%.
- * One clear button unlocks the next level (or sends them back if A* done).
+ * One clear button unlocks the next level (or sends them back if the pathway is done).
  */
 function renderLevelComplete({ subject, stage, skillId, scorePct }) {
   if (!state.activeLearner || !SUBJECTS[subject]) return go("dashboard");
@@ -4444,7 +4736,7 @@ function renderLevelComplete({ subject, stage, skillId, scorePct }) {
                  nextMeta.name
                )}.</p>`
             : `<button type="button" class="btn btn-primary btn-xl level-complete-cta" id="btnUnlockLevel">
-                 ⭐ A* path complete — back to ${escapeHtml(SUBJECTS[subject].name)} →
+                 ⭐ Pathway complete — back to ${escapeHtml(SUBJECTS[subject].name)} →
                </button>
                <p class="muted level-complete-hint">You can revise lessons or try Power 5 next</p>`
         }
@@ -4749,10 +5041,10 @@ function renderParent() {
     <div class="card mt-2">
       <h3 style="margin-top:0">Curriculum note</h3>
       <p class="muted" style="margin:0;line-height:1.55">
-        Full pathway: Foundation → Intermediate → Secure → GCSE Core → Higher → A* Mastery
+        Full pathway: First steps → Intermediate → Secure → GCSE Core → Higher → grades 8–9 stretch
         in Maths, English Language and Science (KS2 George · KS3 Bella-Rose entry points).
         Complements school / home education — not a substitute for past papers under timed exam conditions,
-        but designed to take them from current level to A* potential (grades 8–9).
+        but designed to take them from their current level through to GCSE, working towards grades 8–9. No grade is promised.
       </p>
     </div>
     ${siteFooter()}
@@ -4967,7 +5259,7 @@ function parentKid(id) {
             s.started ? barPct : 0,
             s.started && barPct === 0 ? 2 : 0
           )}%"></i></div>
-          <div class="parent-bar-label"><span>Path to A*</span><strong>${
+          <div class="parent-bar-label"><span>Whole pathway</span><strong>${
             s.started ? pathway + "%" : "—"
           }</strong></div>
           <div class="parent-progress-bar parent-progress-bar-path"><i style="width:${
@@ -5037,7 +5329,7 @@ function parentKid(id) {
           : ""
       }
       <h4 class="parent-subjects-title">Subjects &amp; levels</h4>
-      <p class="muted parent-subjects-legend">“This level” = lessons on their current stage. “Path to A*” is the whole climb — a high quiz score is not 100% of the course.</p>
+      <p class="muted parent-subjects-legend">“This level” = lessons on their current stage. “Whole pathway” is the whole climb — a high quiz score is not 100% of the course, and no grade is promised.</p>
       <div class="parent-subjects-grid">${subjectCards}</div>
     </div>`;
 }

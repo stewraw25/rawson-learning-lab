@@ -185,3 +185,31 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Mini-lesson pattern */
+.mini-kicker { margin: 0 0 0.35rem; font-size: 0.85rem; letter-spacing: 0.02em; }
+.mini-teach { font-size: 1.05rem; line-height: 1.55; max-width: 40rem; }
+.mini-teach p { margin: 0 0 0.85rem; }
+.mini-visual-wrap { margin: 0.75rem 0 1rem; }
+.mini-svg { width: 100%; max-width: 26rem; height: auto; color: var(--text, #e8f0e4); }
+.mini-mistake {
+  background: rgba(255, 209, 102, 0.1);
+  border-left: 4px solid #ffd166;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0 10px 10px 0;
+}
+.mini-hint {
+  background: rgba(91, 140, 255, 0.12);
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  line-height: 1.45;
+}
+.mini-bridge {
+  margin-top: 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: rgba(197, 225, 165, 0.08);
+  border: 1px solid rgba(197, 225, 165, 0.25);
+}
+.mini-bridge p { margin: 0 0 0.7rem; line-height: 1.45; }
+.mini-revisit { margin-top: 0.8rem; font-size: 0.95rem; line-height: 1.45; }
