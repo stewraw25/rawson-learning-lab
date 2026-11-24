@@ -542,6 +542,30 @@ function _pickRamp(sorted, level) {
   return [...plain.slice(0, Math.max(0, room)), ...weeks];
 }
 
+function miniLessonQuestionFps(subject, skillId, stage) {
+  const used = new Set();
+  if (typeof getMiniLesson !== "function") return used;
+  const mini = getMiniLesson(subject, skillId, stage);
+  if (!mini) return used;
+  const lists = [].concat(mini.prereq || [], mini.guided || []);
+  if (mini.exit) lists.push(mini.exit);
+  lists.forEach((q) => {
+    const fp = _qSeenFp(q);
+    if (fp) used.add(fp);
+  });
+  return used;
+}
+
+/** Practice must not repeat a question already used in the teach-along steps. */
+function excludeMiniLessonQuestions(queue, subject, skillId, stage) {
+  const used = miniLessonQuestionFps(subject, skillId, stage);
+  if (!used.size) return queue || [];
+  return (queue || []).filter((q) => {
+    const fp = _qSeenFp(q);
+    return fp && !used.has(fp);
+  });
+}
+
 function createTutorSession(subject, skillId, learnerId, stageNum) {
   const stage = Number(stageNum) || 1;
   const mod = getTeachModule(subject, skillId, stage, learnerId);
@@ -550,11 +574,12 @@ function createTutorSession(subject, skillId, learnerId, stageNum) {
     typeof state !== "undefined" && state.profiles && state.profiles[learnerId]
       ? state.profiles[learnerId]
       : null;
-  const queue = buildAdaptivePracticeQueue(mod, profile, subject, {
+  let queue = buildAdaptivePracticeQueue(mod, profile, subject, {
     skillId,
     stage,
     learnerId,
   });
+  queue = excludeMiniLessonQuestions(queue, subject, skillId, stage);
   const adaptLevel =
     profile && typeof effectiveAdaptLevel === "function"
       ? effectiveAdaptLevel(profile, subject, stage)
