@@ -32,6 +32,8 @@ const FILES = [
   "js/year-science.js",
   "js/mini-lessons.js",
   "js/maths-minis.js",
+  "js/english-minis.js",
+  "js/science-minis.js",
   "js/stage4-content.js",
   "js/stage5-content.js",
   "js/stage6-content.js",
@@ -951,6 +953,35 @@ function checkStage2PlacementAndVideos() {
       fail("maths number stage 1 should now have a full teach-pattern mini-lesson");
     }
     if (!built.teach.mistake) fail("maths minis should include a common-mistake note");
+    const en = getMiniLesson("english", "grammar", 1);
+    if (!en || !en.goal || !en.teach || !en.example || !en.guided || !en.exit) {
+      fail("english grammar stage 1 should now have a full teach-pattern mini-lesson");
+    }
+    if (!en.teach.mistake) fail("english minis should include a common-mistake note");
+    const sc = getMiniLesson("science", "biology", 1);
+    if (!sc || !sc.goal || !sc.teach || !sc.example || !sc.guided || !sc.exit) {
+      fail("science biology stage 1 should now have a full teach-pattern mini-lesson");
+    }
+    if (!sc.teach.mistake) fail("science minis should include a common-mistake note");
+    if (!getMiniLesson("english", "y-caps", 1) || !MINI_LESSONS["english:y-caps:1"]) {
+      fail("explicit english y-caps:1 mini must still win");
+    }
+    if (!getMiniLesson("science", "y-plants", 3) || !MINI_LESSONS["science:y-plants:3"]) {
+      fail("explicit science y-plants:3 mini must still win");
+    }
+  }
+  const enSess = createTutorSession("english", "grammar", "george", 1);
+  if (!enSess || enSess.phase !== "goal") {
+    fail("english lessons should now start on the teach-pattern goal, got " + (enSess && enSess.phase));
+  }
+  const scSess = createTutorSession("science", "biology", "george", 1);
+  if (!scSess || scSess.phase !== "goal") {
+    fail("science lessons should now start on the teach-pattern goal, got " + (scSess && scSess.phase));
+  }
+  if (typeof getVerifiedLessonVideo === "function") {
+    if (!getVerifiedLessonVideo("english", "y-caps", 1)) fail("english y-caps stage 1 should have a verified clip");
+    if (!getVerifiedLessonVideo("science", "y-plants", 1)) fail("science y-plants stage 1 should have a verified clip");
+    if (!getVerifiedLessonVideo("maths", "y-add", 1)) fail("existing Corbettmaths clips must still be mapped");
   }
 
   if (typeof VERIFIED_LESSON_VIDEOS === "undefined" || !VERIFIED_LESSON_VIDEOS.length) {
@@ -1008,6 +1039,8 @@ if (!indexSrc.includes("js/week5-content.js")) wiring.push("index.html does not 
 if (!indexSrc.includes("js/stage2.js")) wiring.push("index.html does not load stage2.js");
 if (!indexSrc.includes("js/lesson-videos.js")) wiring.push("index.html does not load lesson-videos.js");
 if (!indexSrc.includes("js/maths-minis.js")) wiring.push("index.html does not load maths-minis.js");
+if (!indexSrc.includes("js/english-minis.js")) wiring.push("index.html does not load english-minis.js");
+if (!indexSrc.includes("js/science-minis.js")) wiring.push("index.html does not load science-minis.js");
 if (appSrc.includes("the climb still starts at the bottom")) {
   wiring.push("placement result copy still says the climb starts at the bottom");
 }
