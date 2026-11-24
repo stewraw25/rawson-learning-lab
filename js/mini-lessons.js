@@ -375,8 +375,13 @@ function miniLessonNextPhase(mini, phase) {
 }
 
 function miniLessonVisualHtml(mini) {
-  if (!mini || !mini.teach || !mini.teach.visual) return "";
-  return MINI_SVG[mini.teach.visual] || "";
+  if (!mini || !mini.teach) return "";
+  if (mini.teach.visualHtml) return mini.teach.visualHtml;
+  if (!mini.teach.visual) return "";
+  if (MINI_SVG[mini.teach.visual]) return MINI_SVG[mini.teach.visual];
+  const raw = String(mini.teach.visual);
+  if (raw.trim().charAt(0) === "<") return raw;
+  return "";
 }
 
 function miniSpeakEnabled() {
@@ -469,6 +474,11 @@ function miniLessonBodyHtml(opts) {
             : ""
         }
       </div>
+      ${
+        typeof verifiedVideoPanelHtml === "function" && mini.video
+          ? verifiedVideoPanelHtml(mini.video, { skipButton: false })
+          : ""
+      }
       ${speak("#miniTeachText", "Hear this lesson")}
       <div class="mt-2" style="display:flex;gap:0.5rem;flex-wrap:wrap">
         <button class="btn btn-primary btn-lg" type="button" id="btnAdvance">Got it — show example →</button>

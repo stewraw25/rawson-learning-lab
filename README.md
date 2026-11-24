@@ -56,6 +56,9 @@ node scripts/check-lessons.js
 node scripts/check-clickthrough.js --serve . --out /tmp/clickthrough
 # Or against the live site:
 node scripts/check-clickthrough.js --base https://stewraw25.github.io/rawson-learning-lab/ --out /tmp/clickthrough
+
+Stage 2 (preview branch only until approved): placement that can set a starting level, a GCSE 9–1 ladder, spaced review, maths teach-pattern lessons, and official Corbettmaths clips. Storage key stays `rawson-learning-lab-v1`. Nothing in this preview should be merged until the wording has been checked.
+
 ```
 
 The click-through test answers every question for both children, in every subject, topic and stage. It checks that the next set loads, the screen does not go blank, buttons do not stick, questions do not repeat, and progress is saved under `rawson-learning-lab-v1`.

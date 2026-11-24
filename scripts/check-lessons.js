@@ -20,8 +20,10 @@ const ROOT = path.join(__dirname, "..");
 const FILES = [
   "js/curriculum.js",
   "js/engine.js",
+  "js/stage2.js",
   "js/sync.js",
   "js/teach-content.js",
+  "js/lesson-videos.js",
   "js/stage2-content.js",
   "js/stage3-content.js",
   "js/year-install.js",
@@ -29,6 +31,7 @@ const FILES = [
   "js/year-english.js",
   "js/year-science.js",
   "js/mini-lessons.js",
+  "js/maths-minis.js",
   "js/stage4-content.js",
   "js/stage5-content.js",
   "js/stage6-content.js",
@@ -636,8 +639,12 @@ function checkMiniLessonsAndProgressGuard() {
     }
   });
   const ordinary = createTutorSession("maths", "number", "george", 1);
-  if (!ordinary || ordinary.phase !== "teach") {
-    fail("ordinary lessons must still start on teach, not the mini-lesson goal");
+  if (!ordinary || ordinary.phase !== "goal") {
+    fail("maths lessons should now start on the teach-pattern goal, got " + (ordinary && ordinary.phase));
+  }
+  const funSess = createTutorSession("karting", "safety", "george", 1);
+  if (funSess && funSess.phase === "goal") {
+    fail("fun lessons must still start on teach, not the maths teach-pattern");
   }
 
   if (typeof STORAGE_KEY === "undefined" || STORAGE_KEY !== "rawson-learning-lab-v1") {
@@ -860,7 +867,14 @@ function checkClickthroughGuards() {
     fail("practice queues must drop questions already used in a mini-lesson");
     return;
   }
-  const keys = typeof MINI_LESSONS === "object" && MINI_LESSONS ? Object.keys(MINI_LESSONS) : [];
+  const keySet = {};
+  if (typeof MINI_LESSONS === "object" && MINI_LESSONS) {
+    Object.keys(MINI_LESSONS).forEach((k) => { keySet[k] = true; });
+  }
+  if (typeof MATHS_MINI_EXTRAS === "object" && MATHS_MINI_EXTRAS) {
+    Object.keys(MATHS_MINI_EXTRAS).forEach((k) => { keySet["maths:" + k] = true; });
+  }
+  const keys = Object.keys(keySet);
   keys.forEach((k) => {
     const parts = k.split(":");
     const subject = parts[0];
@@ -887,6 +901,74 @@ function checkClickthroughGuards() {
     });
   });
 }
+
+
+function checkStage2PlacementAndVideos() {
+  if (typeof applyPlacementStart !== "function" || typeof startAdaptivePlacement !== "function") {
+    fail("stage 2 placement helpers are missing");
+    return;
+  }
+  const fresh = defaultProfile("george");
+  const placed = applyPlacementStart(fresh, "maths", 3);
+  if (placed !== 3) fail("placement should return the capped start, got " + placed);
+  if (!fresh.courses || !fresh.courses.maths || Number(fresh.courses.maths.homeStage) !== 3) {
+    fail("a new subject should start at the placed stage");
+  }
+  if (Number(fresh.courses.maths.placedStage) !== 3) fail("placedStage should be stored on the course");
+  const over = applyPlacementStart(defaultProfile("george"), "maths", 6);
+  if (over !== 4) fail("placement must cap the start at stage 4, got " + over);
+
+  const rich = defaultProfile("bella");
+  rich.updatedAt = 2;
+  rich.xp = 80;
+  rich.lessonHistory = [
+    { subject: "maths", skillId: "y-place", stage: 3, score: 100, date: "2026-11-01" },
+  ];
+  rich.diagnostics.maths = { completed: true, score: 80, skillScores: { number: 80 } };
+  buildCourse(rich, "maths", 3);
+  recoverCompletionsFromHistory(rich, "maths");
+  const beforeHome = Number(rich.courses.maths.homeStage) || 3;
+  applyPlacementStart(rich, "maths", 1);
+  if (Number(rich.courses.maths.homeStage) !== beforeHome) {
+    fail("placement must not move a child with existing progress backwards");
+  }
+  const ticks = rich.courses.maths.stages[3] && rich.courses.maths.stages[3].completed;
+  if (!ticks || !ticks["y-place"]) fail("placement must not wipe existing lesson ticks");
+
+  if (typeof scheduleSpacedReview !== "function" || typeof reviewsDueFor !== "function") {
+    fail("spaced review helpers are missing");
+  } else {
+    const p = defaultProfile("george");
+    scheduleSpacedReview(p, "maths", "y-add", 1);
+    const item = p.spacedReview && p.spacedReview["maths:y-add:1"];
+    if (!item || !item.dueOn) fail("spaced review should store a due date");
+    if (item.dueOn <= item.lastCompletedOn) fail("first review should be due after the completion day");
+  }
+
+  if (typeof getMiniLesson === "function") {
+    const built = getMiniLesson("maths", "number", 1);
+    if (!built || !built.goal || !built.teach || !built.example || !built.guided || !built.exit) {
+      fail("maths number stage 1 should now have a full teach-pattern mini-lesson");
+    }
+    if (!built.teach.mistake) fail("maths minis should include a common-mistake note");
+  }
+
+  if (typeof VERIFIED_LESSON_VIDEOS === "undefined" || !VERIFIED_LESSON_VIDEOS.length) {
+    fail("verified lesson video catalog is missing");
+  } else {
+    VERIFIED_LESSON_VIDEOS.forEach((clip) => {
+      if (!clip.id || !/^[A-Za-z0-9_-]{11}$/.test(clip.id)) fail("video id looks invalid: " + (clip && clip.id));
+      if (!clip.embed || clip.embed.indexOf("youtube-nocookie.com/embed/" + clip.id) === -1) {
+        fail("video must use youtube-nocookie embed: " + clip.id);
+      }
+      if (!clip.url || clip.url.indexOf("watch?v=" + clip.id) === -1) fail("video missing fallback url: " + clip.id);
+      if (!clip.channel) fail("video missing channel: " + clip.id);
+      if (!clip.duration) fail("video missing duration: " + clip.id);
+    });
+  }
+}
+
+checkStage2PlacementAndVideos();
 
 checkClickthroughGuards();
 
@@ -923,6 +1005,12 @@ if (!indexSrc.includes("js/report-problem.js")) wiring.push("index.html does not
 if (!indexSrc.includes("js/week-content.js")) wiring.push("index.html does not load week-content.js");
 if (!indexSrc.includes("js/week4-content.js")) wiring.push("index.html does not load week4-content.js");
 if (!indexSrc.includes("js/week5-content.js")) wiring.push("index.html does not load week5-content.js");
+if (!indexSrc.includes("js/stage2.js")) wiring.push("index.html does not load stage2.js");
+if (!indexSrc.includes("js/lesson-videos.js")) wiring.push("index.html does not load lesson-videos.js");
+if (!indexSrc.includes("js/maths-minis.js")) wiring.push("index.html does not load maths-minis.js");
+if (appSrc.includes("the climb still starts at the bottom")) {
+  wiring.push("placement result copy still says the climb starts at the bottom");
+}
 if (appSrc.includes("github.io/rawson-learning-lab/?v=18")) {
   wiring.push("a crash button still sends the browser to the live site");
 }
