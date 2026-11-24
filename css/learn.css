@@ -213,3 +213,29 @@
 }
 .mini-bridge p { margin: 0 0 0.7rem; line-height: 1.45; }
 .mini-revisit { margin-top: 0.8rem; font-size: 0.95rem; line-height: 1.45; }
+
+/* Stage 2: GCSE ladder, review, video fallback */
+.ladder-panel, .review-panel {
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.7);
+  border: 1px solid rgba(25, 55, 40, 0.08);
+}
+.ladder-panel h3, .review-panel h3 { margin: 0 0 0.4rem; }
+.ladder-list { margin: 0.6rem 0 0; padding: 0; list-style: none; }
+.ladder-row { padding: 0.65rem 0; border-top: 1px solid rgba(25, 55, 40, 0.08); }
+.ladder-row:first-child { border-top: 0; }
+.ladder-row p { margin: 0.2rem 0 0; }
+.ladder-band { display: inline-block; margin-left: 0.35rem; font-size: 0.85rem; color: #3d5a45; }
+.ladder-mark { display: inline-block; margin-left: 0.4rem; font-size: 0.8rem; padding: 0.1rem 0.45rem; border-radius: 999px; background: #e8f3dc; color: #1f3d28; }
+.ladder-row.is-here { background: rgba(197, 225, 165, 0.28); margin: 0 -0.6rem; padding-left: 0.6rem; padding-right: 0.6rem; border-radius: 10px; }
+.ladder-row.is-done .ladder-mark { background: #d5ecd0; }
+.ladder-row.is-locked { opacity: 0.72; }
+.review-due { border-color: rgba(196, 140, 60, 0.35); background: rgba(255, 244, 220, 0.55); }
+.review-list { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+.review-list li { margin: 0.25rem 0; }
+.clip-fallback { margin: 0.45rem 0 0; font-size: 0.9rem; }
+.clip-kicker { margin: 0 0 0.5rem; font-size: 0.86rem; letter-spacing: 0.02em; text-transform: uppercase; color: #3d5a45; }
+.clip-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #111; border-radius: 12px; overflow: hidden; }
+.clip-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }

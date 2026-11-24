@@ -3066,6 +3066,13 @@ function renderSubject({ subject }) {
     }
     ${linkedCourseHtml(subject)}
     ${nextStepHtml}
+    ${typeof reviewPanelHtml === "function" ? reviewPanelHtml(p, subject) : ""}
+    ${
+      typeof gcseLadderHtml === "function" &&
+      !(typeof isFunSubject === "function" ? isFunSubject(subject) : SUBJECTS[subject] && SUBJECTS[subject].fun)
+        ? gcseLadderHtml(p, subject)
+        : ""
+    }
     ${
       (subject === "karting" ||
         subject === "investing" ||
@@ -3246,11 +3253,26 @@ function renderDiagnostic({ subject }) {
     liveDiag.paint();
     return;
   }
+  const useAdaptive =
+    typeof startAdaptivePlacement === "function" &&
+    (subject === "maths" || subject === "english" || subject === "science");
+  let placer = null;
   let qs = [];
-  try {
-    qs = questionsForLearner(subject, state.activeLearner) || [];
-  } catch (e) {
-    console.warn("diagnostic questions", e);
+  if (useAdaptive) {
+    try {
+      placer = startAdaptivePlacement(subject, state.activeLearner);
+      if (placer && placer.current()) qs = [placer.current()];
+    } catch (e) {
+      console.warn("adaptive placement", e);
+      placer = null;
+    }
+  }
+  if (!qs.length) {
+    try {
+      qs = questionsForLearner(subject, state.activeLearner) || [];
+    } catch (e) {
+      console.warn("diagnostic questions", e);
+    }
   }
   if (!qs.length) {
     appEl.innerHTML =
@@ -3269,16 +3291,18 @@ function renderDiagnostic({ subject }) {
   let index = 0;
   let revealed = false;
   const diagStore = `rawson-live-diag-v1:${diagKey}`;
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(diagStore) || "null");
-    if (saved && typeof saved.index === "number" && saved.index >= 0) {
-      index = saved.index;
-      if (saved.answers && typeof saved.answers === "object") {
-        Object.assign(answers, saved.answers);
+  if (!placer) {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(diagStore) || "null");
+      if (saved && typeof saved.index === "number" && saved.index >= 0) {
+        index = saved.index;
+        if (saved.answers && typeof saved.answers === "object") {
+          Object.assign(answers, saved.answers);
+        }
       }
+    } catch (_) {
+      /* ignore */
     }
-  } catch (_) {
-    /* ignore */
   }
   const persistDiag = () => {
     try {
@@ -3302,9 +3326,9 @@ function renderDiagnostic({ subject }) {
       <div class="quiz-header">
         <div>
           <div class="q-meta">${S.emoji} ${S.name} placement · Q${index + 1} of ${
-      qs.length
+      placer ? placer.target : qs.length
     }</div>
-          <strong>${escapeHtml(SKILLS[subject][q.skill].name)}</strong>
+          <strong>${escapeHtml((SKILLS[subject] && SKILLS[subject][q.skill] && SKILLS[subject][q.skill].name) || q.skill || "Question")}</strong>
         </div>
         <div class="progress-track" style="max-width:200px"><span style="width:${pct}%"></span></div>
       </div>
@@ -3328,7 +3352,7 @@ function renderDiagnostic({ subject }) {
           ${idkButtonHtml()}
           <button class="btn btn-ok" type="button" id="btnNext" style="display:${
             revealed ? "inline-flex" : "none"
-          }">${index + 1 >= qs.length ? "See results" : "Next →"}</button>
+          }">${(placer ? placer.done() : index + 1 >= qs.length) ? "See results" : "Next →"}</button>
         </div>
         ${reportButtonHtml()}
       </div>
@@ -3345,7 +3369,19 @@ function renderDiagnostic({ subject }) {
           return;
         }
         answers[q.id] = "__skip__";
-        if (index + 1 >= qs.length) finish();
+        if (placer) {
+          placer.record(false);
+          if (typeof placer.storeAnswer === "function") placer.storeAnswer({ id: q.id, skill: q.skill, ok: false });
+          const nxt = placer.done() ? null : placer.next();
+          if (!nxt) finish();
+          else {
+            qs.push(nxt);
+            index++;
+            revealed = false;
+            persistDiag();
+            paint();
+          }
+        } else if (index + 1 >= qs.length) finish();
         else {
           index++;
           revealed = false;
@@ -3407,6 +3443,12 @@ function renderDiagnostic({ subject }) {
 
     function revealDiag(ok, fromIdk) {
       revealed = true;
+      if (placer && typeof placer.record === "function") {
+        placer.record(!!ok && !fromIdk);
+        if (typeof placer.storeAnswer === "function") {
+          placer.storeAnswer({ id: q.id, skill: q.skill, ok: !!ok && !fromIdk });
+        }
+      }
       if (window.__diagKeyHandler) {
         window.removeEventListener("keydown", window.__diagKeyHandler);
         window.__diagKeyHandler = null;
@@ -3485,7 +3527,17 @@ function renderDiagnostic({ subject }) {
         window.removeEventListener("keydown", window.__diagKeyHandler);
         window.__diagKeyHandler = null;
       }
-      if (index + 1 >= qs.length) {
+      if (placer) {
+        const nxt = placer.done() ? null : placer.next();
+        if (!nxt) finish();
+        else {
+          qs.push(nxt);
+          index++;
+          revealed = false;
+          persistDiag();
+          paint();
+        }
+      } else if (index + 1 >= qs.length) {
         finish();
       } else {
         index++;
@@ -3506,7 +3558,9 @@ function renderDiagnostic({ subject }) {
     } catch (_) {
       /* ignore */
     }
-    const result = scoreDiagnostic(subject, state.activeLearner, answers);
+    const result = placer && typeof placer.finish === "function"
+      ? placer.finish()
+      : scoreDiagnostic(subject, state.activeLearner, answers);
     recordDiagnostic(profile(), subject, answers, result);
     try {
       await save({ quiet: false }); // toast: Progress saved ✓
@@ -3552,7 +3606,18 @@ function renderDiagnosticResult({ subject, result }) {
     <div class="card mb-2">
       <h3 style="margin-top:0;font-family:var(--display)">How this placement went</h3>
       <div class="skill-bars">${skillHtml}</div>
-      <p class="muted mt-1" style="font-size:0.85rem">This is today’s quiz, not the whole GCSE. 100% here is not a grade 8 or 9 — the climb still starts at the bottom, and no grade is promised.</p>
+      <p class="muted mt-1" style="font-size:0.85rem">${
+        result.placedStage
+          ? "This is today’s quiz, not the whole GCSE, and no grade is promised. " +
+            (typeof subjectHasLessonProgress === "function" && subjectHasLessonProgress(profile(), subject)
+              ? "You already have work in this subject, so your starting point stays where it is. The test suggested stage " +
+                result.placedStage +
+                " for anyone starting fresh."
+              : "If this is a new subject for you, the course can start at stage " +
+                result.placedStage +
+                " of 6. A placement never starts higher than stage 4 (GCSE Core).")
+          : "This is today’s quiz, not the whole GCSE. 100% here is not a grade 8 or 9, and no grade is promised."
+      }</p>
     </div>
     <button class="btn btn-primary btn-lg btn-block" type="button" id="toCourse">See my personalised ${
       S.name
@@ -3563,16 +3628,19 @@ function renderDiagnosticResult({ subject, result }) {
 }
 
 /** Teach-screen only. Never used on practice questions. */
-function teachClipPanelHtml(mod, skipped) {
+function teachClipPanelHtml(mod, skipped, subject, skillId, stage) {
   if (skipped) return "";
-  const vid = typeof getVideoForModule === "function" ? getVideoForModule(mod) : null;
+  const vid = typeof getVideoForModule === "function" ? getVideoForModule(mod, subject, skillId, stage) : (typeof getVerifiedLessonVideo === "function" ? getVerifiedLessonVideo(subject, skillId, stage) : null);
   if (!vid) return "";
   const title = escapeHtml(vid.title || "Watch a clip");
   let media = "";
   if (vid.embed) {
     media = `<div class="clip-frame"><iframe src="${escapeHtml(
       vid.embed
-    )}" title="${title}" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+    )}" title="${title}" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>` +
+      (vid.url
+        ? `<p class="clip-fallback muted"><a href="${escapeHtml(vid.url)}" target="_blank" rel="noopener noreferrer">Open “${title}” on YouTube (new tab)</a></p>`
+        : "");
   } else if (vid.url) {
     media = `<p class="muted" style="margin:0 0 0.65rem">${title}</p>
       <a class="btn btn-secondary" href="${escapeHtml(
@@ -3901,7 +3969,7 @@ function renderLesson({ subject, skillId, stage }) {
         <h3 class="teach-heading">${escapeHtml(mod.title)}</h3>
         <p class="muted">${escapeHtml(mod.blurb)}</p>
         ${mod.teach.visual ? `<div class="visual-wrap">${mod.teach.visual}</div>` : ""}
-        ${teachClipPanelHtml(mod, clipSkippedThisLesson)}
+        ${teachClipPanelHtml(mod, clipSkippedThisLesson, subject, skillId, stageNum)}
         <ul class="teach-points" id="teachPointsList">
           ${mod.teach.points.map((pt) => `<li>${escapeHtml(pt)}</li>`).join("")}
         </ul>
