@@ -33,7 +33,7 @@ function stageLegendHtml() {
     .join("");
   return `
     <div class="card stage-legend-card mb-2">
-      <h3 style="margin:0 0 0.5rem;font-family:var(--display)">What F · I · S · C · H · A* mean</h3>
+      <h3 style="margin:0 0 0.5rem;font-family:var(--display)">What F · I · S · C · H · 8–9 mean</h3>
       <p class="muted" style="margin:0 0 0.65rem;font-size:0.88rem">
         These are your levels. Finish every lesson in a level to unlock the next one.
       </p>
@@ -157,7 +157,7 @@ const COACH_FACTS = [
   "Algebra is just a puzzle with a secret code. Crack one, and the next feels easier.",
   "Scientists fail experiments on purpose to learn. Wrong answers are data, not drama.",
   "Reading a question twice is a superpower — many mistakes vanish on the second look.",
-  "Your pathway has six levels up to A*. Every lesson is a step up the mountain.",
+  "Your pathway has six levels, working towards grades 8–9. Every lesson is a step up the mountain. No grade is promised.",
   "Streaks beat cramming: small daily practice beats one giant panic session.",
   "Even pro racing drivers study data after every lap. Checking mistakes is pro behaviour.",
   "If a topic feels hard, that means you’re at the edge of growth — perfect place to be.",
@@ -192,7 +192,7 @@ function buildCoachGreeting(profile, learnerMeta, nextAct) {
 
   if (m.visitCount <= 1) {
     parts.push(
-      `${hi}, ${name}! I’m ${coach} — your learning coach. I’ll remember where you left off and cheer you on to GCSE A*.`
+      `${hi}, ${name}! I’m ${coach} — your learning coach. I’ll remember where you left off and cheer you on, working towards grades 8–9.`
     );
   } else {
     const hours = m.lastSeenAt ? (Date.now() - m.lastSeenAt) / 3600000 : 99;
@@ -278,7 +278,7 @@ function localCoachReply(profile, learnerMeta, question, nextAct) {
     return `This week: ${m.weekDone}/${m.weeklyGoal} activities. This month: ${m.monthDone}/${m.monthlyGoal}. Small daily chunks beat giant weekend crams.`;
   }
   if (/f\b|i\b|stage|level|mean|letter|a\*/.test(q)) {
-    return `F Foundation → I Intermediate → S Secure → C GCSE Core → H Higher → A* Mastery. Finish every lesson in a level to unlock the next. There’s a table on your hub that explains each one.`;
+    return `F First steps → I Intermediate → S Secure → C GCSE Core → H Higher → 8–9 stretch. Finish every lesson in a level to unlock the next. There’s a table on your hub that explains each one.`;
   }
   if (/fraction|algebra|percent|angle|grammar|punctuation|cell|force|energy/.test(q)) {
     return `Good topic choice. Open the matching lesson in your course list (or Continue). In the lesson, use Teach → Example → Practice. If you miss one, the easier path kicks in. Ask me again with the exact question text if you want a walkthrough.`;
