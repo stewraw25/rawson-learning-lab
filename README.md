@@ -56,6 +56,9 @@ node scripts/check-lessons.js
 node scripts/check-clickthrough.js --serve . --out /tmp/clickthrough
 # Or against the live site:
 node scripts/check-clickthrough.js --base https://stewraw25.github.io/rawson-learning-lab/ --out /tmp/clickthrough
+# In-app Back, Previous question and right/wrong feedback, repeated across screens:
+node scripts/check-back-button.js --serve . --out /tmp/back
+# Safari engine (Playwright WebKit): add --browser webkit (set PLAYWRIGHT_MODULE if needed)
 
 Stage 2 (preview branch only until approved): placement that can set a starting level, a GCSE 9–1 ladder, spaced review, maths teach-pattern lessons, and official Corbettmaths clips. Storage key stays `rawson-learning-lab-v1`. Nothing in this preview should be merged until the wording has been checked.
 

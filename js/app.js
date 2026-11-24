@@ -31,6 +31,11 @@ let liveLesson = null;
 let lessonFinishLock = null;
 let liveDiag = null;
 let navLock = false;
+/** Bumps on every screen change. Async finishers check it so a slow cloud save
+ *  never drags a child back to a screen they already left with Back. */
+let navSeq = 0;
+/** Hash the router last painted — lets the hash listener skip only its own echo. */
+let lastGoHash = null;
 /** Subject of the lesson on screen — Browser Back must return here, not the hub. */
 let lastLessonSubject = null;
 
@@ -651,6 +656,14 @@ function hashFor(screen, params = {}) {
 }
 
 function cleanupTransientUi() {
+  // A left-over "Something's wrong?" overlay would sit over the next screen
+  if (typeof closeSomethingWrong === "function") {
+    try {
+      closeSomethingWrong();
+    } catch (_) {
+      /* ignore */
+    }
+  }
   // Drop leftover keyboard listeners from quizzes / Power 5
   if (window.__diagKeyHandler) {
     try {
@@ -671,6 +684,7 @@ function cleanupTransientUi() {
 
 function go(screen, params = {}, opts = {}) {
   navLock = true;
+  navSeq++;
   stopParentPoll();
   cleanupTransientUi();
   try {
@@ -764,18 +778,22 @@ function go(screen, params = {}, opts = {}) {
         const subjectHash = hashFor("subject", { subject: params.subject });
         if (location.hash !== subjectHash) {
           history.replaceState(
-            { screen: "subject", params: { subject: params.subject } },
+            {
+              screen: "subject",
+              params: { subject: params.subject },
+              labBelow: labBelowHere(),
+            },
             "",
             subjectHash
           );
         }
         if (location.hash !== nextHash) {
-          history.pushState({ screen, params }, "", nextHash);
+          history.pushState({ screen, params, labBelow: location.hash }, "", nextHash);
         }
       } else if (ephemeral.has(screen)) {
-        history.replaceState({ screen, params }, "", nextHash);
+        history.replaceState({ screen, params, labBelow: labBelowHere() }, "", nextHash);
       } else if (location.hash !== nextHash) {
-        history.pushState({ screen, params }, "", nextHash);
+        history.pushState({ screen, params, labBelow: location.hash }, "", nextHash);
       }
     } catch (_) {
       try {
@@ -785,6 +803,8 @@ function go(screen, params = {}, opts = {}) {
       }
     }
   }
+
+  lastGoHash = location.hash;
 
   const routes = {
     home: renderHome,
@@ -838,14 +858,60 @@ function go(screen, params = {}, opts = {}) {
   }
 }
 
+/** labBelow of the current history entry (kept when we replace it). */
+function labBelowHere() {
+  try {
+    return (history.state && history.state.labBelow) || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * In-app Back. If the page underneath in browser history is the place this
+ * button goes to, step back to it (so in-app Back and browser Back match and
+ * history does not pile up). Otherwise open it directly. A fallback timer makes
+ * sure the button always does something, even if the browser drops the step.
+ */
+function goBackTo(screen, params = {}) {
+  const target = hashFor(screen, params);
+  let below = null;
+  try {
+    below = history.state && history.state.labBelow;
+  } catch (_) {
+    below = null;
+  }
+  if (below && below === target && location.hash !== target) {
+    const seq = navSeq;
+    try {
+      history.back();
+    } catch (_) {
+      go(screen, params);
+      return;
+    }
+    setTimeout(() => {
+      if (navSeq === seq) go(screen, params);
+    }, 600);
+    return;
+  }
+  go(screen, params);
+}
+
+/** True while the screen that started an async save is still the one showing. */
+function stillOnScreen(seq) {
+  return seq === navSeq;
+}
+
 function leaveLessonToSubject(subject, session) {
   if (session && typeof persistQuizSession === "function") persistQuizSession(session);
   liveLesson = null;
-  go("subject", { subject });
+  goBackTo("subject", { subject });
 }
 
 function onHashNavigation() {
-  if (navLock) return;
+  // Skip only the echo of our own history write (popstate + hashchange both
+  // fire for one browser Back). A real move to a different hash is never dropped.
+  if (navLock && location.hash === lastGoHash) return;
   const { screen, params } = parseHashRoute();
   const leavingLesson =
     currentScreen === "lesson" || currentScreen === "lessonResult";
@@ -1284,13 +1350,142 @@ function nudgePickAnswer() {
   }
 }
 
+/**
+ * After an answer the child stays on the result until they press Next, so they
+ * can read whether it was right. (It used to auto-skip after 1.6 seconds.)
+ */
 function scheduleAutoNext(btn) {
-  if (window.__autoNextTimer) clearTimeout(window.__autoNextTimer);
-  window.__autoNextTimer = setTimeout(() => {
+  if (window.__autoNextTimer) {
+    clearTimeout(window.__autoNextTimer);
     window.__autoNextTimer = null;
-    if (document.getElementById("swOverlay")) return;
-    if (btn && document.body.contains(btn)) btn.click();
-  }, 1600);
+  }
+  try {
+    if (btn && document.body.contains(btn)) btn.focus({ preventScroll: true });
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+/** Clear right / wrong message: tick + "Correct!" or cross + "Not quite" + the answer. */
+function answerFeedbackHtml(q, ok, opts = {}) {
+  const explain = q && q.explain ? escapeHtml(q.explain) : "";
+  if (opts.idk) {
+    const right = typeof prevQAnswerText === "function" ? prevQAnswerText(q || {}, q && q.answer) : "";
+    return `<span class="fb-mark fb-bad" aria-hidden="true">✗</span> <strong>That's OK.</strong>${
+      right ? ` The answer is <strong class="fb-answer">${escapeHtml(right)}</strong>.` : ""
+    }${opts.lead ? " " + opts.lead : ""}${explain ? `<span class="fb-explain">${explain}</span>` : ""}`;
+  }
+  if (ok) {
+    return `<span class="fb-mark fb-good" aria-hidden="true">✓</span> <strong>Correct!</strong>${
+      opts.extra || ""
+    }${explain ? `<span class="fb-explain">${explain}</span>` : ""}`;
+  }
+  const right = typeof prevQAnswerText === "function" ? prevQAnswerText(q || {}, q && q.answer) : "";
+  return `<span class="fb-mark fb-bad" aria-hidden="true">✗</span> <strong>Not quite.</strong>${
+    right ? ` The answer is <strong class="fb-answer">${escapeHtml(right)}</strong>.` : ""
+  }${explain ? `<span class="fb-explain">${explain}</span>` : ""}`;
+}
+
+/* —— Previous question (look back only) ——
+ * Lets a child see the question before this one, with the answer they gave.
+ * Read-only: it never re-scores, never awards XP, never touches streaks,
+ * saved progress or spaced-review dates. */
+function prevQEntry(q, a) {
+  if (!q) return null;
+  const given = a ? a.answer : null;
+  return {
+    q: q.q || q.prompt || "",
+    passage: q.passage || "",
+    type: q.type,
+    options: Array.isArray(q.options) ? q.options.slice() : null,
+    answer: q.answer,
+    explain: q.explain || "",
+    given,
+    ok: a && a.ok != null ? !!a.ok : null,
+    dontKnow: !!(a && (a.dontKnow || given === "__idk__" || (q.type === "multi" && Number(given) === -1))),
+    skipped: !!(a && a.skipped),
+  };
+}
+
+function logAnsweredQuestion(session, q, given, ok, dontKnow) {
+  if (!session || !q) return;
+  if (!Array.isArray(session.answerLog)) session.answerLog = [];
+  session.answerLog.push(prevQEntry(q, { answer: given, ok, dontKnow }));
+  if (session.answerLog.length > 40) session.answerLog.shift();
+}
+
+function prevQAnswerText(e, value) {
+  if (value == null || value === "") return "";
+  if (e.type === "multi" && e.options) {
+    const i = Number(value);
+    return Number.isInteger(i) && e.options[i] != null ? String(e.options[i]) : "";
+  }
+  if (Array.isArray(value)) return String(value[0] == null ? "" : value[0]);
+  return String(value);
+}
+
+function prevQuestionPanelHtml(e) {
+  let yours;
+  if (e.skipped) yours = "Skipped";
+  else if (e.dontKnow) yours = "I don't know";
+  else yours = prevQAnswerText(e, e.given) || "No answer";
+  const right = prevQAnswerText(e, e.answer);
+  const mark = e.skipped || e.ok == null ? "" : e.ok ? " ✓" : " ✗";
+  return `
+    <p class="prev-q-label">Previous question</p>
+    ${e.passage ? `<blockquote class="muted prev-q-passage">${escapeHtml(e.passage)}</blockquote>` : ""}
+    <p class="prev-q-text"><strong>${escapeHtml(e.q)}</strong></p>
+    <p class="prev-q-line ${e.ok ? "is-right" : e.ok === false ? "is-wrong" : ""}">Your answer: <strong>${escapeHtml(yours)}</strong>${mark}</p>
+    ${right && !e.ok ? `<p class="prev-q-line">Answer: <strong>${escapeHtml(right)}</strong></p>` : ""}
+    ${e.explain ? `<p class="muted prev-q-explain">${escapeHtml(e.explain)}</p>` : ""}
+    <button type="button" class="btn btn-secondary" id="btnPrevQClose">Back to this question</button>`;
+}
+
+/**
+ * Adds "← Previous question" to the question's button row.
+ * getPrev() returns the entry to show, or null on the first question.
+ */
+function attachPrevQuestion(getPrev) {
+  const anchor = document.getElementById("btnCheck") || document.getElementById("btnNext");
+  const row = anchor && anchor.parentElement;
+  if (!row || document.getElementById("btnPrevQ")) return;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn btn-ghost btn-prev-q";
+  btn.id = "btnPrevQ";
+  btn.textContent = "← Previous question";
+  const first = !getPrev();
+  if (first) {
+    btn.disabled = true;
+    btn.title = "This is the first question";
+    btn.setAttribute("aria-disabled", "true");
+  }
+  row.insertBefore(btn, row.firstChild);
+  const box = document.createElement("div");
+  box.className = "prev-q-box";
+  box.id = "prevQBox";
+  box.hidden = true;
+  box.setAttribute("aria-live", "polite");
+  row.parentNode.insertBefore(box, row.nextSibling);
+  const close = () => {
+    box.hidden = true;
+    box.innerHTML = "";
+    btn.textContent = "← Previous question";
+  };
+  btn.addEventListener("click", () => {
+    if (!box.hidden) return close();
+    const e = getPrev();
+    if (!e) return;
+    // Looking back should not be cut short by the auto "Next"
+    if (window.__autoNextTimer) {
+      clearTimeout(window.__autoNextTimer);
+      window.__autoNextTimer = null;
+    }
+    box.innerHTML = prevQuestionPanelHtml(e);
+    box.hidden = false;
+    btn.textContent = "Hide previous question";
+    box.querySelector("#btnPrevQClose")?.addEventListener("click", close);
+  });
 }
 
 function reportLearnerName() {
@@ -1905,9 +2100,10 @@ function renderPower5({ subject }) {
       <button class="btn btn-ghost mt-1" type="button" id="btnExitP5">Exit</button>
     `;
     bindShell();
+    attachPrevQuestion(() => (index > 0 ? prevQEntry(qs[index - 1], answers[index - 1]) : null));
     document.getElementById("btnExitP5").onclick = () => {
       cleanupP5();
-      go("dashboard");
+      goBackTo("dashboard");
     };
     bindReport({
       section: SUBJECTS[subject].name,
@@ -2001,11 +2197,10 @@ function renderPower5({ subject }) {
       }
       const fb = document.getElementById("feedback");
       fb.className = `feedback ${ok ? "good" : "bad"}`;
-      fb.innerHTML = fromIdk
-        ? `That's OK — we'll ease the next ones. ${escapeHtml(q.explain || "")}`
-        : ok
-          ? `✓ ${escapeHtml(q.explain || "Correct!")}`
-          : `Not quite. ${escapeHtml(q.explain || "")}`;
+      fb.innerHTML = answerFeedbackHtml(q, ok, {
+        idk: !!fromIdk,
+        lead: "We'll ease the next ones.",
+      });
       if (q.type === "multi") {
         body.querySelectorAll(".option").forEach((btn) => {
           const i = Number(btn.dataset.i);
@@ -2050,6 +2245,7 @@ function renderPower5({ subject }) {
   }
 
   async function finishP5() {
+    const finishSeq = navSeq;
     const scored = Object.values(answers).filter((a) => a && !a.skipped);
     const correct = scored.filter((a) => a.ok).length;
     const total = scored.length;
@@ -2097,6 +2293,8 @@ function renderPower5({ subject }) {
     } catch (e) {
       console.error(e);
     }
+    // Saved. Don't paint the result over a screen the child already moved to.
+    if (!stillOnScreen(finishSeq)) return;
     if (scorePct >= 80) {
       if (typeof fireConfetti === "function") fireConfetti();
     }
@@ -2421,9 +2619,10 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
       <button class="btn btn-ghost mt-1" type="button" id="btnExitExam">Exit</button>
     `;
     bindShell();
+    attachPrevQuestion(() => (index > 0 ? prevQEntry(qs[index - 1], answers[index - 1]) : null));
     document.getElementById("btnExitExam").onclick = () => {
       stopTimer();
-      go("subject", { subject });
+      goBackTo("subject", { subject });
     };
     bindReport({
       section: SUBJECTS[subject].name,
@@ -2505,9 +2704,7 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
         answers[index] = { ok, answer: answerVal };
         const fb = document.getElementById("feedback");
         fb.className = `feedback ${ok ? "good" : "bad"}`;
-        fb.innerHTML = ok
-          ? `✓ ${escapeHtml(q.explain || "Correct!")}`
-          : `Not quite. ${escapeHtml(q.explain || "")}`;
+        fb.innerHTML = answerFeedbackHtml(q, ok);
         if (q.type === "multi") {
           body.querySelectorAll(".option").forEach((btn) => {
             const i = Number(btn.dataset.i);
@@ -2531,6 +2728,7 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
   }
 
   async function finishExam() {
+    const finishSeq = navSeq;
     stopTimer();
     // Unanswered counts as wrong. A skipped question does not.
     for (let i = 0; i < qs.length; i++) {
@@ -2575,6 +2773,7 @@ function renderExam({ subject, packStage, mode, questions, title, minutes }) {
     } catch (e) {
       console.error(e);
     }
+    if (!stillOnScreen(finishSeq)) return; // saved; child already left
     go("examResult", {
       subject,
       packStage,
@@ -3037,7 +3236,7 @@ function renderSubject({ subject }) {
 
   appEl.innerHTML = `
     ${topbar()}
-    <button class="btn btn-ghost mb-1" type="button" data-go="dashboard">← Back to hub</button>
+    <button class="btn btn-ghost mb-1" type="button" id="btnSubjectBack">← Back to hub</button>
 
     <div class="subject-top card mb-2">
       <img class="subject-top-img" src="${subjectIllust(subject).src}" alt="" />
@@ -3227,6 +3426,22 @@ function renderSubject({ subject }) {
       go("subject", { subject });
     });
   });
+  document.getElementById("btnSubjectBack")?.addEventListener("click", () =>
+    goBackTo("dashboard")
+  );
+  // Review links open the lesson through the router (subject page stays underneath)
+  appEl.querySelectorAll(".review-list a[href^='#/lesson/']").forEach((a) => {
+    a.addEventListener("click", (e) => {
+      const parts = (a.getAttribute("href") || "").replace(/^#\/?/, "").split("/");
+      if (parts[0] !== "lesson" || !parts[1] || !parts[2]) return;
+      e.preventDefault();
+      go("lesson", {
+        subject: decodeURIComponent(parts[1]),
+        skillId: decodeURIComponent(parts[2]),
+        stage: Number(parts[3]) || 1,
+      });
+    });
+  });
   appEl.querySelectorAll(".lesson-row[data-lesson]").forEach((btn) => {
     btn.addEventListener("click", () => {
       if (btn.disabled) return;
@@ -3288,6 +3503,7 @@ function renderDiagnostic({ subject }) {
     return;
   }
   const answers = {};
+  const diagLog = []; // look-back copy for "Previous question" only
   let index = 0;
   let revealed = false;
   const diagStore = `rawson-live-diag-v1:${diagKey}`;
@@ -3323,6 +3539,9 @@ function renderDiagnostic({ subject }) {
     const pct = Math.round((index / qs.length) * 100);
     appEl.innerHTML = `
       ${topbar()}
+      <button class="btn btn-ghost mb-1" type="button" id="btnDiagBack">← Back to ${escapeHtml(
+        S.name
+      )}</button>
       <div class="quiz-header">
         <div>
           <div class="q-meta">${S.emoji} ${S.name} placement · Q${index + 1} of ${
@@ -3358,6 +3577,24 @@ function renderDiagnostic({ subject }) {
       </div>
     `;
     bindShell();
+    attachPrevQuestion(() => {
+      if (index <= 0) return null;
+      if (diagLog[index - 1]) return diagLog[index - 1];
+      const pq = qs[index - 1];
+      if (!pq) return null;
+      const raw = answers[pq.id];
+      const skipped = raw === "__skip__";
+      return prevQEntry(pq, {
+        answer: skipped ? null : raw,
+        skipped,
+        ok: raw == null || skipped ? null : checkAnswer(pq, raw),
+      });
+    });
+    document.getElementById("btnDiagBack")?.addEventListener("click", () => {
+      persistDiag();
+      if (liveDiag && liveDiag.key === diagKey) liveDiag = null;
+      goBackTo("subject", { subject });
+    });
     bindReport({
       section: S.name,
       lesson: "Placement test",
@@ -3443,6 +3680,7 @@ function renderDiagnostic({ subject }) {
 
     function revealDiag(ok, fromIdk) {
       revealed = true;
+      diagLog[index] = prevQEntry(q, { answer: fromIdk ? null : answers[q.id], ok, dontKnow: !!fromIdk });
       if (placer && typeof placer.record === "function") {
         placer.record(!!ok && !fromIdk);
         if (typeof placer.storeAnswer === "function") {
@@ -3460,9 +3698,10 @@ function renderDiagnostic({ subject }) {
       }
       const fb = document.getElementById("feedback");
       fb.className = `feedback ${ok ? "good" : "bad"}`;
-      fb.textContent = fromIdk
-        ? "That's OK — next questions will ease up. " + (q.explain || "")
-        : (ok ? "✓ Correct! " : "Not quite. ") + (q.explain || "");
+      fb.innerHTML = answerFeedbackHtml(q, ok, {
+        idk: !!fromIdk,
+        lead: "Next questions will ease up.",
+      });
       if (q.type === "multi") {
         body.querySelectorAll(".option").forEach((btn) => {
           const i = Number(btn.dataset.i);
@@ -3549,6 +3788,7 @@ function renderDiagnostic({ subject }) {
   }
 
   async function finish() {
+    const finishSeq = navSeq;
     if (liveDiag && liveDiag.key === diagKey) {
       liveDiag.finished = true;
       liveDiag = null;
@@ -3573,6 +3813,7 @@ function renderDiagnostic({ subject }) {
         /* ignore */
       }
     }
+    if (!stillOnScreen(finishSeq)) return; // saved; child already left with Back
     go("diagnosticResult", { subject, result });
   }
 
@@ -4105,6 +4346,12 @@ function renderLesson({ subject, skillId, stage }) {
       <button class="btn btn-ghost mt-1" type="button" id="btnExitLesson">Exit lesson</button>
     `;
     bindShell();
+    attachPrevQuestion(() => {
+      const log = Array.isArray(session.answerLog) ? session.answerLog : [];
+      // Once this question is answered, its own entry is last — show the one before
+      const at = revealed ? log.length - 2 : log.length - 1;
+      return at >= 0 ? log[at] : null;
+    });
     bindReport({
       section: SUBJECTS[subject].name,
       lesson: mod.title,
@@ -4333,12 +4580,11 @@ function renderLesson({ subject, skillId, stage }) {
         if (session.phase === "guided" || session.phase === "exit") {
           handlePracticeAnswer(session, q, answerVal);
         }
+        logAnsweredQuestion(session, q, answerVal, ok, false);
         const fb = document.getElementById("feedback");
         if (fb) {
           fb.className = `feedback ${ok ? "good" : "bad"}`;
-          fb.innerHTML = ok
-            ? `✓ Nice! ${escapeHtml(q.explain || "Correct!")}`
-            : `Not quite. ${escapeHtml(q.explain || "Read the tip, then press Next.")}`;
+          fb.innerHTML = answerFeedbackHtml(q, ok);
         }
         if (q.type === "multi") {
           body.querySelectorAll(".option").forEach((btn) => {
@@ -4469,6 +4715,7 @@ function renderLesson({ subject, skillId, stage }) {
     }
 
     function afterAnswerReveal(ok, fromIdk) {
+      logAnsweredQuestion(session, q, fromIdk ? null : answerVal, ok, !!fromIdk);
       if (typeof persistQuizSession === "function") persistQuizSession(session);
       const fb = document.getElementById("feedback");
       fb.className = `feedback ${ok ? "good" : "bad"}`;
@@ -4482,11 +4729,12 @@ function renderLesson({ subject, skillId, stage }) {
           session.queue[session.practiceIndex + 1] &&
           (session.queue[session.practiceIndex + 1]._src === "help" ||
             session.queue[session.practiceIndex + 1]._diff === 0);
-        fb.innerHTML = `That's OK — next questions are easier now (${escapeHtml(
-          lv
-        )})${nextIsEasy ? " · 🛟 help question coming up" : ""}. ${escapeHtml(
-          q.explain || "Have a look at this tip, then press Next."
-        )}`;
+        fb.innerHTML = answerFeedbackHtml(q, false, {
+          idk: true,
+          lead: `Next questions are easier now (${escapeHtml(lv)})${
+            nextIsEasy ? " · 🛟 help question coming up" : ""
+          }.`,
+        });
       } else {
         const journeySubject =
           typeof georgeIsJourneySubject === "function" &&
@@ -4513,11 +4761,9 @@ function renderLesson({ subject, skillId, stage }) {
           ok &&
           nextQ &&
           (nextQ._src === "stretch" || (Number(nextQ._diff) || 1) >= 2);
-        fb.innerHTML = ok
-          ? `✓ Nice! ${escapeHtml(q.explain || "Correct!")}${
-              nextHarder ? " · 🔥 harder question coming up" : ""
-            }`
-          : `Not quite. ${escapeHtml(q.explain || "Read the tip, then press Next.")}`;
+        fb.innerHTML = answerFeedbackHtml(q, ok, {
+          extra: nextHarder ? " · 🔥 harder question coming up" : "",
+        });
       }
 
       if (q.type === "multi") {
@@ -4634,6 +4880,7 @@ function renderLesson({ subject, skillId, stage }) {
   async function finishSession() {
     if (finishing) return;
     finishing = true;
+    const finishSeq = navSeq;
     session.finished = true;
     session.phase = "complete";
     lessonFinishLock = { key: liveKey, subject, skillId, stage: stageNum, at: Date.now() };
@@ -4727,6 +4974,14 @@ function renderLesson({ subject, skillId, stage }) {
       } catch (_) {
         /* ignore */
       }
+    }
+    // Saved locally already. If the child tapped Back while the cloud save was
+    // running, stay where they went — don't pull them back to the result.
+    if (!stillOnScreen(finishSeq)) {
+      setTimeout(() => {
+        if (lessonFinishLock && lessonFinishLock.key === liveKey) lessonFinishLock = null;
+      }, 0);
+      return;
     }
     // If this lesson finished the whole level, celebrate FIRST — don't silently skip ahead
     const stageDoneNow = isStageComplete(profile(), subject, stageNum);
@@ -4890,7 +5145,9 @@ async function unlockAndOpenStage(subject, nextStage) {
     sanitiseStageCompletions(live, stage);
   }
   p.updatedAt = Date.now();
+  const unlockSeq = navSeq;
   await save({ quiet: false });
+  if (!stillOnScreen(unlockSeq)) return; // new stage is saved; child went elsewhere
   const firstId =
     (typeof firstLessonOfStage === "function" && firstLessonOfStage(p, subject, stage)) ||
     (live && Array.isArray(live.path) && live.path[0]) ||
@@ -5040,11 +5297,11 @@ function renderLessonResult({
 
   document.getElementById("btnBackToSubject")?.addEventListener("click", () => {
     clearAuto();
-    go("subject", { subject });
+    goBackTo("subject", { subject });
   });
   document.getElementById("more")?.addEventListener("click", () => {
     clearAuto();
-    go("subject", { subject });
+    goBackTo("subject", { subject });
   });
   document.getElementById("btnNextSkill")?.addEventListener("click", () => {
     clearAuto();
