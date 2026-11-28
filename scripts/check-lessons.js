@@ -51,6 +51,7 @@ const FILES = [
   "js/week3-content.js",
   "js/week4-content.js",
   "js/week5-content.js",
+  "js/week6-content.js",
   "js/report-problem.js",
 ];
 
@@ -698,30 +699,69 @@ function checkMiniLessonsAndProgressGuard() {
 checkMiniLessonsAndProgressGuard();
 
 
-(function weekFiveIsOffered() {
+(function weekSixDoesNotRepeat() {
+  const older = new Set();
+  const fresh = new Set();
+  function note(q) {
+    if (!q || !q.q) return;
+    const id = questionFingerprint(q);
+    if (!id) return;
+    if (Number(q.week) === 6) fresh.add(id);
+    else older.add(id);
+  }
+  Object.keys(SKILLS || {}).forEach((subject) => {
+    Object.keys(SKILLS[subject] || {}).forEach((skillId) => {
+      for (let stage = 1; stage <= 6; stage++) {
+        const mod = getTeachModule(subject, skillId, stage, null);
+        if (!mod) continue;
+        (mod.practice || []).forEach(note);
+        ((mod.struggle && mod.struggle.practice) || []).forEach(note);
+        const mini = typeof getMiniLesson === "function" ? getMiniLesson(subject, skillId, stage) : null;
+        if (mini) {
+          (mini.prereq || []).forEach(note);
+          (mini.guided || []).forEach(note);
+          if (mini.exit) note(mini.exit);
+        }
+      }
+    });
+  });
+  Object.keys(DIAGNOSTICS || {}).forEach((subject) => {
+    (DIAGNOSTICS[subject] || []).forEach(note);
+  });
+  let clashes = 0;
+  fresh.forEach((id) => {
+    if (older.has(id)) {
+      clashes++;
+      if (clashes <= 12) fail("this week's question repeats an older one: " + id);
+    }
+  });
+  if (fresh.size < 350) fail("this week added too few questions (" + fresh.size + ")");
+})();
+
+(function weekSixIsOffered() {
   const profile = defaultProfile("george");
   state = { profiles: { george: profile, bella: defaultProfile("bella") }, activeLearner: "george" };
   const easy = createTutorSession("maths", "number", "george", 1);
-  const easyWeeks = ((easy && easy.queue) || []).filter((q) => Number(q.week) === 5);
+  const easyWeeks = ((easy && easy.queue) || []).filter((q) => Number(q.week) === 6);
   if (!easyWeeks.length) fail("First steps maths does not offer this week's questions");
   const firstWeek = ((easy && easy.queue) || []).find((q) => q && q.week);
-  if (!firstWeek || Number(firstWeek.week) !== 5) {
+  if (!firstWeek || Number(firstWeek.week) !== 6) {
     fail("newest week is not offered before older weeks");
   }
   const secure = createTutorSession("maths", "number", "bella", 3);
-  const secureWeeks = ((secure && secure.queue) || []).filter((q) => Number(q.week) === 5);
+  const secureWeeks = ((secure && secure.queue) || []).filter((q) => Number(q.week) === 6);
   if (!secureWeeks.length) fail("Secure maths does not offer this week's questions");
-  const stillThere = ((secure && secure.queue) || []).some((q) => Number(q.week) === 4);
+  const stillThere = ((secure && secure.queue) || []).some((q) => Number(q.week) === 5);
   if (!stillThere) fail("last week's Secure questions were wiped");
   const cheer = createTutorSession("karting", "k-cheer", "george", 1);
-  const cheerWeeks = ((cheer && cheer.queue) || []).filter((q) => Number(q.week) === 5);
+  const cheerWeeks = ((cheer && cheer.queue) || []).filter((q) => Number(q.week) === 6);
   if (!cheerWeeks.length) fail("Cheering from the safe side does not offer this week's questions");
   const saved = savedStageProgress(profile, "karting", 1);
   if (!saved || saved.name !== "First laps") fail("a new karting lesson should still name the level First laps");
 
   setDifficultyChoice(profile, "maths", "easier");
   const gentle = createTutorSession("maths", "number", "george", 1);
-  const gentleWeeks = ((gentle && gentle.queue) || []).filter((q) => Number(q.week) === 5);
+  const gentleWeeks = ((gentle && gentle.queue) || []).filter((q) => Number(q.week) === 6);
   if (!gentleWeeks.length) fail("easier First steps does not offer this week's easy questions");
   const gentleHard = ((gentle && gentle.queue) || []).filter((q) => Number(q._stage) >= 4);
   if (gentleHard.length) fail("easier First steps pulled a later-stage question");
@@ -1036,6 +1076,7 @@ if (!indexSrc.includes("js/report-problem.js")) wiring.push("index.html does not
 if (!indexSrc.includes("js/week-content.js")) wiring.push("index.html does not load week-content.js");
 if (!indexSrc.includes("js/week4-content.js")) wiring.push("index.html does not load week4-content.js");
 if (!indexSrc.includes("js/week5-content.js")) wiring.push("index.html does not load week5-content.js");
+if (!indexSrc.includes("js/week6-content.js")) wiring.push("index.html does not load week6-content.js");
 if (!indexSrc.includes("js/stage2.js")) wiring.push("index.html does not load stage2.js");
 if (!indexSrc.includes("js/lesson-videos.js")) wiring.push("index.html does not load lesson-videos.js");
 if (!indexSrc.includes("js/maths-minis.js")) wiring.push("index.html does not load maths-minis.js");

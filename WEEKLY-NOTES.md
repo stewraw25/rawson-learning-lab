@@ -1,13 +1,14 @@
-# Weekly notes — 21 November 2026
+# Weekly notes — 28 November 2026
 
 Nothing here is live until Stewart merges it. Saved progress was not reset, and this week’s checks did not write to the family’s cloud copy.
 
-No problem reports arrived from the “Something’s wrong” button this week. The button still opens, saves a note on this device, and can email Stewart.
+No problem reports arrived from the “Something’s wrong” button this week. The button still opens on a lesson, keeps a note on this device, and can email Stewart.
 
-## Fixed
+## Checked
 
-- Finishing a level in one sitting no longer opens the next level. The celebration screen and the hub button used to say Unlock and skip the wait. They now explain that the level is meant to last, and the lessons stay saved. Formula 1 needs two different days. Maths, English and Science need four, so Bella-Rose cannot reach GCSE Core on the day she finishes Secure, and George cannot race through First steps into the later levels.
-- A crash button that said “Reset local data” used to send the browser to the live site. It now reloads this copy only.
+Every lesson for Bella-Rose and George was played through: each question has one right answer, a wrong answer is not marked right, and a finished lesson still saves. Goals, stars and badges survive a reload. New questions do not wipe an old tick, and cloud saves still use `s1`, `s2` and so on.
+
+Nothing in the lessons was stuck, dead-ended or repeating, so there is no repair in this week’s change. The fresh questions sit inside the lessons that already exist.
 
 ## Added
 
